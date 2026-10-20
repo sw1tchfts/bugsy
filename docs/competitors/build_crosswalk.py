@@ -41,7 +41,7 @@ PLAN_NOTES = {
 def clean(s):
     if not isinstance(s, str):
         return s
-    s = s.replace("—", ", ").replace("–", " to ").replace("→", " to ")
+    s = s.replace(chr(0x2014), ", ").replace(chr(0x2013), " to ").replace(chr(0x2192), " to ")
     return re.sub(r"\s+,", ",", s).strip()
 
 def safe_url(u):
