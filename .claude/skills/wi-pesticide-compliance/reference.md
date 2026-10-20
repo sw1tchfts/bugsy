@@ -51,7 +51,7 @@ Source: https://docs.legis.wisconsin.gov/code/admin_code/atcp/020/29/ix/55
 
 ## Landscape applications (ATCP 29.56)
 
-"Landscape" covers turf, ornamental and mulched areas around homes, businesses, parks, workplaces and similar sites. Perimeter barrier applications are not landscape applications, but structural applications beyond 10 feet of the structure follow landscape rules (DATCP structural checklist).
+"Landscape" covers turf, ornamental and mulched areas around homes, businesses, parks, workplaces and similar sites. For a pest company this means yard mosquito and tick spraying, and structural applications more than 10 feet from the structure (DATCP structural checklist). Perimeter barrier applications within that band are not landscape applications.
 
 - Customer offer of pre-application information before the first application and yearly on continuing contracts.
 - Warning signs at the application site before applying (form and placement in the rule).
@@ -68,7 +68,7 @@ Source: https://datcp.wi.gov/Documents/HTCStructuralChecklist.pdf
 
 ## Certification categories
 
-17 base categories and 3 subcategories. Relevant: 3.0 Turf and Landscape (lawn care); 5.0 Aquatic and Mosquito (mosquito control on land or larvae in water); 7.1 Structural (pests including vertebrates and birds in and around structures); 7.2 Space and Commodity Fumigation; 7.3 Termite Control; 26.0 Chemigation (includes mosquito misting systems). Anyone applying any pesticide to K-12 public school property must be certified.
+17 base categories and 3 subcategories. Relevant: 5.0 Aquatic and Mosquito (mosquito control on land or larvae in water); 7.1 Structural (pests including vertebrates and birds in and around structures); 7.2 Space and Commodity Fumigation; 7.3 Termite Control; 26.0 Chemigation (includes mosquito misting systems). Anyone applying any pesticide to K-12 public school property must be certified.
 
 Sources: https://fyi.extension.wisc.edu/pat/commercial-certification-categories/, https://fyi.extension.wisc.edu/pat/commercial-how-to-get-certified-and-licensed/
 

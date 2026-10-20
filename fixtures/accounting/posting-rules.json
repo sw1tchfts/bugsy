@@ -32,8 +32,8 @@
       "input": {
         "lines": [
           {
-            "service_type": "lawn",
-            "tax_class": "taxable_landscaping",
+            "service_type": "mosquito",
+            "tax_class": "taxable",
             "amount_cents": 6000,
             "tax_rate": "0.055"
           }
@@ -53,7 +53,8 @@
           "credit_cents": 330,
           "subledger": "jurisdiction"
         }
-      ]
+      ],
+      "note": "Tests the tax path only. No pest service is confirmed taxable yet; yard mosquito spraying would follow this path if DOR confirms it is taxable."
     },
     {
       "event": "visit_completed",

@@ -35,7 +35,7 @@ On cancellation: stop autopay, cancel future visits, then settle the contract ba
 
 Assets: `operating_bank`, `stripe_clearing`, `accounts_receivable`, `contract_asset`, `chemical_inventory`, `vehicles`.
 Liabilities: `contract_liability`, `sales_tax_payable` (subledger by jurisdiction), `commissions_payable`, `payroll_liabilities`.
-Revenue: `revenue_general_pest`, `revenue_rodent`, `revenue_termite`, `revenue_mosquito`, `revenue_bed_bug`, `revenue_wildlife`, `revenue_lawn`, `cancellation_fee_income`.
+Revenue: `revenue_general_pest`, `revenue_rodent`, `revenue_termite`, `revenue_mosquito`, `revenue_bed_bug`, `revenue_wildlife`, `cancellation_fee_income`.
 Expenses: `chemical_cost`, `technician_labor`, `commissions_expense`, `processing_fees`, `licenses_and_permits`, `vehicle_expense`.
 
 ## Posting rules
@@ -54,7 +54,7 @@ Every entry balances to the cent. Closed periods reject new postings; correction
 ## Sales tax (Wisconsin)
 
 - Taxability comes from the service type's `tax_class`, never from line descriptions.
-- Lawn spraying and fertilizing, and tree and shrub spraying, are taxable landscaping services (DOR Publication 210). Structural pest control is treated as nontaxable until confirmed with DOR. Yard mosquito and tick spraying is an open question.
+- Structural pest control is treated as nontaxable until confirmed with DOR. Yard mosquito and tick spraying is an open question, because Wisconsin taxes spraying of lawns, trees and shrubs as a landscaping service (DOR Publication 210). Keep the tax path working so a service type can become taxable without code changes.
 - Rate is the state rate plus county and other local taxes where the service is received (the service address). Rates come from DOR tables with effective dates; never hardcode a rate.
 - Invoices mixing taxable and nontaxable work show the portions separately and tax only the taxable part.
 - Exemption certificates on the account (for example a government unit) zero the tax and are kept with the invoice.

@@ -20,7 +20,7 @@ PLAN = {
     "MOB-01": "P1", "MOB-02": "P1", "MOB-03": "P1", "MOB-04": "P1", "MOB-05": "P2", "MOB-06": "TBD", "MOB-07": "P2", "MOB-08": "P2",
     "CMP-01": "P1", "CMP-02": "P1", "CMP-03": "P1", "CMP-04": "P1", "CMP-05": "P1", "CMP-06": "P1", "CMP-07": "P2", "CMP-08": "P1",
     "COM-01": "P2", "COM-02": "P2", "COM-03": "P2", "COM-04": "P2", "COM-05": "P2", "COM-06": "P2", "COM-07": "P2",
-    "SPC-01": "P2", "SPC-02": "P2", "SPC-03": "P2", "SPC-04": "P1", "SPC-05": "P1",
+    "SPC-01": "P2", "SPC-02": "P2", "SPC-03": "P2", "SPC-05": "P1",
     "BIL-01": "P1", "BIL-02": "P1", "BIL-03": "P1", "BIL-04": "P1", "BIL-05": "P1", "BIL-06": "P1", "BIL-07": "P1",
     "ACC-01": "P1", "ACC-02": "P2", "ACC-03": "Not planned", "ACC-04": "P1", "ACC-05": "P2", "ACC-06": "P2",
     "CX-01": "P2", "CX-02": "P1", "CX-03": "TBD", "CX-04": "Not planned", "CX-05": "P1",
@@ -30,7 +30,6 @@ PLAN = {
 PLAN_NOTES = {
     "MOB-01": "Installable mobile web app in Phase 1, not a native app",
     "PLT-04": "Spreadsheet import in Phase 1; importers for other pest software in Phase 3",
-    "SPC-04": "Lawn rounds and tax in Phase 1 through seasonal programs",
     "SPC-05": "Mosquito seasons in Phase 1 through seasonal programs",
     "MOB-06": "Open question in spec 06",
     "SCH-07": "Open question in spec 05",

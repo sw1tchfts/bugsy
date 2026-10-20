@@ -10,7 +10,7 @@ Tenants bill their customers per visit, flat monthly or annual prepay, take card
 ## Already decided (from the discovery doc)
 - Stripe Connect, one connected account per tenant; card data never touches our database.
 - One statement per account across agreements.
-- Taxability is set per service type: lawn, tree and shrub spraying taxable; structural pest work treated as not taxable pending confirmation. Rates by service address from DOR tables.
+- Taxability is set per service type: structural pest work treated as not taxable pending confirmation; yard mosquito and tick spraying is an open question. Rates by service address from DOR tables.
 - Collections: reminders, automatic retries, optional late fees, past-due flag that can pause service.
 - Tenant billing (customers) and platform billing (tenants paying us) are separate modules.
 

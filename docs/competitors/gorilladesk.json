@@ -42,166 +42,773 @@
     "wisconsin_notes": "No Wisconsin-specific compliance found (no ATCP 29 fields, landscape registry notice or posting support); chemical tracking pages refer only to generic state requirements. One Wisconsin customer is showcased: Mosquito Police of Antigo, WI (8 techs) on the mosquito industry page. Nearby Midwest customers shown in Minnesota and Michigan."
   },
   "features": [
-    {"id": "CRM-01", "status": "Add-on", "notes": "Customizable staged sales pipeline with close dates and pipeline reporting is Growth plan only; inbound leads arrive via web form, booking and AI receptionist.", "source": "https://gorilladesk.com/growth-plan/"},
-    {"id": "CRM-02", "status": "Partial", "notes": "Revenue by Source and Sales Forecast by Source reports exist; no campaign attribution or close rate by source documented.", "source": "https://intercom.help/gorilladesk/en/articles/2301383-revenue-by-source"},
-    {"id": "CRM-03", "status": "Yes", "notes": "Custom quotes with templates and automated estimate reminders; tiered estimate packages and dynamic add-on suggestions require the Growth plan.", "source": "https://gorilladesk.com/features/estimating-software/"},
-    {"id": "CRM-04", "status": "Add-on", "notes": "Document library and e-signature on estimates, invoices and agreements are Pro plan features; customers sign from any device or the portal.", "source": "https://gorilladesk.com/pricing/"},
-    {"id": "CRM-05", "status": "Yes", "notes": "DoorMamba, a free GorillaDesk-built app, offers territory drawing, door pins, knock logs and rep GPS; leads sync into GorillaDesk. Sales Rabbit also listed.", "source": "https://gorilladesk.com/features/doormamba/"},
-    {"id": "CRM-06", "status": "Add-on", "notes": "Pro plan add-on: production and sold-by commissions per line item, percent or flat, with reports; no cancellation holds or chargebacks documented.", "source": "https://intercom.help/gorilladesk/en/articles/3189223-commission-tracking"},
-    {"id": "CRM-07", "status": "Add-on", "notes": "MailStream (Pro plan, pay per send, limited release) runs bulk and drip email or SMS campaigns; estimate reminders automate quote follow-up.", "source": "https://intercom.help/gorilladesk/en/articles/13731262-mailstream"},
-    {"id": "CRM-08", "status": "Partial", "notes": "Terminate Service status requires a cancellation reason and feeds churn counts; no save attempts or retention workflow documented.", "source": "https://intercom.help/gorilladesk/en/articles/10349402-job-status-terminate-service"},
-    {"id": "CRM-09", "status": "Yes", "notes": "Customers can hold many service locations with bill-to and service-to details; statements combine invoices across locations. MDU unit tracking on Pro.", "source": "https://intercom.help/gorilladesk/en/articles/5581110-adding-multiple-locations-to-a-customer-s-account"},
-    {"id": "CRM-10", "status": "Add-on", "notes": "VoIP add-on ($65 to $275 per month) logs and records calls on the customer profile, with auto attendant and autodialer; caller ID pop undocumented.", "source": "https://gorilladesk.com/voip-plan/"},
-
-    {"id": "AGR-01", "status": "Yes", "notes": "Recurring jobs support daily, weekly, monthly, annual or custom intervals (such as every 14 days), with end dates, job counts and month exclusions.", "source": "https://intercom.help/gorilladesk/en/articles/1089485-recurring-jobs"},
-    {"id": "AGR-02", "status": "Partial", "notes": "Service plan templates sequence a set of visits, and recurrence can stop after N jobs or skip months; no dedicated round or due-window model.", "source": "https://intercom.help/gorilladesk/en/articles/10750309-service-plan-mobile"},
-    {"id": "AGR-03", "status": "Partial", "notes": "Central line items and service templates; tiered estimate packages and map area measurement are Growth only; no size-based price matrix documented.", "source": "https://gorilladesk.com/pricing/"},
-    {"id": "AGR-04", "status": "Add-on", "notes": "Pro plan global override raises all line item rates by percent or fixed amount and updates draft invoices; effect on recurring invoices unclear.", "source": "https://intercom.help/gorilladesk/en/articles/9249708-tax-line-item-global-override-batch-price-increase"},
-    {"id": "AGR-05", "status": "Unknown", "notes": "No documented contract term, auto-renewal or early cancellation fee fields; mosquito page only mentions automatic renewal notices for service plans.", "source": "https://gorilladesk.com/industries/mosquito-control-software/"},
-    {"id": "AGR-06", "status": "Unknown", "notes": "No termite warranty or warranty renewal tracking feature found in feature pages or help center.", "source": "https://gorilladesk.com/features/"},
-    {"id": "AGR-07", "status": "Partial", "notes": "Vendor suggests logging resprays with tags or notes; no dedicated re-service tracking or callback cost capture documented.", "source": "https://gorilladesk.com/industries/mosquito-control-software/"},
-
-    {"id": "SCH-01", "status": "Yes", "notes": "Next recurring visit is generated when the current one is completed or canceled, with future visits shown as recurrence tiles; no due windows.", "source": "https://intercom.help/gorilladesk/en/articles/1089485-recurring-jobs"},
-    {"id": "SCH-02", "status": "Yes", "notes": "Drag and drop calendar plus map view of jobs and customers, with map batch select and an unscheduled job work pool.", "source": "https://gorilladesk.com/features/job-scheduling-software/"},
-    {"id": "SCH-03", "status": "Yes", "notes": "Route optimizer on all plans (Basic capped at 25 stops); Pro adds real drive times, Growth adds Job Magnet; Mantis AI routing in beta.", "source": "https://gorilladesk.com/pricing/"},
-    {"id": "SCH-04", "status": "Unknown", "notes": "No skill, certification or license-based assignment found; Best Available Time (Growth) suggests open slots without stated skill criteria.", "source": "https://gorilladesk.com/pricing/"},
-    {"id": "SCH-05", "status": "Add-on", "notes": "Online booking widget for customers and leads is a Pro plan add-on with slot selection and website embed; self-service rescheduling not documented.", "source": "https://intercom.help/gorilladesk/en/articles/8396295-online-booking"},
-    {"id": "SCH-06", "status": "Add-on", "notes": "Live GPS tracking and location history for technician devices is a Pro plan feature; on-my-way texts can share live location.", "source": "https://gorilladesk.com/pricing/"},
-    {"id": "SCH-07", "status": "Yes", "notes": "Batch move, batch reassign and calendar multi-select tools shift many jobs at once, plus batch-sent confirmations and reminders.", "source": "https://intercom.help/gorilladesk/en/articles/1089503-batch-moving-jobs"},
-
-    {"id": "MOB-01", "status": "Yes", "notes": "GorillaDesk app for iOS and Android phones and tablets (App Store rating 4.4), with Spanish support, dark mode and offline mode.", "source": "https://apps.apple.com/app/id978627591"},
-    {"id": "MOB-02", "status": "Partial", "notes": "Offline mode covers only the current week once loaded; techs can change status, add notes and materials, but job and invoice details are read-only.", "source": "https://intercom.help/gorilladesk/en/articles/6993151-app-offline-mode"},
-    {"id": "MOB-03", "status": "Yes", "notes": "Techs record materials with EPA number, quantity, unit, dilution, target pest, area, method and device; presets speed entry on Pro and Growth.", "source": "https://intercom.help/gorilladesk/en/articles/1086001-material-usage"},
-    {"id": "MOB-04", "status": "Yes", "notes": "Customer signatures, note attachments and images on paperwork are captured in the app; the Sketch drawing tool is Pro only.", "source": "https://intercom.help/gorilladesk/en/articles/431638-phone-tablet-app-ios-android"},
-    {"id": "MOB-05", "status": "Add-on", "notes": "Barcode scanning by phone camera or 1D/2D Bluetooth scanner is part of Pro plan device tracking; QR codes not supported.", "source": "https://gorilladesk.com/features/device-tracking-software/"},
-    {"id": "MOB-06", "status": "Yes", "notes": "Card payments in the app through Stripe or Square, including Tap to Pay on the phone and Square card hardware.", "source": "https://apps.apple.com/app/id978627591"},
-    {"id": "MOB-07", "status": "Add-on", "notes": "Time Clocking on the Pro plan records clock in and out with hourly rates and day, week or month summaries for payroll.", "source": "https://intercom.help/gorilladesk/en/articles/8869964-track-employees-time-in-and-out-with-time-clocking"},
-    {"id": "MOB-08", "status": "Unknown", "notes": "No documented truck stock or on-device inventory; material usage documentation shows no stock deduction.", "source": "https://intercom.help/gorilladesk/en/articles/1086001-material-usage"},
-
-    {"id": "CMP-01", "status": "Yes", "notes": "Per-visit material records with EPA number, rate, target pest, area and method appear on invoices; applicator license and weather fields not documented.", "source": "https://gorilladesk.com/features/chemical-tracking-software/"},
-    {"id": "CMP-02", "status": "Partial", "notes": "Materials and EPA master list stores registration numbers; storing label or SDS documents per product is not documented.", "source": "https://intercom.help/gorilladesk/en/articles/1086001-material-usage"},
-    {"id": "CMP-03", "status": "Unknown", "notes": "No applicator license number, category or expiry tracking found in the help center or feature pages.", "source": "https://gorilladesk.com/features/chemical-tracking-software/"},
-    {"id": "CMP-04", "status": "Partial", "notes": "Material Use report filters by date, county or job and exports to CSV or Excel; vendor claims state logs but names no state formats.", "source": "https://gorilladesk.com/features/chemical-tracking-software/"},
-    {"id": "CMP-05", "status": "Partial", "notes": "Completion triggers auto-send invoices or work orders listing materials applied; no dedicated pre-application notice or registry notification documented.", "source": "https://intercom.help/gorilladesk/en/articles/2164746-triggers"},
-    {"id": "CMP-06", "status": "Unknown", "notes": "No restricted-use pesticide flags or applicator restrictions found in material usage documentation.", "source": "https://intercom.help/gorilladesk/en/articles/1086001-material-usage"},
-    {"id": "CMP-07", "status": "Partial", "notes": "Material usage tracking is marketed as inventory tracking, but stock levels, warehouses, purchasing and transfers are not documented.", "source": "https://gorilladesk.com/industries/pest-control-software/"},
-    {"id": "CMP-08", "status": "Unknown", "notes": "Vendor names no Wisconsin rules (ATCP 29, landscape registry, posting); chemical pages refer only to generic state requirements.", "source": "https://gorilladesk.com/features/chemical-tracking-software/"},
-
-    {"id": "COM-01", "status": "Add-on", "notes": "Pro plan device tracking for traps, glue boards, bait stations and Sentricon devices tied to locations, with barcodes and activity levels.", "source": "https://intercom.help/gorilladesk/en/articles/8927648-device-tracking"},
-    {"id": "COM-02", "status": "Partial", "notes": "Device pins shown on a geographic map of the job site (Pro); floor plans not documented, though Sketch accepts background images.", "source": "https://intercom.help/gorilladesk/en/articles/8927648-device-tracking"},
-    {"id": "COM-03", "status": "Add-on", "notes": "Device Trend Report power-up (Pro) tracks monthly device activity and can appear on invoices or work orders sent to customers.", "source": "https://intercom.help/gorilladesk/en/articles/8927648-device-tracking"},
-    {"id": "COM-04", "status": "Unknown", "notes": "No AIB, SQF, BRC or other food safety audit reporting found on device tracking pages.", "source": "https://gorilladesk.com/features/device-tracking-software/"},
-    {"id": "COM-05", "status": "Partial", "notes": "Customer portal (Pro) shows invoice, estimate and document history including device and material data; labels, SDS and site maps not documented.", "source": "https://intercom.help/gorilladesk/en/articles/8396228-customer-portal"},
-    {"id": "COM-06", "status": "Unknown", "notes": "No customer pest sighting log or corrective action tracking found.", "source": "https://gorilladesk.com/features/"},
-    {"id": "COM-07", "status": "Partial", "notes": "Net 30/60/90 payment term templates and statements spanning multiple locations; PO number fields not documented.", "source": "https://intercom.help/gorilladesk/en/articles/10364322-payment-terms-and-late-payment-fees"},
-
-    {"id": "SPC-01", "status": "Add-on", "notes": "Pro plan items: NPMA-33 and NPMA-99 forms, Sketch graphing with grid, and Sentricon device tracking with InPulse export file.", "source": "https://intercom.help/gorilladesk/en/articles/10616162-sentricon-inpulse"},
-    {"id": "SPC-02", "status": "Unknown", "notes": "Wildlife control is listed as an industry, but no multi-visit trapping, exclusion or repair workflow is documented.", "source": "https://gorilladesk.com/industries/"},
-    {"id": "SPC-03", "status": "Partial", "notes": "Bed bug agreement template in the document library; no multi-visit bed bug workflow or customer prep checklist documented.", "source": "https://gorilladesk.com/local-service-business-document-library/"},
-    {"id": "SPC-04", "status": "Partial", "notes": "Lawn page covers fertilizer and herbicide tracking and seasonal frequencies; map area measurement is Growth only; no lawn rounds model.", "source": "https://gorilladesk.com/industries/lawn-care-software/"},
-    {"id": "SPC-05", "status": "Yes", "notes": "Mosquito page shows 14, 21 or 30 day intervals, whole-season scheduling, pre-season reminders and renewal notices; tick add-ons via estimate packages.", "source": "https://gorilladesk.com/industries/mosquito-control-software/"},
-
-    {"id": "BIL-01", "status": "Add-on", "notes": "No native processor; card and ACH run through Stripe or Square integrations at no extra GorillaDesk fee; Stripe ACH instant verification added 2026.", "source": "https://intercom.help/gorilladesk/en/articles/5342695-stripe-vs-square"},
-    {"id": "BIL-02", "status": "Yes", "notes": "Cards stored via Stripe or Square; invoices can auto-charge the card on file on schedule; Pro adds Stripe and Square subscription billing.", "source": "https://intercom.help/gorilladesk/en/articles/5963697-automatic-payments-using-invoice-frequency"},
-    {"id": "BIL-03", "status": "Yes", "notes": "Invoice frequency can differ from service frequency (monthly service billed quarterly, quarterly billed annually), alongside per-visit invoicing on completion.", "source": "https://gorilladesk.com/academy/gorilladesk-training/advanced-training/billing-frequency/"},
-    {"id": "BIL-04", "status": "Partial", "notes": "Unlimited manually set tax rates with a tax liability report; no automatic rate by service address, and reviewers ask for ZIP-based tax.", "source": "https://intercom.help/gorilladesk/en/articles/8959531-configure-taxes"},
-    {"id": "BIL-05", "status": "Partial", "notes": "Automated late payment reminders and automatic late fees via payment terms; payment retries and service holds not documented.", "source": "https://intercom.help/gorilladesk/en/articles/10364322-payment-terms-and-late-payment-fees"},
-    {"id": "BIL-06", "status": "Yes", "notes": "Statements combine invoices across locations with open item, transaction and forward balance views, emailable with an online pay link.", "source": "https://intercom.help/gorilladesk/en/articles/4004708-statements"},
-    {"id": "BIL-07", "status": "Unknown", "notes": "Terminating service voids the linked invoice; no automatic proration or cancellation balance documented.", "source": "https://intercom.help/gorilladesk/en/articles/10349402-job-status-terminate-service"},
-
-    {"id": "ACC-01", "status": "No", "notes": "Help center positions QuickBooks as the full financial system; GorillaDesk handles scheduling, invoicing and payment tracking only.", "source": "https://intercom.help/gorilladesk/en/articles/431640-accounting-faq-quickbooks"},
-    {"id": "ACC-02", "status": "Add-on", "notes": "Pro plan one-way sync of customers, invoices, payments, credits and US taxes to QuickBooks Online; QuickBooks Desktop not documented.", "source": "https://gorilladesk.com/integrations-library/quickbooks-online/"},
-    {"id": "ACC-03", "status": "No", "notes": "Integrations library lists only QuickBooks Online for accounting; no Xero, Sage or NetSuite connector (Zapier workaround possible).", "source": "https://gorilladesk.com/integrations-library/"},
-    {"id": "ACC-04", "status": "Unknown", "notes": "No deferred revenue feature documented; accrual guidance recognizes income at invoice date and there is no general ledger.", "source": "https://intercom.help/gorilladesk/en/articles/431682-accrual-basis-entries"},
-    {"id": "ACC-05", "status": "Unknown", "notes": "No labor and material cost per job or job margin reporting found in the reports list.", "source": "https://intercom.help/gorilladesk/en/articles/1090344-available-reports"},
-    {"id": "ACC-06", "status": "Partial", "notes": "Production commission and time clock reports (Pro) export to CSV or Excel; no payroll provider integration documented.", "source": "https://intercom.help/gorilladesk/en/articles/3189223-commission-tracking"},
-
-    {"id": "CX-01", "status": "Add-on", "notes": "Pro plan portal: pay balances or invoices, manage card on file, view history, rate service; booking needs the Online Booking add-on.", "source": "https://intercom.help/gorilladesk/en/articles/8396228-customer-portal"},
-    {"id": "CX-02", "status": "Yes", "notes": "Automated appointment confirmations, reminders and on-my-way messages with optional live location; texting requires the paid SMS add-on.", "source": "https://gorilladesk.com/features/appointment-confirmations-reminders/"},
-    {"id": "CX-03", "status": "Add-on", "notes": "Two-way texting requires the SMS add-on: $5 per month for a local number plus prepaid credits from $50 per 1,000 messages.", "source": "https://gorilladesk.com/pricing/"},
-    {"id": "CX-04", "status": "Add-on", "notes": "Review Engine on the Pro plan turns completed jobs into review requests and collects likely-to-refer and service ratings.", "source": "https://gorilladesk.com/features/review-generation-software/"},
-    {"id": "CX-05", "status": "Yes", "notes": "Invoices and work orders carry a materials applied table and device summaries; completion triggers can email or text them automatically.", "source": "https://intercom.help/gorilladesk/en/articles/1086001-material-usage"},
-
-    {"id": "RPT-01", "status": "Yes", "notes": "20+ built-in reports including sales, payments, sales tax, revenue by client or service, AR aging with point-in-time view, plus a dashboard.", "source": "https://intercom.help/gorilladesk/en/articles/1090344-available-reports"},
-    {"id": "RPT-02", "status": "Partial", "notes": "Dashboard counts terminated jobs and reports list customers without active jobs; no retention rates by route, technician or service.", "source": "https://intercom.help/gorilladesk/en/articles/10349402-job-status-terminate-service"},
-    {"id": "RPT-03", "status": "Partial", "notes": "Revenue by Staff, time clocking and commission reports exist; no stops per hour, time on site or re-service rate reports documented.", "source": "https://intercom.help/gorilladesk/en/articles/1090344-available-reports"},
-    {"id": "RPT-04", "status": "Partial", "notes": "No report builder; reports export to CSV or Excel, Kong AI answers data questions, and the API and MCP server expose data.", "source": "https://intercom.help/gorilladesk/en/articles/1090344-available-reports"},
-
-    {"id": "PLT-01", "status": "Add-on", "notes": "Multi-branch management with linked accounts and cross-branch user access is a Growth plan feature.", "source": "https://gorilladesk.com/growth-plan/"},
-    {"id": "PLT-02", "status": "Yes", "notes": "Two roles (Admin, Technician) with per-user permission toggles such as deleting jobs, card access, exports and branch management.", "source": "https://intercom.help/gorilladesk/en/articles/8930961-add-users-and-control-permissions"},
-    {"id": "PLT-03", "status": "Add-on", "notes": "Open API and Zapier are Pro plan features; API endpoints expanded in 2026 and an MCP server launched August 2026.", "source": "https://gorilladesk.com/pricing/"},
-    {"id": "PLT-04", "status": "Yes", "notes": "Free migration by Customer Success covering contacts, addresses, notes and starting balances; full service and billing history not imported.", "source": "https://gorilladesk.com/pricing/"},
-    {"id": "PLT-05", "status": "Yes", "notes": "AI agents: Maya receptionist, Kong data analyst, Mantis routing (beta), Atrax website builder, plus writing assistant; billed $1.00 to $1.75 per conversation.", "source": "https://gorilladesk.com/features/ai-agents/"},
-    {"id": "PLT-06", "status": "Yes", "notes": "Atrax AI website builder with custom domains, an embeddable contact form that creates leads, and an online booking widget.", "source": "https://intercom.help/gorilladesk/en/articles/12037380-atrax-ai-website-builder"},
-    {"id": "PLT-07", "status": "Partial", "notes": "SnailMail mails invoices and paperwork and Atrax builds websites; no call tracking numbers, marketing direct mail or SEO service documented.", "source": "https://intercom.help/gorilladesk/en/articles/11795909-snailmail"}
+    {
+      "id": "CRM-01",
+      "status": "Add-on",
+      "notes": "Customizable staged sales pipeline with close dates and pipeline reporting is Growth plan only; inbound leads arrive via web form, booking and AI receptionist.",
+      "source": "https://gorilladesk.com/growth-plan/"
+    },
+    {
+      "id": "CRM-02",
+      "status": "Partial",
+      "notes": "Revenue by Source and Sales Forecast by Source reports exist; no campaign attribution or close rate by source documented.",
+      "source": "https://intercom.help/gorilladesk/en/articles/2301383-revenue-by-source"
+    },
+    {
+      "id": "CRM-03",
+      "status": "Yes",
+      "notes": "Custom quotes with templates and automated estimate reminders; tiered estimate packages and dynamic add-on suggestions require the Growth plan.",
+      "source": "https://gorilladesk.com/features/estimating-software/"
+    },
+    {
+      "id": "CRM-04",
+      "status": "Add-on",
+      "notes": "Document library and e-signature on estimates, invoices and agreements are Pro plan features; customers sign from any device or the portal.",
+      "source": "https://gorilladesk.com/pricing/"
+    },
+    {
+      "id": "CRM-05",
+      "status": "Yes",
+      "notes": "DoorMamba, a free GorillaDesk-built app, offers territory drawing, door pins, knock logs and rep GPS; leads sync into GorillaDesk. Sales Rabbit also listed.",
+      "source": "https://gorilladesk.com/features/doormamba/"
+    },
+    {
+      "id": "CRM-06",
+      "status": "Add-on",
+      "notes": "Pro plan add-on: production and sold-by commissions per line item, percent or flat, with reports; no cancellation holds or chargebacks documented.",
+      "source": "https://intercom.help/gorilladesk/en/articles/3189223-commission-tracking"
+    },
+    {
+      "id": "CRM-07",
+      "status": "Add-on",
+      "notes": "MailStream (Pro plan, pay per send, limited release) runs bulk and drip email or SMS campaigns; estimate reminders automate quote follow-up.",
+      "source": "https://intercom.help/gorilladesk/en/articles/13731262-mailstream"
+    },
+    {
+      "id": "CRM-08",
+      "status": "Partial",
+      "notes": "Terminate Service status requires a cancellation reason and feeds churn counts; no save attempts or retention workflow documented.",
+      "source": "https://intercom.help/gorilladesk/en/articles/10349402-job-status-terminate-service"
+    },
+    {
+      "id": "CRM-09",
+      "status": "Yes",
+      "notes": "Customers can hold many service locations with bill-to and service-to details; statements combine invoices across locations. MDU unit tracking on Pro.",
+      "source": "https://intercom.help/gorilladesk/en/articles/5581110-adding-multiple-locations-to-a-customer-s-account"
+    },
+    {
+      "id": "CRM-10",
+      "status": "Add-on",
+      "notes": "VoIP add-on ($65 to $275 per month) logs and records calls on the customer profile, with auto attendant and autodialer; caller ID pop undocumented.",
+      "source": "https://gorilladesk.com/voip-plan/"
+    },
+    {
+      "id": "AGR-01",
+      "status": "Yes",
+      "notes": "Recurring jobs support daily, weekly, monthly, annual or custom intervals (such as every 14 days), with end dates, job counts and month exclusions.",
+      "source": "https://intercom.help/gorilladesk/en/articles/1089485-recurring-jobs"
+    },
+    {
+      "id": "AGR-02",
+      "status": "Partial",
+      "notes": "Service plan templates sequence a set of visits, and recurrence can stop after N jobs or skip months; no dedicated round or due-window model.",
+      "source": "https://intercom.help/gorilladesk/en/articles/10750309-service-plan-mobile"
+    },
+    {
+      "id": "AGR-03",
+      "status": "Partial",
+      "notes": "Central line items and service templates; tiered estimate packages and map area measurement are Growth only; no size-based price matrix documented.",
+      "source": "https://gorilladesk.com/pricing/"
+    },
+    {
+      "id": "AGR-04",
+      "status": "Add-on",
+      "notes": "Pro plan global override raises all line item rates by percent or fixed amount and updates draft invoices; effect on recurring invoices unclear.",
+      "source": "https://intercom.help/gorilladesk/en/articles/9249708-tax-line-item-global-override-batch-price-increase"
+    },
+    {
+      "id": "AGR-05",
+      "status": "Unknown",
+      "notes": "No documented contract term, auto-renewal or early cancellation fee fields; mosquito page only mentions automatic renewal notices for service plans.",
+      "source": "https://gorilladesk.com/industries/mosquito-control-software/"
+    },
+    {
+      "id": "AGR-06",
+      "status": "Unknown",
+      "notes": "No termite warranty or warranty renewal tracking feature found in feature pages or help center.",
+      "source": "https://gorilladesk.com/features/"
+    },
+    {
+      "id": "AGR-07",
+      "status": "Partial",
+      "notes": "Vendor suggests logging resprays with tags or notes; no dedicated re-service tracking or callback cost capture documented.",
+      "source": "https://gorilladesk.com/industries/mosquito-control-software/"
+    },
+    {
+      "id": "SCH-01",
+      "status": "Yes",
+      "notes": "Next recurring visit is generated when the current one is completed or canceled, with future visits shown as recurrence tiles; no due windows.",
+      "source": "https://intercom.help/gorilladesk/en/articles/1089485-recurring-jobs"
+    },
+    {
+      "id": "SCH-02",
+      "status": "Yes",
+      "notes": "Drag and drop calendar plus map view of jobs and customers, with map batch select and an unscheduled job work pool.",
+      "source": "https://gorilladesk.com/features/job-scheduling-software/"
+    },
+    {
+      "id": "SCH-03",
+      "status": "Yes",
+      "notes": "Route optimizer on all plans (Basic capped at 25 stops); Pro adds real drive times, Growth adds Job Magnet; Mantis AI routing in beta.",
+      "source": "https://gorilladesk.com/pricing/"
+    },
+    {
+      "id": "SCH-04",
+      "status": "Unknown",
+      "notes": "No skill, certification or license-based assignment found; Best Available Time (Growth) suggests open slots without stated skill criteria.",
+      "source": "https://gorilladesk.com/pricing/"
+    },
+    {
+      "id": "SCH-05",
+      "status": "Add-on",
+      "notes": "Online booking widget for customers and leads is a Pro plan add-on with slot selection and website embed; self-service rescheduling not documented.",
+      "source": "https://intercom.help/gorilladesk/en/articles/8396295-online-booking"
+    },
+    {
+      "id": "SCH-06",
+      "status": "Add-on",
+      "notes": "Live GPS tracking and location history for technician devices is a Pro plan feature; on-my-way texts can share live location.",
+      "source": "https://gorilladesk.com/pricing/"
+    },
+    {
+      "id": "SCH-07",
+      "status": "Yes",
+      "notes": "Batch move, batch reassign and calendar multi-select tools shift many jobs at once, plus batch-sent confirmations and reminders.",
+      "source": "https://intercom.help/gorilladesk/en/articles/1089503-batch-moving-jobs"
+    },
+    {
+      "id": "MOB-01",
+      "status": "Yes",
+      "notes": "GorillaDesk app for iOS and Android phones and tablets (App Store rating 4.4), with Spanish support, dark mode and offline mode.",
+      "source": "https://apps.apple.com/app/id978627591"
+    },
+    {
+      "id": "MOB-02",
+      "status": "Partial",
+      "notes": "Offline mode covers only the current week once loaded; techs can change status, add notes and materials, but job and invoice details are read-only.",
+      "source": "https://intercom.help/gorilladesk/en/articles/6993151-app-offline-mode"
+    },
+    {
+      "id": "MOB-03",
+      "status": "Yes",
+      "notes": "Techs record materials with EPA number, quantity, unit, dilution, target pest, area, method and device; presets speed entry on Pro and Growth.",
+      "source": "https://intercom.help/gorilladesk/en/articles/1086001-material-usage"
+    },
+    {
+      "id": "MOB-04",
+      "status": "Yes",
+      "notes": "Customer signatures, note attachments and images on paperwork are captured in the app; the Sketch drawing tool is Pro only.",
+      "source": "https://intercom.help/gorilladesk/en/articles/431638-phone-tablet-app-ios-android"
+    },
+    {
+      "id": "MOB-05",
+      "status": "Add-on",
+      "notes": "Barcode scanning by phone camera or 1D/2D Bluetooth scanner is part of Pro plan device tracking; QR codes not supported.",
+      "source": "https://gorilladesk.com/features/device-tracking-software/"
+    },
+    {
+      "id": "MOB-06",
+      "status": "Yes",
+      "notes": "Card payments in the app through Stripe or Square, including Tap to Pay on the phone and Square card hardware.",
+      "source": "https://apps.apple.com/app/id978627591"
+    },
+    {
+      "id": "MOB-07",
+      "status": "Add-on",
+      "notes": "Time Clocking on the Pro plan records clock in and out with hourly rates and day, week or month summaries for payroll.",
+      "source": "https://intercom.help/gorilladesk/en/articles/8869964-track-employees-time-in-and-out-with-time-clocking"
+    },
+    {
+      "id": "MOB-08",
+      "status": "Unknown",
+      "notes": "No documented truck stock or on-device inventory; material usage documentation shows no stock deduction.",
+      "source": "https://intercom.help/gorilladesk/en/articles/1086001-material-usage"
+    },
+    {
+      "id": "CMP-01",
+      "status": "Yes",
+      "notes": "Per-visit material records with EPA number, rate, target pest, area and method appear on invoices; applicator license and weather fields not documented.",
+      "source": "https://gorilladesk.com/features/chemical-tracking-software/"
+    },
+    {
+      "id": "CMP-02",
+      "status": "Partial",
+      "notes": "Materials and EPA master list stores registration numbers; storing label or SDS documents per product is not documented.",
+      "source": "https://intercom.help/gorilladesk/en/articles/1086001-material-usage"
+    },
+    {
+      "id": "CMP-03",
+      "status": "Unknown",
+      "notes": "No applicator license number, category or expiry tracking found in the help center or feature pages.",
+      "source": "https://gorilladesk.com/features/chemical-tracking-software/"
+    },
+    {
+      "id": "CMP-04",
+      "status": "Partial",
+      "notes": "Material Use report filters by date, county or job and exports to CSV or Excel; vendor claims state logs but names no state formats.",
+      "source": "https://gorilladesk.com/features/chemical-tracking-software/"
+    },
+    {
+      "id": "CMP-05",
+      "status": "Partial",
+      "notes": "Completion triggers auto-send invoices or work orders listing materials applied; no dedicated pre-application notice or registry notification documented.",
+      "source": "https://intercom.help/gorilladesk/en/articles/2164746-triggers"
+    },
+    {
+      "id": "CMP-06",
+      "status": "Unknown",
+      "notes": "No restricted-use pesticide flags or applicator restrictions found in material usage documentation.",
+      "source": "https://intercom.help/gorilladesk/en/articles/1086001-material-usage"
+    },
+    {
+      "id": "CMP-07",
+      "status": "Partial",
+      "notes": "Material usage tracking is marketed as inventory tracking, but stock levels, warehouses, purchasing and transfers are not documented.",
+      "source": "https://gorilladesk.com/industries/pest-control-software/"
+    },
+    {
+      "id": "CMP-08",
+      "status": "Unknown",
+      "notes": "Vendor names no Wisconsin rules (ATCP 29, landscape registry, posting); chemical pages refer only to generic state requirements.",
+      "source": "https://gorilladesk.com/features/chemical-tracking-software/"
+    },
+    {
+      "id": "COM-01",
+      "status": "Add-on",
+      "notes": "Pro plan device tracking for traps, glue boards, bait stations and Sentricon devices tied to locations, with barcodes and activity levels.",
+      "source": "https://intercom.help/gorilladesk/en/articles/8927648-device-tracking"
+    },
+    {
+      "id": "COM-02",
+      "status": "Partial",
+      "notes": "Device pins shown on a geographic map of the job site (Pro); floor plans not documented, though Sketch accepts background images.",
+      "source": "https://intercom.help/gorilladesk/en/articles/8927648-device-tracking"
+    },
+    {
+      "id": "COM-03",
+      "status": "Add-on",
+      "notes": "Device Trend Report power-up (Pro) tracks monthly device activity and can appear on invoices or work orders sent to customers.",
+      "source": "https://intercom.help/gorilladesk/en/articles/8927648-device-tracking"
+    },
+    {
+      "id": "COM-04",
+      "status": "Unknown",
+      "notes": "No AIB, SQF, BRC or other food safety audit reporting found on device tracking pages.",
+      "source": "https://gorilladesk.com/features/device-tracking-software/"
+    },
+    {
+      "id": "COM-05",
+      "status": "Partial",
+      "notes": "Customer portal (Pro) shows invoice, estimate and document history including device and material data; labels, SDS and site maps not documented.",
+      "source": "https://intercom.help/gorilladesk/en/articles/8396228-customer-portal"
+    },
+    {
+      "id": "COM-06",
+      "status": "Unknown",
+      "notes": "No customer pest sighting log or corrective action tracking found.",
+      "source": "https://gorilladesk.com/features/"
+    },
+    {
+      "id": "COM-07",
+      "status": "Partial",
+      "notes": "Net 30/60/90 payment term templates and statements spanning multiple locations; PO number fields not documented.",
+      "source": "https://intercom.help/gorilladesk/en/articles/10364322-payment-terms-and-late-payment-fees"
+    },
+    {
+      "id": "SPC-01",
+      "status": "Add-on",
+      "notes": "Pro plan items: NPMA-33 and NPMA-99 forms, Sketch graphing with grid, and Sentricon device tracking with InPulse export file.",
+      "source": "https://intercom.help/gorilladesk/en/articles/10616162-sentricon-inpulse"
+    },
+    {
+      "id": "SPC-02",
+      "status": "Unknown",
+      "notes": "Wildlife control is listed as an industry, but no multi-visit trapping, exclusion or repair workflow is documented.",
+      "source": "https://gorilladesk.com/industries/"
+    },
+    {
+      "id": "SPC-03",
+      "status": "Partial",
+      "notes": "Bed bug agreement template in the document library; no multi-visit bed bug workflow or customer prep checklist documented.",
+      "source": "https://gorilladesk.com/local-service-business-document-library/"
+    },
+    {
+      "id": "SPC-05",
+      "status": "Yes",
+      "notes": "Mosquito page shows 14, 21 or 30 day intervals, whole-season scheduling, pre-season reminders and renewal notices; tick add-ons via estimate packages.",
+      "source": "https://gorilladesk.com/industries/mosquito-control-software/"
+    },
+    {
+      "id": "BIL-01",
+      "status": "Add-on",
+      "notes": "No native processor; card and ACH run through Stripe or Square integrations at no extra GorillaDesk fee; Stripe ACH instant verification added 2026.",
+      "source": "https://intercom.help/gorilladesk/en/articles/5342695-stripe-vs-square"
+    },
+    {
+      "id": "BIL-02",
+      "status": "Yes",
+      "notes": "Cards stored via Stripe or Square; invoices can auto-charge the card on file on schedule; Pro adds Stripe and Square subscription billing.",
+      "source": "https://intercom.help/gorilladesk/en/articles/5963697-automatic-payments-using-invoice-frequency"
+    },
+    {
+      "id": "BIL-03",
+      "status": "Yes",
+      "notes": "Invoice frequency can differ from service frequency (monthly service billed quarterly, quarterly billed annually), alongside per-visit invoicing on completion.",
+      "source": "https://gorilladesk.com/academy/gorilladesk-training/advanced-training/billing-frequency/"
+    },
+    {
+      "id": "BIL-04",
+      "status": "Partial",
+      "notes": "Unlimited manually set tax rates with a tax liability report; no automatic rate by service address, and reviewers ask for ZIP-based tax.",
+      "source": "https://intercom.help/gorilladesk/en/articles/8959531-configure-taxes"
+    },
+    {
+      "id": "BIL-05",
+      "status": "Partial",
+      "notes": "Automated late payment reminders and automatic late fees via payment terms; payment retries and service holds not documented.",
+      "source": "https://intercom.help/gorilladesk/en/articles/10364322-payment-terms-and-late-payment-fees"
+    },
+    {
+      "id": "BIL-06",
+      "status": "Yes",
+      "notes": "Statements combine invoices across locations with open item, transaction and forward balance views, emailable with an online pay link.",
+      "source": "https://intercom.help/gorilladesk/en/articles/4004708-statements"
+    },
+    {
+      "id": "BIL-07",
+      "status": "Unknown",
+      "notes": "Terminating service voids the linked invoice; no automatic proration or cancellation balance documented.",
+      "source": "https://intercom.help/gorilladesk/en/articles/10349402-job-status-terminate-service"
+    },
+    {
+      "id": "ACC-01",
+      "status": "No",
+      "notes": "Help center positions QuickBooks as the full financial system; GorillaDesk handles scheduling, invoicing and payment tracking only.",
+      "source": "https://intercom.help/gorilladesk/en/articles/431640-accounting-faq-quickbooks"
+    },
+    {
+      "id": "ACC-02",
+      "status": "Add-on",
+      "notes": "Pro plan one-way sync of customers, invoices, payments, credits and US taxes to QuickBooks Online; QuickBooks Desktop not documented.",
+      "source": "https://gorilladesk.com/integrations-library/quickbooks-online/"
+    },
+    {
+      "id": "ACC-03",
+      "status": "No",
+      "notes": "Integrations library lists only QuickBooks Online for accounting; no Xero, Sage or NetSuite connector (Zapier workaround possible).",
+      "source": "https://gorilladesk.com/integrations-library/"
+    },
+    {
+      "id": "ACC-04",
+      "status": "Unknown",
+      "notes": "No deferred revenue feature documented; accrual guidance recognizes income at invoice date and there is no general ledger.",
+      "source": "https://intercom.help/gorilladesk/en/articles/431682-accrual-basis-entries"
+    },
+    {
+      "id": "ACC-05",
+      "status": "Unknown",
+      "notes": "No labor and material cost per job or job margin reporting found in the reports list.",
+      "source": "https://intercom.help/gorilladesk/en/articles/1090344-available-reports"
+    },
+    {
+      "id": "ACC-06",
+      "status": "Partial",
+      "notes": "Production commission and time clock reports (Pro) export to CSV or Excel; no payroll provider integration documented.",
+      "source": "https://intercom.help/gorilladesk/en/articles/3189223-commission-tracking"
+    },
+    {
+      "id": "CX-01",
+      "status": "Add-on",
+      "notes": "Pro plan portal: pay balances or invoices, manage card on file, view history, rate service; booking needs the Online Booking add-on.",
+      "source": "https://intercom.help/gorilladesk/en/articles/8396228-customer-portal"
+    },
+    {
+      "id": "CX-02",
+      "status": "Yes",
+      "notes": "Automated appointment confirmations, reminders and on-my-way messages with optional live location; texting requires the paid SMS add-on.",
+      "source": "https://gorilladesk.com/features/appointment-confirmations-reminders/"
+    },
+    {
+      "id": "CX-03",
+      "status": "Add-on",
+      "notes": "Two-way texting requires the SMS add-on: $5 per month for a local number plus prepaid credits from $50 per 1,000 messages.",
+      "source": "https://gorilladesk.com/pricing/"
+    },
+    {
+      "id": "CX-04",
+      "status": "Add-on",
+      "notes": "Review Engine on the Pro plan turns completed jobs into review requests and collects likely-to-refer and service ratings.",
+      "source": "https://gorilladesk.com/features/review-generation-software/"
+    },
+    {
+      "id": "CX-05",
+      "status": "Yes",
+      "notes": "Invoices and work orders carry a materials applied table and device summaries; completion triggers can email or text them automatically.",
+      "source": "https://intercom.help/gorilladesk/en/articles/1086001-material-usage"
+    },
+    {
+      "id": "RPT-01",
+      "status": "Yes",
+      "notes": "20+ built-in reports including sales, payments, sales tax, revenue by client or service, AR aging with point-in-time view, plus a dashboard.",
+      "source": "https://intercom.help/gorilladesk/en/articles/1090344-available-reports"
+    },
+    {
+      "id": "RPT-02",
+      "status": "Partial",
+      "notes": "Dashboard counts terminated jobs and reports list customers without active jobs; no retention rates by route, technician or service.",
+      "source": "https://intercom.help/gorilladesk/en/articles/10349402-job-status-terminate-service"
+    },
+    {
+      "id": "RPT-03",
+      "status": "Partial",
+      "notes": "Revenue by Staff, time clocking and commission reports exist; no stops per hour, time on site or re-service rate reports documented.",
+      "source": "https://intercom.help/gorilladesk/en/articles/1090344-available-reports"
+    },
+    {
+      "id": "RPT-04",
+      "status": "Partial",
+      "notes": "No report builder; reports export to CSV or Excel, Kong AI answers data questions, and the API and MCP server expose data.",
+      "source": "https://intercom.help/gorilladesk/en/articles/1090344-available-reports"
+    },
+    {
+      "id": "PLT-01",
+      "status": "Add-on",
+      "notes": "Multi-branch management with linked accounts and cross-branch user access is a Growth plan feature.",
+      "source": "https://gorilladesk.com/growth-plan/"
+    },
+    {
+      "id": "PLT-02",
+      "status": "Yes",
+      "notes": "Two roles (Admin, Technician) with per-user permission toggles such as deleting jobs, card access, exports and branch management.",
+      "source": "https://intercom.help/gorilladesk/en/articles/8930961-add-users-and-control-permissions"
+    },
+    {
+      "id": "PLT-03",
+      "status": "Add-on",
+      "notes": "Open API and Zapier are Pro plan features; API endpoints expanded in 2026 and an MCP server launched August 2026.",
+      "source": "https://gorilladesk.com/pricing/"
+    },
+    {
+      "id": "PLT-04",
+      "status": "Yes",
+      "notes": "Free migration by Customer Success covering contacts, addresses, notes and starting balances; full service and billing history not imported.",
+      "source": "https://gorilladesk.com/pricing/"
+    },
+    {
+      "id": "PLT-05",
+      "status": "Yes",
+      "notes": "AI agents: Maya receptionist, Kong data analyst, Mantis routing (beta), Atrax website builder, plus writing assistant; billed $1.00 to $1.75 per conversation.",
+      "source": "https://gorilladesk.com/features/ai-agents/"
+    },
+    {
+      "id": "PLT-06",
+      "status": "Yes",
+      "notes": "Atrax AI website builder with custom domains, an embeddable contact form that creates leads, and an online booking widget.",
+      "source": "https://intercom.help/gorilladesk/en/articles/12037380-atrax-ai-website-builder"
+    },
+    {
+      "id": "PLT-07",
+      "status": "Partial",
+      "notes": "SnailMail mails invoices and paperwork and Atrax builds websites; no call tracking numbers, marketing direct mail or SEO service documented.",
+      "source": "https://intercom.help/gorilladesk/en/articles/11795909-snailmail"
+    }
   ],
   "extra_features": [
-    {"feature": "Customer tipping", "module": "Billing and payments", "notes": "Customers add tips when paying; launched May 2026 with a per-transaction connect fee, Square not yet supported.", "source": "https://intercom.help/gorilladesk/en/articles/14711280-tipping"},
-    {"feature": "Credit card surcharging", "module": "Billing and payments", "notes": "Configurable card surcharge from 0.01% to 3%, removed from ACH and debit, auto-disabled in states that ban surcharges.", "source": "https://intercom.help/gorilladesk/en/articles/8420909-gorilladesk-software-change-log-and-updates"},
-    {"feature": "Sentricon InPulse export", "module": "Specialty services", "notes": "Generates the report file Corteva's InPulse site requires for Certified Sentricon Specialist billing submissions.", "source": "https://intercom.help/gorilladesk/en/articles/10616162-sentricon-inpulse"},
-    {"feature": "Map Estimation Tool", "module": "CRM and sales", "notes": "Draws and measures property area on a map for quoting, with saved location profiles; web and mobile, Growth plan.", "source": "https://intercom.help/gorilladesk/en/articles/11626216-map-estimation-tool-manual-drawing"},
-    {"feature": "Job Magnet and Best Available Time", "module": "Scheduling and dispatch", "notes": "Groups nearby jobs and suggests the best open slot for a new job based on drive time; Growth plan.", "source": "https://gorilladesk.com/pricing/"},
-    {"feature": "Job Work Pool", "module": "Scheduling and dispatch", "notes": "Holding area for unscheduled jobs that dispatchers can filter and drag onto schedules.", "source": "https://intercom.help/gorilladesk/en/articles/10342785-job-work-pool"},
-    {"feature": "GorillaDesk MCP server", "module": "Platform", "notes": "Launched August 2026; lets supported AI assistants connect to live GorillaDesk account data.", "source": "https://intercom.help/gorilladesk/en/articles/8420909-gorilladesk-software-change-log-and-updates"},
-    {"feature": "Shared email inbox sync", "module": "Customer experience", "notes": "Team email inbox synced and linked to customer and job records; Pro plan.", "source": "https://intercom.help/gorilladesk/en/articles/3812206-email-inbox"},
-    {"feature": "Document library with free custom builds", "module": "CRM and sales", "notes": "150+ templates (NPMA-33, NPMA-99, service agreements); vendor builds custom or state-required forms free on Pro.", "source": "https://gorilladesk.com/local-service-business-document-library/"},
-    {"feature": "Customer surveys and ratings", "module": "Customer experience", "notes": "Likely-to-refer and service ratings collected after jobs, with Likely Rating and Service Rating reports.", "source": "https://gorilladesk.com/features/review-generation-software/"},
-    {"feature": "Estimate deposits", "module": "CRM and sales", "notes": "Collect a deposit when a customer accepts an estimate.", "source": "https://intercom.help/gorilladesk/en/articles/9720335-estimates-collecting-deposits"},
-    {"feature": "Task management", "module": "Platform", "notes": "Internal task system tied to customer records for office follow-ups.", "source": "https://intercom.help/gorilladesk/en/articles/3539689-task-management-system"}
+    {
+      "feature": "Customer tipping",
+      "module": "Billing and payments",
+      "notes": "Customers add tips when paying; launched May 2026 with a per-transaction connect fee, Square not yet supported.",
+      "source": "https://intercom.help/gorilladesk/en/articles/14711280-tipping"
+    },
+    {
+      "feature": "Credit card surcharging",
+      "module": "Billing and payments",
+      "notes": "Configurable card surcharge from 0.01% to 3%, removed from ACH and debit, auto-disabled in states that ban surcharges.",
+      "source": "https://intercom.help/gorilladesk/en/articles/8420909-gorilladesk-software-change-log-and-updates"
+    },
+    {
+      "feature": "Sentricon InPulse export",
+      "module": "Specialty services",
+      "notes": "Generates the report file Corteva's InPulse site requires for Certified Sentricon Specialist billing submissions.",
+      "source": "https://intercom.help/gorilladesk/en/articles/10616162-sentricon-inpulse"
+    },
+    {
+      "feature": "Map Estimation Tool",
+      "module": "CRM and sales",
+      "notes": "Draws and measures property area on a map for quoting, with saved location profiles; web and mobile, Growth plan.",
+      "source": "https://intercom.help/gorilladesk/en/articles/11626216-map-estimation-tool-manual-drawing"
+    },
+    {
+      "feature": "Job Magnet and Best Available Time",
+      "module": "Scheduling and dispatch",
+      "notes": "Groups nearby jobs and suggests the best open slot for a new job based on drive time; Growth plan.",
+      "source": "https://gorilladesk.com/pricing/"
+    },
+    {
+      "feature": "Job Work Pool",
+      "module": "Scheduling and dispatch",
+      "notes": "Holding area for unscheduled jobs that dispatchers can filter and drag onto schedules.",
+      "source": "https://intercom.help/gorilladesk/en/articles/10342785-job-work-pool"
+    },
+    {
+      "feature": "GorillaDesk MCP server",
+      "module": "Platform",
+      "notes": "Launched August 2026; lets supported AI assistants connect to live GorillaDesk account data.",
+      "source": "https://intercom.help/gorilladesk/en/articles/8420909-gorilladesk-software-change-log-and-updates"
+    },
+    {
+      "feature": "Shared email inbox sync",
+      "module": "Customer experience",
+      "notes": "Team email inbox synced and linked to customer and job records; Pro plan.",
+      "source": "https://intercom.help/gorilladesk/en/articles/3812206-email-inbox"
+    },
+    {
+      "feature": "Document library with free custom builds",
+      "module": "CRM and sales",
+      "notes": "150+ templates (NPMA-33, NPMA-99, service agreements); vendor builds custom or state-required forms free on Pro.",
+      "source": "https://gorilladesk.com/local-service-business-document-library/"
+    },
+    {
+      "feature": "Customer surveys and ratings",
+      "module": "Customer experience",
+      "notes": "Likely-to-refer and service ratings collected after jobs, with Likely Rating and Service Rating reports.",
+      "source": "https://gorilladesk.com/features/review-generation-software/"
+    },
+    {
+      "feature": "Estimate deposits",
+      "module": "CRM and sales",
+      "notes": "Collect a deposit when a customer accepts an estimate.",
+      "source": "https://intercom.help/gorilladesk/en/articles/9720335-estimates-collecting-deposits"
+    },
+    {
+      "feature": "Task management",
+      "module": "Platform",
+      "notes": "Internal task system tied to customer records for office follow-ups.",
+      "source": "https://intercom.help/gorilladesk/en/articles/3539689-task-management-system"
+    }
   ],
   "sources": [
-    {"title": "GorillaDesk home page", "url": "https://gorilladesk.com/"},
-    {"title": "GorillaDesk pricing", "url": "https://gorilladesk.com/pricing/"},
-    {"title": "GorillaDesk features list", "url": "https://gorilladesk.com/features/"},
-    {"title": "Pest control software industry page", "url": "https://gorilladesk.com/industries/pest-control-software/"},
-    {"title": "Mosquito control software industry page", "url": "https://gorilladesk.com/industries/mosquito-control-software/"},
-    {"title": "Lawn care software industry page", "url": "https://gorilladesk.com/industries/lawn-care-software/"},
-    {"title": "Chemical tracking software", "url": "https://gorilladesk.com/features/chemical-tracking-software/"},
-    {"title": "Device tracking software", "url": "https://gorilladesk.com/features/device-tracking-software/"},
-    {"title": "Estimating software", "url": "https://gorilladesk.com/features/estimating-software/"},
-    {"title": "Invoicing software", "url": "https://gorilladesk.com/features/field-service-invoicing-software/"},
-    {"title": "AI agents", "url": "https://gorilladesk.com/features/ai-agents/"},
-    {"title": "Growth plan", "url": "https://gorilladesk.com/growth-plan/"},
-    {"title": "VoIP plan", "url": "https://gorilladesk.com/voip-plan/"},
-    {"title": "DoorMamba", "url": "https://gorilladesk.com/features/doormamba/"},
-    {"title": "Integrations library", "url": "https://gorilladesk.com/integrations-library/"},
-    {"title": "QuickBooks Online integration", "url": "https://gorilladesk.com/integrations-library/quickbooks-online/"},
-    {"title": "Document library", "url": "https://gorilladesk.com/local-service-business-document-library/"},
-    {"title": "Billing frequency training", "url": "https://gorilladesk.com/academy/gorilladesk-training/advanced-training/billing-frequency/"},
-    {"title": "Help center home", "url": "https://intercom.help/gorilladesk/en/"},
-    {"title": "Software change log and updates", "url": "https://intercom.help/gorilladesk/en/articles/8420909-gorilladesk-software-change-log-and-updates"},
-    {"title": "App offline mode", "url": "https://intercom.help/gorilladesk/en/articles/6993151-app-offline-mode"},
-    {"title": "Recurring jobs", "url": "https://intercom.help/gorilladesk/en/articles/1089485-recurring-jobs"},
-    {"title": "Service plan (mobile)", "url": "https://intercom.help/gorilladesk/en/articles/10750309-service-plan-mobile"},
-    {"title": "Configure taxes", "url": "https://intercom.help/gorilladesk/en/articles/8959531-configure-taxes"},
-    {"title": "Material usage", "url": "https://intercom.help/gorilladesk/en/articles/1086001-material-usage"},
-    {"title": "Device tracking help article", "url": "https://intercom.help/gorilladesk/en/articles/8927648-device-tracking"},
-    {"title": "Sentricon InPulse", "url": "https://intercom.help/gorilladesk/en/articles/10616162-sentricon-inpulse"},
-    {"title": "Available reports", "url": "https://intercom.help/gorilladesk/en/articles/1090344-available-reports"},
-    {"title": "Job status: Terminate Service", "url": "https://intercom.help/gorilladesk/en/articles/10349402-job-status-terminate-service"},
-    {"title": "Batch price increase", "url": "https://intercom.help/gorilladesk/en/articles/9249708-tax-line-item-global-override-batch-price-increase"},
-    {"title": "Automatic payments using invoice frequency", "url": "https://intercom.help/gorilladesk/en/articles/5963697-automatic-payments-using-invoice-frequency"},
-    {"title": "Payment terms and late payment fees", "url": "https://intercom.help/gorilladesk/en/articles/10364322-payment-terms-and-late-payment-fees"},
-    {"title": "Statements", "url": "https://intercom.help/gorilladesk/en/articles/4004708-statements"},
-    {"title": "Multiple locations per customer", "url": "https://intercom.help/gorilladesk/en/articles/5581110-adding-multiple-locations-to-a-customer-s-account"},
-    {"title": "Stripe vs Square", "url": "https://intercom.help/gorilladesk/en/articles/5342695-stripe-vs-square"},
-    {"title": "Commission tracking", "url": "https://intercom.help/gorilladesk/en/articles/3189223-commission-tracking"},
-    {"title": "Customer portal", "url": "https://intercom.help/gorilladesk/en/articles/8396228-customer-portal"},
-    {"title": "Online booking", "url": "https://intercom.help/gorilladesk/en/articles/8396295-online-booking"},
-    {"title": "MailStream", "url": "https://intercom.help/gorilladesk/en/articles/13731262-mailstream"},
-    {"title": "Triggers", "url": "https://intercom.help/gorilladesk/en/articles/2164746-triggers"},
-    {"title": "Sketch (drawing and graphing)", "url": "https://intercom.help/gorilladesk/en/articles/11390247-sketch-drawing-and-graphing"},
-    {"title": "Time clocking", "url": "https://intercom.help/gorilladesk/en/articles/8869964-track-employees-time-in-and-out-with-time-clocking"},
-    {"title": "Users and permissions", "url": "https://intercom.help/gorilladesk/en/articles/8930961-add-users-and-control-permissions"},
-    {"title": "Accounting FAQ and QuickBooks", "url": "https://intercom.help/gorilladesk/en/articles/431640-accounting-faq-quickbooks"},
-    {"title": "Accrual basis entries", "url": "https://intercom.help/gorilladesk/en/articles/431682-accrual-basis-entries"},
-    {"title": "Phone and tablet app (iOS and Android)", "url": "https://intercom.help/gorilladesk/en/articles/431638-phone-tablet-app-ios-android"},
-    {"title": "GorillaDesk on the Apple App Store", "url": "https://apps.apple.com/app/id978627591"},
-    {"title": "GorillaDesk reviews on Capterra", "url": "https://www.capterra.com/p/130290/GorillaDesk/reviews/"},
-    {"title": "GorillaDesk reviews on Capterra, page 5", "url": "https://www.capterra.com/p/130290/GorillaDesk/reviews/?page=5"},
-    {"title": "GorillaDesk on G2", "url": "https://www.g2.com/products/gorilladesk"},
-    {"title": "SoftwareConnect GorillaDesk review", "url": "https://softwareconnect.com/reviews/gorilladesk/"},
-    {"title": "CB Insights GorillaDesk people", "url": "https://www.cbinsights.com/company/gorilladesk/people"},
-    {"title": "Craft GorillaDesk company profile", "url": "https://craft.co/gorilladesk"}
+    {
+      "title": "GorillaDesk home page",
+      "url": "https://gorilladesk.com/"
+    },
+    {
+      "title": "GorillaDesk pricing",
+      "url": "https://gorilladesk.com/pricing/"
+    },
+    {
+      "title": "GorillaDesk features list",
+      "url": "https://gorilladesk.com/features/"
+    },
+    {
+      "title": "Pest control software industry page",
+      "url": "https://gorilladesk.com/industries/pest-control-software/"
+    },
+    {
+      "title": "Mosquito control software industry page",
+      "url": "https://gorilladesk.com/industries/mosquito-control-software/"
+    },
+    {
+      "title": "Lawn care software industry page",
+      "url": "https://gorilladesk.com/industries/lawn-care-software/"
+    },
+    {
+      "title": "Chemical tracking software",
+      "url": "https://gorilladesk.com/features/chemical-tracking-software/"
+    },
+    {
+      "title": "Device tracking software",
+      "url": "https://gorilladesk.com/features/device-tracking-software/"
+    },
+    {
+      "title": "Estimating software",
+      "url": "https://gorilladesk.com/features/estimating-software/"
+    },
+    {
+      "title": "Invoicing software",
+      "url": "https://gorilladesk.com/features/field-service-invoicing-software/"
+    },
+    {
+      "title": "AI agents",
+      "url": "https://gorilladesk.com/features/ai-agents/"
+    },
+    {
+      "title": "Growth plan",
+      "url": "https://gorilladesk.com/growth-plan/"
+    },
+    {
+      "title": "VoIP plan",
+      "url": "https://gorilladesk.com/voip-plan/"
+    },
+    {
+      "title": "DoorMamba",
+      "url": "https://gorilladesk.com/features/doormamba/"
+    },
+    {
+      "title": "Integrations library",
+      "url": "https://gorilladesk.com/integrations-library/"
+    },
+    {
+      "title": "QuickBooks Online integration",
+      "url": "https://gorilladesk.com/integrations-library/quickbooks-online/"
+    },
+    {
+      "title": "Document library",
+      "url": "https://gorilladesk.com/local-service-business-document-library/"
+    },
+    {
+      "title": "Billing frequency training",
+      "url": "https://gorilladesk.com/academy/gorilladesk-training/advanced-training/billing-frequency/"
+    },
+    {
+      "title": "Help center home",
+      "url": "https://intercom.help/gorilladesk/en/"
+    },
+    {
+      "title": "Software change log and updates",
+      "url": "https://intercom.help/gorilladesk/en/articles/8420909-gorilladesk-software-change-log-and-updates"
+    },
+    {
+      "title": "App offline mode",
+      "url": "https://intercom.help/gorilladesk/en/articles/6993151-app-offline-mode"
+    },
+    {
+      "title": "Recurring jobs",
+      "url": "https://intercom.help/gorilladesk/en/articles/1089485-recurring-jobs"
+    },
+    {
+      "title": "Service plan (mobile)",
+      "url": "https://intercom.help/gorilladesk/en/articles/10750309-service-plan-mobile"
+    },
+    {
+      "title": "Configure taxes",
+      "url": "https://intercom.help/gorilladesk/en/articles/8959531-configure-taxes"
+    },
+    {
+      "title": "Material usage",
+      "url": "https://intercom.help/gorilladesk/en/articles/1086001-material-usage"
+    },
+    {
+      "title": "Device tracking help article",
+      "url": "https://intercom.help/gorilladesk/en/articles/8927648-device-tracking"
+    },
+    {
+      "title": "Sentricon InPulse",
+      "url": "https://intercom.help/gorilladesk/en/articles/10616162-sentricon-inpulse"
+    },
+    {
+      "title": "Available reports",
+      "url": "https://intercom.help/gorilladesk/en/articles/1090344-available-reports"
+    },
+    {
+      "title": "Job status: Terminate Service",
+      "url": "https://intercom.help/gorilladesk/en/articles/10349402-job-status-terminate-service"
+    },
+    {
+      "title": "Batch price increase",
+      "url": "https://intercom.help/gorilladesk/en/articles/9249708-tax-line-item-global-override-batch-price-increase"
+    },
+    {
+      "title": "Automatic payments using invoice frequency",
+      "url": "https://intercom.help/gorilladesk/en/articles/5963697-automatic-payments-using-invoice-frequency"
+    },
+    {
+      "title": "Payment terms and late payment fees",
+      "url": "https://intercom.help/gorilladesk/en/articles/10364322-payment-terms-and-late-payment-fees"
+    },
+    {
+      "title": "Statements",
+      "url": "https://intercom.help/gorilladesk/en/articles/4004708-statements"
+    },
+    {
+      "title": "Multiple locations per customer",
+      "url": "https://intercom.help/gorilladesk/en/articles/5581110-adding-multiple-locations-to-a-customer-s-account"
+    },
+    {
+      "title": "Stripe vs Square",
+      "url": "https://intercom.help/gorilladesk/en/articles/5342695-stripe-vs-square"
+    },
+    {
+      "title": "Commission tracking",
+      "url": "https://intercom.help/gorilladesk/en/articles/3189223-commission-tracking"
+    },
+    {
+      "title": "Customer portal",
+      "url": "https://intercom.help/gorilladesk/en/articles/8396228-customer-portal"
+    },
+    {
+      "title": "Online booking",
+      "url": "https://intercom.help/gorilladesk/en/articles/8396295-online-booking"
+    },
+    {
+      "title": "MailStream",
+      "url": "https://intercom.help/gorilladesk/en/articles/13731262-mailstream"
+    },
+    {
+      "title": "Triggers",
+      "url": "https://intercom.help/gorilladesk/en/articles/2164746-triggers"
+    },
+    {
+      "title": "Sketch (drawing and graphing)",
+      "url": "https://intercom.help/gorilladesk/en/articles/11390247-sketch-drawing-and-graphing"
+    },
+    {
+      "title": "Time clocking",
+      "url": "https://intercom.help/gorilladesk/en/articles/8869964-track-employees-time-in-and-out-with-time-clocking"
+    },
+    {
+      "title": "Users and permissions",
+      "url": "https://intercom.help/gorilladesk/en/articles/8930961-add-users-and-control-permissions"
+    },
+    {
+      "title": "Accounting FAQ and QuickBooks",
+      "url": "https://intercom.help/gorilladesk/en/articles/431640-accounting-faq-quickbooks"
+    },
+    {
+      "title": "Accrual basis entries",
+      "url": "https://intercom.help/gorilladesk/en/articles/431682-accrual-basis-entries"
+    },
+    {
+      "title": "Phone and tablet app (iOS and Android)",
+      "url": "https://intercom.help/gorilladesk/en/articles/431638-phone-tablet-app-ios-android"
+    },
+    {
+      "title": "GorillaDesk on the Apple App Store",
+      "url": "https://apps.apple.com/app/id978627591"
+    },
+    {
+      "title": "GorillaDesk reviews on Capterra",
+      "url": "https://www.capterra.com/p/130290/GorillaDesk/reviews/"
+    },
+    {
+      "title": "GorillaDesk reviews on Capterra, page 5",
+      "url": "https://www.capterra.com/p/130290/GorillaDesk/reviews/?page=5"
+    },
+    {
+      "title": "GorillaDesk on G2",
+      "url": "https://www.g2.com/products/gorilladesk"
+    },
+    {
+      "title": "SoftwareConnect GorillaDesk review",
+      "url": "https://softwareconnect.com/reviews/gorilladesk/"
+    },
+    {
+      "title": "CB Insights GorillaDesk people",
+      "url": "https://www.cbinsights.com/company/gorilladesk/people"
+    },
+    {
+      "title": "Craft GorillaDesk company profile",
+      "url": "https://craft.co/gorilladesk"
+    }
   ]
 }

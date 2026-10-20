@@ -19,7 +19,10 @@ A pest control company is a route-based subscription business. Most revenue come
 | Mosquito and tick | Seasonal recurring, spring to fall | Season windows, landscape notice rules, tax question |
 | Bed bug | Per-job bid, several visits | Customer prep checklists |
 | Wildlife | Per-job trapping, exclusion and repairs | Landowner authorization, bat blackout, materials |
-| Lawn and turf | Seasonal program of application rounds | Landscape registry, posting, sales tax |
+
+## Scope
+
+Out of scope: lawn care, tree and shrub care, and other trades. Mosquito and tick yard spraying, termite and wildlife are in scope because pest companies sell them. Competitors that also serve lawn care or other trades are compared on their pest features only.
 
 ## Glossary
 
@@ -44,11 +47,11 @@ A pest control company is a route-based subscription business. Most revenue come
 - **AIB, SQF, BRC**: food safety audit schemes commercial customers face.
 - **WDI / WDO report**: wood-destroying insect (organism) inspection report, often for real estate sales.
 - **Exclusion**: sealing entry points; for bats, one-way doors.
-- **Rounds**: the numbered applications in a lawn or mosquito season program.
+- **Rounds**: the numbered applications in a mosquito or tick season program.
 
 ## Seasonality in Wisconsin
 
-Outdoor work (lawn, mosquito, perimeter) stops in winter. Companies keep revenue and technician pay steady with interior-only winter visits, skipped months, and flat monthly billing. Spring brings sign-ups and upsells (mosquito, lawn).
+Outdoor work (mosquito, tick, perimeter) stops in winter. Companies keep revenue and technician pay steady with interior-only winter visits, skipped months, and flat monthly billing. Spring brings sign-ups and upsells (mosquito and tick).
 
 ## Users
 

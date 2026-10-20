@@ -2,6 +2,8 @@
 
 Multi-tenant SaaS for Wisconsin pest control companies: CRM, scheduling, technician app, pesticide compliance, billing and a built-in general ledger. Build order and specs: `specs/README.md`. Data model: `docs/data-model.md`.
 
+Scope is pest control only: general pest, rodent, termite, mosquito and tick, bed bug, wildlife. Lawn care, tree and shrub care, and other trades are out of scope; do not add features for them.
+
 ## Stack
 - Next.js App Router, TypeScript strict, deployed on Vercel
 - Supabase: Postgres, Auth, Storage; migrations in `supabase/migrations/`

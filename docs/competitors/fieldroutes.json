@@ -38,145 +38,683 @@
     "wisconsin_notes": "No Wisconsin customers, case studies or Wisconsin-specific compliance (ATCP 29, landscape registry notice) found. Only named state compliance is California Branch 3 WDO reporting and NPMA-33."
   },
   "features": [
-    {"id": "CRM-01", "status": "Yes", "notes": "Pest CRM with lead management and pipeline visibility from first contact to signed contract.", "source": "https://www.fieldroutes.com/solutions/pest-control-software"},
-    {"id": "CRM-02", "status": "Partial", "notes": "Dashboard tracks cost per lead and customer acquisition cost; close rate or revenue by lead source not documented.", "source": "https://www.fieldroutes.com/lp/pest-control-business-software"},
-    {"id": "CRM-03", "status": "Yes", "notes": "Quotes built in the office and mobile app, including home diagrams for termite and WDO quotes. Tiered good, better, best options not confirmed.", "source": "https://www.fieldroutes.com/operations-suite/fieldroutes-mobile-app"},
-    {"id": "CRM-04", "status": "Yes", "notes": "Contracts signed in the mobile app with inline signatures; digital agreements can also be sent by email or SMS.", "source": "https://apps.apple.com/us/app/-/id1583053577"},
-    {"id": "CRM-05", "status": "Yes", "notes": "Mobile app supports door-to-door sales: territories, no-knock zones, zip code territory limits, leaderboards, sign-up and payment at the door.", "source": "https://www.fieldroutes.com/blog/fieldroutes-december-release-driving-new-efficiency-in-the-field-and-office"},
-    {"id": "CRM-06", "status": "Add-on", "notes": "Sales Cookie integration calculates commissions from FieldRoutes data; it states FieldRoutes lacks native quotas, splits and payout schedules.", "source": "https://salescookie.com/Home/IFieldRoutes"},
-    {"id": "CRM-07", "status": "Add-on", "notes": "ServiceTitan Marketing Pro runs email and direct mail campaigns (unsold estimates, win-back, upsell). Core Trigger Rules send renewal reminders.", "source": "https://www.fieldroutes.com/pro/marketing"},
-    {"id": "CRM-08", "status": "Unknown", "notes": "Cancellation reason codes and save workflows not documented. A Revenue Retention churn tool was announced in Oct 2026 as upcoming.", "source": "https://finviz.com/news/400218/fieldroutes-to-unveil-next-phase-of-product-innovation-at-ignite-2026"},
-    {"id": "CRM-09", "status": "Yes", "notes": "Multi-unit properties (apartments, retail, townhomes) can be linked under one account with consolidated invoicing.", "source": "https://www.fieldroutes.com/solutions/commercial-pest-control"},
-    {"id": "CRM-10", "status": "Add-on", "notes": "Phone system integration through marketplace partner Scorpion. No native click to call or call recording documented.", "source": "https://marketplace.fieldroutes.com/t/partner-types/integrations"},
-
-    {"id": "AGR-01", "status": "Yes", "notes": "Recurring subscriptions generate ongoing service; individual and bulk scheduling for ongoing contracts. Cadence options not detailed publicly.", "source": "https://www.fieldroutes.com/solutions/pest-control-software"},
-    {"id": "AGR-02", "status": "Partial", "notes": "Lawn rounds are modeled as subscriptions rather than native programs and rounds, per a third-party comparison.", "source": "https://integrateiq.com/comparisons/realgreen-vs-fieldroutes/"},
-    {"id": "AGR-03", "status": "Partial", "notes": "Bundled service plans and measurement-based pricing reported; a central tiered price book is not documented.", "source": "https://www.landscapemanagement.net/fieldroutes-expands-software-service-into-lawn-care/"},
-    {"id": "AGR-04", "status": "Unknown", "notes": "No FieldRoutes documentation found for bulk price increases (ServiceTitan core lists it, but that is a different product).", "source": "https://www.servicetitan.com/industries/pest-control-software"},
-    {"id": "AGR-05", "status": "Partial", "notes": "Contract terms exist as account fields with access controls; auto-renewal and early cancellation fees not documented.", "source": "https://www.fieldroutes.com/blog/fieldroutes-december-release-driving-new-efficiency-in-the-field-and-office"},
-    {"id": "AGR-06", "status": "Yes", "notes": "Manages termite warranties and renewals; Sentricon renewals report with anniversary filters; automated renewal reminders.", "source": "https://www.fieldroutes.com/solutions/termite-pest-control"},
-    {"id": "AGR-07", "status": "Unknown", "notes": "No public documentation of re-service or callback tracking with cost capture.", "source": "https://www.fieldroutes.com/solutions/pest-control-software"},
-
-    {"id": "SCH-01", "status": "Yes", "notes": "Fill Routes and bulk scheduling place due services from subscriptions onto optimized routes automatically.", "source": "https://fieldroutes.com/blog/make-the-most-out-of-pestroutes-in-2021"},
-    {"id": "SCH-02", "status": "Yes", "notes": "Drag and drop scheduling with a map view schedule for drawing or dragging appointments onto routes.", "source": "https://www.fieldroutes.com/solutions/pest-control-software"},
-    {"id": "SCH-03", "status": "Yes", "notes": "Instant and batch route optimization across many routes, factoring drive time and fuel.", "source": "https://www.fieldroutes.com/operations-suite/field-service-routing"},
-    {"id": "SCH-04", "status": "Yes", "notes": "Routes organized by technician skillset, e.g. termite-qualified techs for termite inspections.", "source": "https://www.fieldroutes.com/operations-suite/field-service-routing"},
-    {"id": "SCH-05", "status": "Yes", "notes": "Customer portal lets customers self-schedule or request appointments online.", "source": "https://fieldroutes.com/blog/how-to-schedule-pest-control-customers"},
-    {"id": "SCH-06", "status": "Add-on", "notes": "GPS vehicle tracking, geofencing and telematics via ServiceTitan Fleet Pro, sold as a separate product.", "source": "https://www.fieldroutes.com/pro/fleet"},
-    {"id": "SCH-07", "status": "Unknown", "notes": "Bulk scheduling and batch optimization documented; moving many existing appointments at once (e.g. weather) not confirmed.", "source": "https://www.fieldroutes.com/solutions/termite-pest-control"},
-
-    {"id": "MOB-01", "status": "Yes", "notes": "FieldRoutes App on iOS and Android, available only to subscribers.", "source": "https://apps.apple.com/us/app/-/id1583053577"},
-    {"id": "MOB-02", "status": "Yes", "notes": "Release notes cite offline reliability fixes and offline card payments that stay pending until they can process.", "source": "https://apps.apple.com/us/app/-/id1583053577"},
-    {"id": "MOB-03", "status": "Yes", "notes": "Technicians document chemical usage in the mobile app; products support linear footage and default products per equipment.", "source": "https://www.fieldroutes.com/blog/pest-control-pesticide-usage-tracking-apps"},
-    {"id": "MOB-04", "status": "Yes", "notes": "Up to 100 photos per appointment, voice-to-text notes and inline customer signatures.", "source": "https://apps.apple.com/us/app/-/id1583053577"},
-    {"id": "MOB-05", "status": "Yes", "notes": "Equipment can be scanned with a Bluetooth barcode scanner from the appointment workflow.", "source": "https://apps.apple.com/us/app/-/id1583053577"},
-    {"id": "MOB-06", "status": "Yes", "notes": "Card payments in the app, including door-to-door payment workflow. Check and cash handling not confirmed.", "source": "https://www.fieldroutes.com/blog/fieldroutes-december-release-driving-new-efficiency-in-the-field-and-office"},
-    {"id": "MOB-07", "status": "Unknown", "notes": "Review sites list timesheet management, but no vendor page documents a mobile time clock.", "source": "https://www.capterra.com/p/146076/FieldRoutes/"},
-    {"id": "MOB-08", "status": "Partial", "notes": "Techs see product availability on their route with low-supply warnings; updating vehicle stock from the device not documented.", "source": "https://www.fieldroutes.com/blog/pest-control-pesticide-usage-tracking-apps"},
-
-    {"id": "CMP-01", "status": "Yes", "notes": "Chemical usage captured on visits feeds chemical tracking and state chemical reports pulled by office staff.", "source": "https://www.fieldroutes.com/blog/pest-control-pesticide-usage-tracking-apps"},
-    {"id": "CMP-02", "status": "Unknown", "notes": "Product list exists, but EPA registration numbers, label and SDS storage are not documented for FieldRoutes.", "source": "https://www.fieldroutes.com/blog/pest-control-pesticide-usage-tracking-apps"},
-    {"id": "CMP-03", "status": "Partial", "notes": "Scheduling considers technician certifications and the API exposes licenses; license expiry alerts not documented.", "source": "https://www.landscapemanagement.net/fieldroutes-expands-software-service-into-lawn-care/"},
-    {"id": "CMP-04", "status": "Yes", "notes": "California Branch 3 WDO reporting, paperless NPMA-33 forms and state chemical reports.", "source": "https://www.fieldroutes.com/solutions/termite-pest-control"},
-    {"id": "CMP-05", "status": "Unknown", "notes": "Trigger Rules automate customer messages, but pesticide pre- or post-application notices are not documented.", "source": "https://www.fieldroutes.com/resources/tips-and-tools/top-6-automation-hacks-to-get-your-time-back"},
-    {"id": "CMP-06", "status": "Unknown", "notes": "No public information on restricted-use pesticide limits or RUP record fields.", "source": "https://www.fieldroutes.com/blog/pest-control-pesticide-usage-tracking-apps"},
-    {"id": "CMP-07", "status": "Partial", "notes": "Inventory for pesticides with route-level stock and capacity; warehouse purchasing and transfers not documented.", "source": "https://www.fieldroutes.com/blog/pest-control-pesticide-usage-tracking-apps"},
-    {"id": "CMP-08", "status": "Unknown", "notes": "No mention of Wisconsin, ATCP 29 or landscape registry notice. Only California and NPMA-33 are named.", "source": "https://www.fieldroutes.com/solutions/termite-pest-control"},
-
-    {"id": "COM-01", "status": "Yes", "notes": "Equipment such as bait stations tracked per property with product associations and Bluetooth barcode scanning.", "source": "https://apps.apple.com/us/app/-/id1583053577"},
-    {"id": "COM-02", "status": "Unknown", "notes": "Structures can be defined in the app and reviews list property layouts; device floor plan maps not confirmed.", "source": "https://www.fieldroutes.com/solutions/commercial-pest-control"},
-    {"id": "COM-03", "status": "Yes", "notes": "Commercial trend reporting on pest activity, included in both pricing tiers.", "source": "https://fieldroutes.com/pricing"},
-    {"id": "COM-04", "status": "Unknown", "notes": "Vendor cites audit-ready documentation for state and federal compliance; AIB, SQF or BRC support not named.", "source": "https://www.fieldroutes.com/solutions/commercial-pest-control"},
-    {"id": "COM-05", "status": "Partial", "notes": "Branded portal with property notifications and multi-property trend reports; maps, labels and SDS in portal not confirmed.", "source": "https://www.fieldroutes.com/solutions/commercial-pest-control"},
-    {"id": "COM-06", "status": "Partial", "notes": "Techs report pest-conducive conditions with recommendations and status alerts; customer sighting logs not documented.", "source": "https://www.fieldroutes.com/solutions/commercial-pest-control"},
-    {"id": "COM-07", "status": "Partial", "notes": "Consolidates multiple units onto one invoice; PO numbers and net terms not mentioned.", "source": "https://www.fieldroutes.com/solutions/commercial-pest-control"},
-
-    {"id": "SPC-01", "status": "Yes", "notes": "Sentricon bait hub, WDO and NPMA-33 inspection reports, and termite home diagrams in the mobile app.", "source": "https://www.fieldroutes.com/solutions/termite-pest-control"},
-    {"id": "SPC-02", "status": "Unknown", "notes": "No public documentation of wildlife trapping or exclusion job workflows.", "source": "https://www.fieldroutes.com/solutions/pest-control-software"},
-    {"id": "SPC-03", "status": "Unknown", "notes": "No public documentation of bed bug multi-visit jobs or prep checklists.", "source": "https://www.fieldroutes.com/solutions/pest-control-software"},
-    {"id": "SPC-04", "status": "Partial", "notes": "Marketed to lawn care with measurement pricing and service plans; third party says agronomy and lawn chemical depth lag RealGreen.", "source": "https://www.landscapemanagement.net/fieldroutes-expands-software-service-into-lawn-care/"},
-    {"id": "SPC-05", "status": "Unknown", "notes": "No vendor page describes seasonal mosquito or tick programs.", "source": "https://www.fieldroutes.com/solutions/pest-control-software"},
-
-    {"id": "BIL-01", "status": "Yes", "notes": "FieldRoutes Payments for card processing built in. ACH not explicitly mentioned on the payments page.", "source": "https://www.fieldroutes.com/operations-suite/payments"},
-    {"id": "BIL-02", "status": "Yes", "notes": "AutoPay with stored cards and automatic outreach to update expired cards; on by default for new door-to-door sign-ups.", "source": "https://www.fieldroutes.com/operations-suite/payments"},
-    {"id": "BIL-03", "status": "Partial", "notes": "Monthly budget plans and prepayment discounts documented; per-visit versus annual prepay for the same service not shown.", "source": "https://www.fieldroutes.com/operations-suite/payments"},
-    {"id": "BIL-04", "status": "Unknown", "notes": "Tax-exempt status field exists; jurisdiction-based tax rates by service address not documented.", "source": "https://www.fieldroutes.com/blog/fieldroutes-december-release-driving-new-efficiency-in-the-field-and-office"},
-    {"id": "BIL-05", "status": "Yes", "notes": "Collection tools, escalating automated payment reminders, collection stage filters. Late fees and service holds not confirmed.", "source": "https://www.fieldroutes.com/operations-suite/payments"},
-    {"id": "BIL-06", "status": "Yes", "notes": "Consolidated invoicing combines services from a period or multiple units into one master invoice.", "source": "https://www.landscapemanagement.net/fieldroutes-expands-software-service-into-lawn-care/"},
-    {"id": "BIL-07", "status": "Unknown", "notes": "No public documentation of prorated refunds or cancellation balance calculation.", "source": "https://www.fieldroutes.com/operations-suite/payments"},
-
-    {"id": "ACC-01", "status": "No", "notes": "Vendor positions QuickBooks sync for month-end accounting; no ledger, journals or financial statements described.", "source": "https://www.fieldroutes.com/operations-suite/api-integrations"},
-    {"id": "ACC-02", "status": "Yes", "notes": "QuickBooks Online sync for end-of-month processing; reviewers report setup and auto-sync issues.", "source": "https://www.fieldroutes.com/operations-suite/api-integrations"},
-    {"id": "ACC-03", "status": "Unknown", "notes": "Vendor mentions other accounting systems without naming Sage, Xero or NetSuite.", "source": "https://www.fieldroutes.com/operations-suite/api-integrations"},
-    {"id": "ACC-04", "status": "Unknown", "notes": "Prepayments supported, but deferred revenue recognition is not documented.", "source": "https://finviz.com/news/400218/fieldroutes-to-unveil-next-phase-of-product-innovation-at-ignite-2026"},
-    {"id": "ACC-05", "status": "Unknown", "notes": "No public documentation of labor and material job costing or margin per job.", "source": "https://www.fieldroutes.com/operations-suite/dashboards-and-reporting"},
-    {"id": "ACC-06", "status": "Unknown", "notes": "Marketplace mentions an unnamed payroll and HR partner; production pay and payroll export not documented.", "source": "https://marketplace.fieldroutes.com/"},
-
-    {"id": "CX-01", "status": "Yes", "notes": "Customer portal to pay invoices, view payment history and appointments, set AutoPay and request service.", "source": "https://www.fieldroutes.com/operations-suite/payments"},
-    {"id": "CX-02", "status": "Partial", "notes": "Automated reminders by text, email or voice confirmed by vendor; on-the-way notices only cited by a third party.", "source": "https://www.fieldroutes.com/resources/tips-and-tools/top-6-automation-hacks-to-get-your-time-back"},
-    {"id": "CX-03", "status": "Unknown", "notes": "Outbound SMS documented (with per-message fees); two-way office texting not confirmed.", "source": "https://www.softwareadvice.com/field-service/fieldroutes-profile/"},
-    {"id": "CX-04", "status": "Yes", "notes": "Automated post-service rating requests with Google review link and NPS; LoyaltyLoop integration also available.", "source": "https://www.fieldroutes.com/resources/tips-and-tools/top-6-automation-hacks-to-get-your-time-back"},
-    {"id": "CX-05", "status": "Unknown", "notes": "WDO reports can be emailed; a general post-visit report listing products applied is not documented.", "source": "https://www.fieldroutes.com/solutions/termite-pest-control"},
-
-    {"id": "RPT-01", "status": "Yes", "notes": "Dashboards for active customers, owed payments, stops per route; reports on payment status and delinquencies.", "source": "https://www.fieldroutes.com/operations-suite/dashboards-and-reporting"},
-    {"id": "RPT-02", "status": "Unknown", "notes": "Retention and churn analytics (Revenue Retention) announced Oct 2026 as upcoming, not yet confirmed available.", "source": "https://finviz.com/news/400218/fieldroutes-to-unveil-next-phase-of-product-innovation-at-ignite-2026"},
-    {"id": "RPT-03", "status": "Yes", "notes": "Mobile and dashboards show technician and sales rep performance and productivity, including stops per route.", "source": "https://www.fieldroutes.com/operations-suite/fieldroutes-mobile-app"},
-    {"id": "RPT-04", "status": "Partial", "notes": "Customizable dashboards and saved report filters; no full report builder. AI Command Center analytics is upcoming.", "source": "https://www.fieldroutes.com/operations-suite/dashboards-and-reporting"},
-
-    {"id": "PLT-01", "status": "Yes", "notes": "Multi-office operations, centralized or decentralized, with reporting compared across offices.", "source": "https://www.fieldroutes.com/solutions/enterprise"},
-    {"id": "PLT-02", "status": "Yes", "notes": "Permission-based dashboards and admin controls restricting which reps can view or edit sensitive fields.", "source": "https://www.fieldroutes.com/blog/fieldroutes-december-release-driving-new-efficiency-in-the-field-and-office"},
-    {"id": "PLT-03", "status": "Yes", "notes": "Open API with developer docs; Premium API listed in both plans.", "source": "https://www.fieldroutes.com/operations-suite/api-integrations"},
-    {"id": "PLT-04", "status": "Yes", "notes": "Implementation team imports and cleans historical data during a 2 to 3 month onboarding.", "source": "https://www.fieldroutes.com/resources/tips-and-tools/how-to-switch-to-fieldroutes-software-migration-guide"},
-    {"id": "PLT-05", "status": "Add-on", "notes": "AI dash cams in Fleet Pro; AI Command Center analytics and AI sales coaching announced but not confirmed live.", "source": "https://www.fieldroutes.com/pro/fleet"},
-    {"id": "PLT-06", "status": "Unknown", "notes": "No hosted website or embeddable lead form documented; Scorpion is a marketplace partner but its role is unclear.", "source": "https://marketplace.fieldroutes.com/"},
-    {"id": "PLT-07", "status": "Add-on", "notes": "Marketing Pro adds direct mail, including property-based postcards to prospects. Call tracking and SEO not documented.", "source": "https://www.fieldroutes.com/pro/marketing"}
+    {
+      "id": "CRM-01",
+      "status": "Yes",
+      "notes": "Pest CRM with lead management and pipeline visibility from first contact to signed contract.",
+      "source": "https://www.fieldroutes.com/solutions/pest-control-software"
+    },
+    {
+      "id": "CRM-02",
+      "status": "Partial",
+      "notes": "Dashboard tracks cost per lead and customer acquisition cost; close rate or revenue by lead source not documented.",
+      "source": "https://www.fieldroutes.com/lp/pest-control-business-software"
+    },
+    {
+      "id": "CRM-03",
+      "status": "Yes",
+      "notes": "Quotes built in the office and mobile app, including home diagrams for termite and WDO quotes. Tiered good, better, best options not confirmed.",
+      "source": "https://www.fieldroutes.com/operations-suite/fieldroutes-mobile-app"
+    },
+    {
+      "id": "CRM-04",
+      "status": "Yes",
+      "notes": "Contracts signed in the mobile app with inline signatures; digital agreements can also be sent by email or SMS.",
+      "source": "https://apps.apple.com/us/app/-/id1583053577"
+    },
+    {
+      "id": "CRM-05",
+      "status": "Yes",
+      "notes": "Mobile app supports door-to-door sales: territories, no-knock zones, zip code territory limits, leaderboards, sign-up and payment at the door.",
+      "source": "https://www.fieldroutes.com/blog/fieldroutes-december-release-driving-new-efficiency-in-the-field-and-office"
+    },
+    {
+      "id": "CRM-06",
+      "status": "Add-on",
+      "notes": "Sales Cookie integration calculates commissions from FieldRoutes data; it states FieldRoutes lacks native quotas, splits and payout schedules.",
+      "source": "https://salescookie.com/Home/IFieldRoutes"
+    },
+    {
+      "id": "CRM-07",
+      "status": "Add-on",
+      "notes": "ServiceTitan Marketing Pro runs email and direct mail campaigns (unsold estimates, win-back, upsell). Core Trigger Rules send renewal reminders.",
+      "source": "https://www.fieldroutes.com/pro/marketing"
+    },
+    {
+      "id": "CRM-08",
+      "status": "Unknown",
+      "notes": "Cancellation reason codes and save workflows not documented. A Revenue Retention churn tool was announced in Oct 2026 as upcoming.",
+      "source": "https://finviz.com/news/400218/fieldroutes-to-unveil-next-phase-of-product-innovation-at-ignite-2026"
+    },
+    {
+      "id": "CRM-09",
+      "status": "Yes",
+      "notes": "Multi-unit properties (apartments, retail, townhomes) can be linked under one account with consolidated invoicing.",
+      "source": "https://www.fieldroutes.com/solutions/commercial-pest-control"
+    },
+    {
+      "id": "CRM-10",
+      "status": "Add-on",
+      "notes": "Phone system integration through marketplace partner Scorpion. No native click to call or call recording documented.",
+      "source": "https://marketplace.fieldroutes.com/t/partner-types/integrations"
+    },
+    {
+      "id": "AGR-01",
+      "status": "Yes",
+      "notes": "Recurring subscriptions generate ongoing service; individual and bulk scheduling for ongoing contracts. Cadence options not detailed publicly.",
+      "source": "https://www.fieldroutes.com/solutions/pest-control-software"
+    },
+    {
+      "id": "AGR-02",
+      "status": "Partial",
+      "notes": "Lawn rounds are modeled as subscriptions rather than native programs and rounds, per a third-party comparison.",
+      "source": "https://integrateiq.com/comparisons/realgreen-vs-fieldroutes/"
+    },
+    {
+      "id": "AGR-03",
+      "status": "Partial",
+      "notes": "Bundled service plans and measurement-based pricing reported; a central tiered price book is not documented.",
+      "source": "https://www.landscapemanagement.net/fieldroutes-expands-software-service-into-lawn-care/"
+    },
+    {
+      "id": "AGR-04",
+      "status": "Unknown",
+      "notes": "No FieldRoutes documentation found for bulk price increases (ServiceTitan core lists it, but that is a different product).",
+      "source": "https://www.servicetitan.com/industries/pest-control-software"
+    },
+    {
+      "id": "AGR-05",
+      "status": "Partial",
+      "notes": "Contract terms exist as account fields with access controls; auto-renewal and early cancellation fees not documented.",
+      "source": "https://www.fieldroutes.com/blog/fieldroutes-december-release-driving-new-efficiency-in-the-field-and-office"
+    },
+    {
+      "id": "AGR-06",
+      "status": "Yes",
+      "notes": "Manages termite warranties and renewals; Sentricon renewals report with anniversary filters; automated renewal reminders.",
+      "source": "https://www.fieldroutes.com/solutions/termite-pest-control"
+    },
+    {
+      "id": "AGR-07",
+      "status": "Unknown",
+      "notes": "No public documentation of re-service or callback tracking with cost capture.",
+      "source": "https://www.fieldroutes.com/solutions/pest-control-software"
+    },
+    {
+      "id": "SCH-01",
+      "status": "Yes",
+      "notes": "Fill Routes and bulk scheduling place due services from subscriptions onto optimized routes automatically.",
+      "source": "https://fieldroutes.com/blog/make-the-most-out-of-pestroutes-in-2021"
+    },
+    {
+      "id": "SCH-02",
+      "status": "Yes",
+      "notes": "Drag and drop scheduling with a map view schedule for drawing or dragging appointments onto routes.",
+      "source": "https://www.fieldroutes.com/solutions/pest-control-software"
+    },
+    {
+      "id": "SCH-03",
+      "status": "Yes",
+      "notes": "Instant and batch route optimization across many routes, factoring drive time and fuel.",
+      "source": "https://www.fieldroutes.com/operations-suite/field-service-routing"
+    },
+    {
+      "id": "SCH-04",
+      "status": "Yes",
+      "notes": "Routes organized by technician skillset, e.g. termite-qualified techs for termite inspections.",
+      "source": "https://www.fieldroutes.com/operations-suite/field-service-routing"
+    },
+    {
+      "id": "SCH-05",
+      "status": "Yes",
+      "notes": "Customer portal lets customers self-schedule or request appointments online.",
+      "source": "https://fieldroutes.com/blog/how-to-schedule-pest-control-customers"
+    },
+    {
+      "id": "SCH-06",
+      "status": "Add-on",
+      "notes": "GPS vehicle tracking, geofencing and telematics via ServiceTitan Fleet Pro, sold as a separate product.",
+      "source": "https://www.fieldroutes.com/pro/fleet"
+    },
+    {
+      "id": "SCH-07",
+      "status": "Unknown",
+      "notes": "Bulk scheduling and batch optimization documented; moving many existing appointments at once (e.g. weather) not confirmed.",
+      "source": "https://www.fieldroutes.com/solutions/termite-pest-control"
+    },
+    {
+      "id": "MOB-01",
+      "status": "Yes",
+      "notes": "FieldRoutes App on iOS and Android, available only to subscribers.",
+      "source": "https://apps.apple.com/us/app/-/id1583053577"
+    },
+    {
+      "id": "MOB-02",
+      "status": "Yes",
+      "notes": "Release notes cite offline reliability fixes and offline card payments that stay pending until they can process.",
+      "source": "https://apps.apple.com/us/app/-/id1583053577"
+    },
+    {
+      "id": "MOB-03",
+      "status": "Yes",
+      "notes": "Technicians document chemical usage in the mobile app; products support linear footage and default products per equipment.",
+      "source": "https://www.fieldroutes.com/blog/pest-control-pesticide-usage-tracking-apps"
+    },
+    {
+      "id": "MOB-04",
+      "status": "Yes",
+      "notes": "Up to 100 photos per appointment, voice-to-text notes and inline customer signatures.",
+      "source": "https://apps.apple.com/us/app/-/id1583053577"
+    },
+    {
+      "id": "MOB-05",
+      "status": "Yes",
+      "notes": "Equipment can be scanned with a Bluetooth barcode scanner from the appointment workflow.",
+      "source": "https://apps.apple.com/us/app/-/id1583053577"
+    },
+    {
+      "id": "MOB-06",
+      "status": "Yes",
+      "notes": "Card payments in the app, including door-to-door payment workflow. Check and cash handling not confirmed.",
+      "source": "https://www.fieldroutes.com/blog/fieldroutes-december-release-driving-new-efficiency-in-the-field-and-office"
+    },
+    {
+      "id": "MOB-07",
+      "status": "Unknown",
+      "notes": "Review sites list timesheet management, but no vendor page documents a mobile time clock.",
+      "source": "https://www.capterra.com/p/146076/FieldRoutes/"
+    },
+    {
+      "id": "MOB-08",
+      "status": "Partial",
+      "notes": "Techs see product availability on their route with low-supply warnings; updating vehicle stock from the device not documented.",
+      "source": "https://www.fieldroutes.com/blog/pest-control-pesticide-usage-tracking-apps"
+    },
+    {
+      "id": "CMP-01",
+      "status": "Yes",
+      "notes": "Chemical usage captured on visits feeds chemical tracking and state chemical reports pulled by office staff.",
+      "source": "https://www.fieldroutes.com/blog/pest-control-pesticide-usage-tracking-apps"
+    },
+    {
+      "id": "CMP-02",
+      "status": "Unknown",
+      "notes": "Product list exists, but EPA registration numbers, label and SDS storage are not documented for FieldRoutes.",
+      "source": "https://www.fieldroutes.com/blog/pest-control-pesticide-usage-tracking-apps"
+    },
+    {
+      "id": "CMP-03",
+      "status": "Partial",
+      "notes": "Scheduling considers technician certifications and the API exposes licenses; license expiry alerts not documented.",
+      "source": "https://www.landscapemanagement.net/fieldroutes-expands-software-service-into-lawn-care/"
+    },
+    {
+      "id": "CMP-04",
+      "status": "Yes",
+      "notes": "California Branch 3 WDO reporting, paperless NPMA-33 forms and state chemical reports.",
+      "source": "https://www.fieldroutes.com/solutions/termite-pest-control"
+    },
+    {
+      "id": "CMP-05",
+      "status": "Unknown",
+      "notes": "Trigger Rules automate customer messages, but pesticide pre- or post-application notices are not documented.",
+      "source": "https://www.fieldroutes.com/resources/tips-and-tools/top-6-automation-hacks-to-get-your-time-back"
+    },
+    {
+      "id": "CMP-06",
+      "status": "Unknown",
+      "notes": "No public information on restricted-use pesticide limits or RUP record fields.",
+      "source": "https://www.fieldroutes.com/blog/pest-control-pesticide-usage-tracking-apps"
+    },
+    {
+      "id": "CMP-07",
+      "status": "Partial",
+      "notes": "Inventory for pesticides with route-level stock and capacity; warehouse purchasing and transfers not documented.",
+      "source": "https://www.fieldroutes.com/blog/pest-control-pesticide-usage-tracking-apps"
+    },
+    {
+      "id": "CMP-08",
+      "status": "Unknown",
+      "notes": "No mention of Wisconsin, ATCP 29 or landscape registry notice. Only California and NPMA-33 are named.",
+      "source": "https://www.fieldroutes.com/solutions/termite-pest-control"
+    },
+    {
+      "id": "COM-01",
+      "status": "Yes",
+      "notes": "Equipment such as bait stations tracked per property with product associations and Bluetooth barcode scanning.",
+      "source": "https://apps.apple.com/us/app/-/id1583053577"
+    },
+    {
+      "id": "COM-02",
+      "status": "Unknown",
+      "notes": "Structures can be defined in the app and reviews list property layouts; device floor plan maps not confirmed.",
+      "source": "https://www.fieldroutes.com/solutions/commercial-pest-control"
+    },
+    {
+      "id": "COM-03",
+      "status": "Yes",
+      "notes": "Commercial trend reporting on pest activity, included in both pricing tiers.",
+      "source": "https://fieldroutes.com/pricing"
+    },
+    {
+      "id": "COM-04",
+      "status": "Unknown",
+      "notes": "Vendor cites audit-ready documentation for state and federal compliance; AIB, SQF or BRC support not named.",
+      "source": "https://www.fieldroutes.com/solutions/commercial-pest-control"
+    },
+    {
+      "id": "COM-05",
+      "status": "Partial",
+      "notes": "Branded portal with property notifications and multi-property trend reports; maps, labels and SDS in portal not confirmed.",
+      "source": "https://www.fieldroutes.com/solutions/commercial-pest-control"
+    },
+    {
+      "id": "COM-06",
+      "status": "Partial",
+      "notes": "Techs report pest-conducive conditions with recommendations and status alerts; customer sighting logs not documented.",
+      "source": "https://www.fieldroutes.com/solutions/commercial-pest-control"
+    },
+    {
+      "id": "COM-07",
+      "status": "Partial",
+      "notes": "Consolidates multiple units onto one invoice; PO numbers and net terms not mentioned.",
+      "source": "https://www.fieldroutes.com/solutions/commercial-pest-control"
+    },
+    {
+      "id": "SPC-01",
+      "status": "Yes",
+      "notes": "Sentricon bait hub, WDO and NPMA-33 inspection reports, and termite home diagrams in the mobile app.",
+      "source": "https://www.fieldroutes.com/solutions/termite-pest-control"
+    },
+    {
+      "id": "SPC-02",
+      "status": "Unknown",
+      "notes": "No public documentation of wildlife trapping or exclusion job workflows.",
+      "source": "https://www.fieldroutes.com/solutions/pest-control-software"
+    },
+    {
+      "id": "SPC-03",
+      "status": "Unknown",
+      "notes": "No public documentation of bed bug multi-visit jobs or prep checklists.",
+      "source": "https://www.fieldroutes.com/solutions/pest-control-software"
+    },
+    {
+      "id": "SPC-05",
+      "status": "Unknown",
+      "notes": "No vendor page describes seasonal mosquito or tick programs.",
+      "source": "https://www.fieldroutes.com/solutions/pest-control-software"
+    },
+    {
+      "id": "BIL-01",
+      "status": "Yes",
+      "notes": "FieldRoutes Payments for card processing built in. ACH not explicitly mentioned on the payments page.",
+      "source": "https://www.fieldroutes.com/operations-suite/payments"
+    },
+    {
+      "id": "BIL-02",
+      "status": "Yes",
+      "notes": "AutoPay with stored cards and automatic outreach to update expired cards; on by default for new door-to-door sign-ups.",
+      "source": "https://www.fieldroutes.com/operations-suite/payments"
+    },
+    {
+      "id": "BIL-03",
+      "status": "Partial",
+      "notes": "Monthly budget plans and prepayment discounts documented; per-visit versus annual prepay for the same service not shown.",
+      "source": "https://www.fieldroutes.com/operations-suite/payments"
+    },
+    {
+      "id": "BIL-04",
+      "status": "Unknown",
+      "notes": "Tax-exempt status field exists; jurisdiction-based tax rates by service address not documented.",
+      "source": "https://www.fieldroutes.com/blog/fieldroutes-december-release-driving-new-efficiency-in-the-field-and-office"
+    },
+    {
+      "id": "BIL-05",
+      "status": "Yes",
+      "notes": "Collection tools, escalating automated payment reminders, collection stage filters. Late fees and service holds not confirmed.",
+      "source": "https://www.fieldroutes.com/operations-suite/payments"
+    },
+    {
+      "id": "BIL-06",
+      "status": "Yes",
+      "notes": "Consolidated invoicing combines services from a period or multiple units into one master invoice.",
+      "source": "https://www.landscapemanagement.net/fieldroutes-expands-software-service-into-lawn-care/"
+    },
+    {
+      "id": "BIL-07",
+      "status": "Unknown",
+      "notes": "No public documentation of prorated refunds or cancellation balance calculation.",
+      "source": "https://www.fieldroutes.com/operations-suite/payments"
+    },
+    {
+      "id": "ACC-01",
+      "status": "No",
+      "notes": "Vendor positions QuickBooks sync for month-end accounting; no ledger, journals or financial statements described.",
+      "source": "https://www.fieldroutes.com/operations-suite/api-integrations"
+    },
+    {
+      "id": "ACC-02",
+      "status": "Yes",
+      "notes": "QuickBooks Online sync for end-of-month processing; reviewers report setup and auto-sync issues.",
+      "source": "https://www.fieldroutes.com/operations-suite/api-integrations"
+    },
+    {
+      "id": "ACC-03",
+      "status": "Unknown",
+      "notes": "Vendor mentions other accounting systems without naming Sage, Xero or NetSuite.",
+      "source": "https://www.fieldroutes.com/operations-suite/api-integrations"
+    },
+    {
+      "id": "ACC-04",
+      "status": "Unknown",
+      "notes": "Prepayments supported, but deferred revenue recognition is not documented.",
+      "source": "https://finviz.com/news/400218/fieldroutes-to-unveil-next-phase-of-product-innovation-at-ignite-2026"
+    },
+    {
+      "id": "ACC-05",
+      "status": "Unknown",
+      "notes": "No public documentation of labor and material job costing or margin per job.",
+      "source": "https://www.fieldroutes.com/operations-suite/dashboards-and-reporting"
+    },
+    {
+      "id": "ACC-06",
+      "status": "Unknown",
+      "notes": "Marketplace mentions an unnamed payroll and HR partner; production pay and payroll export not documented.",
+      "source": "https://marketplace.fieldroutes.com/"
+    },
+    {
+      "id": "CX-01",
+      "status": "Yes",
+      "notes": "Customer portal to pay invoices, view payment history and appointments, set AutoPay and request service.",
+      "source": "https://www.fieldroutes.com/operations-suite/payments"
+    },
+    {
+      "id": "CX-02",
+      "status": "Partial",
+      "notes": "Automated reminders by text, email or voice confirmed by vendor; on-the-way notices only cited by a third party.",
+      "source": "https://www.fieldroutes.com/resources/tips-and-tools/top-6-automation-hacks-to-get-your-time-back"
+    },
+    {
+      "id": "CX-03",
+      "status": "Unknown",
+      "notes": "Outbound SMS documented (with per-message fees); two-way office texting not confirmed.",
+      "source": "https://www.softwareadvice.com/field-service/fieldroutes-profile/"
+    },
+    {
+      "id": "CX-04",
+      "status": "Yes",
+      "notes": "Automated post-service rating requests with Google review link and NPS; LoyaltyLoop integration also available.",
+      "source": "https://www.fieldroutes.com/resources/tips-and-tools/top-6-automation-hacks-to-get-your-time-back"
+    },
+    {
+      "id": "CX-05",
+      "status": "Unknown",
+      "notes": "WDO reports can be emailed; a general post-visit report listing products applied is not documented.",
+      "source": "https://www.fieldroutes.com/solutions/termite-pest-control"
+    },
+    {
+      "id": "RPT-01",
+      "status": "Yes",
+      "notes": "Dashboards for active customers, owed payments, stops per route; reports on payment status and delinquencies.",
+      "source": "https://www.fieldroutes.com/operations-suite/dashboards-and-reporting"
+    },
+    {
+      "id": "RPT-02",
+      "status": "Unknown",
+      "notes": "Retention and churn analytics (Revenue Retention) announced Oct 2026 as upcoming, not yet confirmed available.",
+      "source": "https://finviz.com/news/400218/fieldroutes-to-unveil-next-phase-of-product-innovation-at-ignite-2026"
+    },
+    {
+      "id": "RPT-03",
+      "status": "Yes",
+      "notes": "Mobile and dashboards show technician and sales rep performance and productivity, including stops per route.",
+      "source": "https://www.fieldroutes.com/operations-suite/fieldroutes-mobile-app"
+    },
+    {
+      "id": "RPT-04",
+      "status": "Partial",
+      "notes": "Customizable dashboards and saved report filters; no full report builder. AI Command Center analytics is upcoming.",
+      "source": "https://www.fieldroutes.com/operations-suite/dashboards-and-reporting"
+    },
+    {
+      "id": "PLT-01",
+      "status": "Yes",
+      "notes": "Multi-office operations, centralized or decentralized, with reporting compared across offices.",
+      "source": "https://www.fieldroutes.com/solutions/enterprise"
+    },
+    {
+      "id": "PLT-02",
+      "status": "Yes",
+      "notes": "Permission-based dashboards and admin controls restricting which reps can view or edit sensitive fields.",
+      "source": "https://www.fieldroutes.com/blog/fieldroutes-december-release-driving-new-efficiency-in-the-field-and-office"
+    },
+    {
+      "id": "PLT-03",
+      "status": "Yes",
+      "notes": "Open API with developer docs; Premium API listed in both plans.",
+      "source": "https://www.fieldroutes.com/operations-suite/api-integrations"
+    },
+    {
+      "id": "PLT-04",
+      "status": "Yes",
+      "notes": "Implementation team imports and cleans historical data during a 2 to 3 month onboarding.",
+      "source": "https://www.fieldroutes.com/resources/tips-and-tools/how-to-switch-to-fieldroutes-software-migration-guide"
+    },
+    {
+      "id": "PLT-05",
+      "status": "Add-on",
+      "notes": "AI dash cams in Fleet Pro; AI Command Center analytics and AI sales coaching announced but not confirmed live.",
+      "source": "https://www.fieldroutes.com/pro/fleet"
+    },
+    {
+      "id": "PLT-06",
+      "status": "Unknown",
+      "notes": "No hosted website or embeddable lead form documented; Scorpion is a marketplace partner but its role is unclear.",
+      "source": "https://marketplace.fieldroutes.com/"
+    },
+    {
+      "id": "PLT-07",
+      "status": "Add-on",
+      "notes": "Marketing Pro adds direct mail, including property-based postcards to prospects. Call tracking and SEO not documented.",
+      "source": "https://www.fieldroutes.com/pro/marketing"
+    }
   ],
   "extra_features": [
-    {"feature": "Sentricon hub with Corteva reporting", "module": "Specialty services", "notes": "Tracks Sentricon installs, service, inspections and renewals, with monthly reporting to Corteva Agriscience.", "source": "https://www.fieldroutes.com/solutions/termite-pest-control"},
-    {"feature": "Trigger Rules automation engine", "module": "Customer experience", "notes": "Event-based rules send customer texts, emails and voice messages and create internal alerts and tasks.", "source": "https://www.fieldroutes.com/resources/tips-and-tools/top-6-automation-hacks-to-get-your-time-back"},
-    {"feature": "Route chemical capacity planning", "module": "Compliance", "notes": "Route templates set chemical capacity, estimate daily product needs from past jobs and warn when supply runs low.", "source": "https://www.fieldroutes.com/blog/pest-control-pesticide-usage-tracking-apps"},
-    {"feature": "Dilution rate calculator", "module": "Technician app", "notes": "Built-in tool to calculate mix and dilution rates for products.", "source": "https://www.fieldroutes.com/blog/pest-control-pesticide-usage-tracking-apps"},
-    {"feature": "Sales territory controls", "module": "CRM and sales", "notes": "Zip code territories, no-knock zones, area sales stats and rep leaderboards for door-to-door teams.", "source": "https://www.fieldroutes.com/company/news/fieldroutes-launches-mobile-app-to-deliver-sales-and-service-functionality"},
-    {"feature": "Multi-unit quota scheduling", "module": "Commercial", "notes": "Units in multi-unit properties scheduled by a set number or percentage per appointment.", "source": "https://www.fieldroutes.com/solutions/commercial-pest-control"},
-    {"feature": "Consumer financing", "module": "Billing and payments", "notes": "Wisetack partner offers customer financing for larger jobs.", "source": "https://marketplace.fieldroutes.com/"},
-    {"feature": "Fleet safety (AI dash cams, driver scorecards)", "module": "Scheduling and dispatch", "notes": "Fleet Pro add-on detects risky driving, scores drivers and supports insurance claims with video.", "source": "https://www.fieldroutes.com/pro/fleet"},
-    {"feature": "Intelligent dispatch for same-day gaps (upcoming)", "module": "Scheduling and dispatch", "notes": "Announced Oct 2026 to fill same-day openings after cancellations; not yet confirmed available.", "source": "https://finviz.com/news/400218/fieldroutes-to-unveil-next-phase-of-product-innovation-at-ignite-2026"}
+    {
+      "feature": "Sentricon hub with Corteva reporting",
+      "module": "Specialty services",
+      "notes": "Tracks Sentricon installs, service, inspections and renewals, with monthly reporting to Corteva Agriscience.",
+      "source": "https://www.fieldroutes.com/solutions/termite-pest-control"
+    },
+    {
+      "feature": "Trigger Rules automation engine",
+      "module": "Customer experience",
+      "notes": "Event-based rules send customer texts, emails and voice messages and create internal alerts and tasks.",
+      "source": "https://www.fieldroutes.com/resources/tips-and-tools/top-6-automation-hacks-to-get-your-time-back"
+    },
+    {
+      "feature": "Route chemical capacity planning",
+      "module": "Compliance",
+      "notes": "Route templates set chemical capacity, estimate daily product needs from past jobs and warn when supply runs low.",
+      "source": "https://www.fieldroutes.com/blog/pest-control-pesticide-usage-tracking-apps"
+    },
+    {
+      "feature": "Dilution rate calculator",
+      "module": "Technician app",
+      "notes": "Built-in tool to calculate mix and dilution rates for products.",
+      "source": "https://www.fieldroutes.com/blog/pest-control-pesticide-usage-tracking-apps"
+    },
+    {
+      "feature": "Sales territory controls",
+      "module": "CRM and sales",
+      "notes": "Zip code territories, no-knock zones, area sales stats and rep leaderboards for door-to-door teams.",
+      "source": "https://www.fieldroutes.com/company/news/fieldroutes-launches-mobile-app-to-deliver-sales-and-service-functionality"
+    },
+    {
+      "feature": "Multi-unit quota scheduling",
+      "module": "Commercial",
+      "notes": "Units in multi-unit properties scheduled by a set number or percentage per appointment.",
+      "source": "https://www.fieldroutes.com/solutions/commercial-pest-control"
+    },
+    {
+      "feature": "Consumer financing",
+      "module": "Billing and payments",
+      "notes": "Wisetack partner offers customer financing for larger jobs.",
+      "source": "https://marketplace.fieldroutes.com/"
+    },
+    {
+      "feature": "Fleet safety (AI dash cams, driver scorecards)",
+      "module": "Scheduling and dispatch",
+      "notes": "Fleet Pro add-on detects risky driving, scores drivers and supports insurance claims with video.",
+      "source": "https://www.fieldroutes.com/pro/fleet"
+    },
+    {
+      "feature": "Intelligent dispatch for same-day gaps (upcoming)",
+      "module": "Scheduling and dispatch",
+      "notes": "Announced Oct 2026 to fill same-day openings after cancellations; not yet confirmed available.",
+      "source": "https://finviz.com/news/400218/fieldroutes-to-unveil-next-phase-of-product-innovation-at-ignite-2026"
+    }
   ],
   "sources": [
-    {"title": "FieldRoutes home page", "url": "https://www.fieldroutes.com/"},
-    {"title": "FieldRoutes pest control software", "url": "https://www.fieldroutes.com/solutions/pest-control-software"},
-    {"title": "FieldRoutes commercial pest control", "url": "https://www.fieldroutes.com/solutions/commercial-pest-control"},
-    {"title": "FieldRoutes termite pest control", "url": "https://www.fieldroutes.com/solutions/termite-pest-control"},
-    {"title": "FieldRoutes enterprise", "url": "https://www.fieldroutes.com/solutions/enterprise"},
-    {"title": "FieldRoutes mobile app page", "url": "https://www.fieldroutes.com/operations-suite/fieldroutes-mobile-app"},
-    {"title": "FieldRoutes payments", "url": "https://www.fieldroutes.com/operations-suite/payments"},
-    {"title": "FieldRoutes routing and scheduling", "url": "https://www.fieldroutes.com/operations-suite/field-service-routing"},
-    {"title": "FieldRoutes dashboards and reporting", "url": "https://www.fieldroutes.com/operations-suite/dashboards-and-reporting"},
-    {"title": "FieldRoutes API and integrations", "url": "https://www.fieldroutes.com/operations-suite/api-integrations"},
-    {"title": "FieldRoutes pricing", "url": "https://fieldroutes.com/pricing"},
-    {"title": "FieldRoutes Marketing Pro", "url": "https://www.fieldroutes.com/pro/marketing"},
-    {"title": "FieldRoutes Fleet Pro", "url": "https://www.fieldroutes.com/pro/fleet"},
-    {"title": "FieldRoutes December 2025 release", "url": "https://www.fieldroutes.com/blog/fieldroutes-december-release-driving-new-efficiency-in-the-field-and-office"},
-    {"title": "FieldRoutes Ignite 2026 announcement (GlobeNewswire via Finviz)", "url": "https://finviz.com/news/400218/fieldroutes-to-unveil-next-phase-of-product-innovation-at-ignite-2026"},
-    {"title": "FieldRoutes mobile app launch news (2023)", "url": "https://www.fieldroutes.com/company/news/fieldroutes-launches-mobile-app-to-deliver-sales-and-service-functionality"},
-    {"title": "FieldRoutes App on the App Store", "url": "https://apps.apple.com/us/app/-/id1583053577"},
-    {"title": "FieldRoutes blog: pesticide usage tracking apps", "url": "https://www.fieldroutes.com/blog/pest-control-pesticide-usage-tracking-apps"},
-    {"title": "FieldRoutes blog: how to schedule pest control customers", "url": "https://fieldroutes.com/blog/how-to-schedule-pest-control-customers"},
-    {"title": "FieldRoutes blog: make the most out of PestRoutes in 2021", "url": "https://fieldroutes.com/blog/make-the-most-out-of-pestroutes-in-2021"},
-    {"title": "FieldRoutes: top 6 automation hacks", "url": "https://www.fieldroutes.com/resources/tips-and-tools/top-6-automation-hacks-to-get-your-time-back"},
-    {"title": "FieldRoutes migration guide", "url": "https://www.fieldroutes.com/resources/tips-and-tools/how-to-switch-to-fieldroutes-software-migration-guide"},
-    {"title": "FieldRoutes landing page: pest control business software", "url": "https://www.fieldroutes.com/lp/pest-control-business-software"},
-    {"title": "FieldRoutes partner marketplace", "url": "https://marketplace.fieldroutes.com/"},
-    {"title": "FieldRoutes marketplace integrations", "url": "https://marketplace.fieldroutes.com/t/partner-types/integrations"},
-    {"title": "LoyaltyLoop partner listing", "url": "https://marketplace.fieldroutes.com/partners/loyaltyloop"},
-    {"title": "Capterra FieldRoutes profile", "url": "https://www.capterra.com/p/146076/FieldRoutes/"},
-    {"title": "Capterra FieldRoutes reviews", "url": "https://www.capterra.com/p/146076/FieldRoutes/reviews/"},
-    {"title": "Software Advice FieldRoutes profile", "url": "https://www.softwareadvice.com/field-service/fieldroutes-profile/"},
-    {"title": "G2 FieldRoutes vs PestPac", "url": "https://g2.com/compare/fieldroutes-a-servicetitan-company-vs-pestpac-by-workwave"},
-    {"title": "PricingSaaS FieldRoutes", "url": "https://pricingsaas.com/companies/fieldroutes"},
-    {"title": "Landscape Management: FieldRoutes expands into lawn care", "url": "https://www.landscapemanagement.net/fieldroutes-expands-software-service-into-lawn-care/"},
-    {"title": "Integrate IQ: RealGreen vs FieldRoutes", "url": "https://integrateiq.com/comparisons/realgreen-vs-fieldroutes/"},
-    {"title": "Sales Cookie FieldRoutes integration", "url": "https://salescookie.com/Home/IFieldRoutes"},
-    {"title": "ServiceTitan pest control software", "url": "https://www.servicetitan.com/industries/pest-control-software"}
+    {
+      "title": "FieldRoutes home page",
+      "url": "https://www.fieldroutes.com/"
+    },
+    {
+      "title": "FieldRoutes pest control software",
+      "url": "https://www.fieldroutes.com/solutions/pest-control-software"
+    },
+    {
+      "title": "FieldRoutes commercial pest control",
+      "url": "https://www.fieldroutes.com/solutions/commercial-pest-control"
+    },
+    {
+      "title": "FieldRoutes termite pest control",
+      "url": "https://www.fieldroutes.com/solutions/termite-pest-control"
+    },
+    {
+      "title": "FieldRoutes enterprise",
+      "url": "https://www.fieldroutes.com/solutions/enterprise"
+    },
+    {
+      "title": "FieldRoutes mobile app page",
+      "url": "https://www.fieldroutes.com/operations-suite/fieldroutes-mobile-app"
+    },
+    {
+      "title": "FieldRoutes payments",
+      "url": "https://www.fieldroutes.com/operations-suite/payments"
+    },
+    {
+      "title": "FieldRoutes routing and scheduling",
+      "url": "https://www.fieldroutes.com/operations-suite/field-service-routing"
+    },
+    {
+      "title": "FieldRoutes dashboards and reporting",
+      "url": "https://www.fieldroutes.com/operations-suite/dashboards-and-reporting"
+    },
+    {
+      "title": "FieldRoutes API and integrations",
+      "url": "https://www.fieldroutes.com/operations-suite/api-integrations"
+    },
+    {
+      "title": "FieldRoutes pricing",
+      "url": "https://fieldroutes.com/pricing"
+    },
+    {
+      "title": "FieldRoutes Marketing Pro",
+      "url": "https://www.fieldroutes.com/pro/marketing"
+    },
+    {
+      "title": "FieldRoutes Fleet Pro",
+      "url": "https://www.fieldroutes.com/pro/fleet"
+    },
+    {
+      "title": "FieldRoutes December 2025 release",
+      "url": "https://www.fieldroutes.com/blog/fieldroutes-december-release-driving-new-efficiency-in-the-field-and-office"
+    },
+    {
+      "title": "FieldRoutes Ignite 2026 announcement (GlobeNewswire via Finviz)",
+      "url": "https://finviz.com/news/400218/fieldroutes-to-unveil-next-phase-of-product-innovation-at-ignite-2026"
+    },
+    {
+      "title": "FieldRoutes mobile app launch news (2023)",
+      "url": "https://www.fieldroutes.com/company/news/fieldroutes-launches-mobile-app-to-deliver-sales-and-service-functionality"
+    },
+    {
+      "title": "FieldRoutes App on the App Store",
+      "url": "https://apps.apple.com/us/app/-/id1583053577"
+    },
+    {
+      "title": "FieldRoutes blog: pesticide usage tracking apps",
+      "url": "https://www.fieldroutes.com/blog/pest-control-pesticide-usage-tracking-apps"
+    },
+    {
+      "title": "FieldRoutes blog: how to schedule pest control customers",
+      "url": "https://fieldroutes.com/blog/how-to-schedule-pest-control-customers"
+    },
+    {
+      "title": "FieldRoutes blog: make the most out of PestRoutes in 2021",
+      "url": "https://fieldroutes.com/blog/make-the-most-out-of-pestroutes-in-2021"
+    },
+    {
+      "title": "FieldRoutes: top 6 automation hacks",
+      "url": "https://www.fieldroutes.com/resources/tips-and-tools/top-6-automation-hacks-to-get-your-time-back"
+    },
+    {
+      "title": "FieldRoutes migration guide",
+      "url": "https://www.fieldroutes.com/resources/tips-and-tools/how-to-switch-to-fieldroutes-software-migration-guide"
+    },
+    {
+      "title": "FieldRoutes landing page: pest control business software",
+      "url": "https://www.fieldroutes.com/lp/pest-control-business-software"
+    },
+    {
+      "title": "FieldRoutes partner marketplace",
+      "url": "https://marketplace.fieldroutes.com/"
+    },
+    {
+      "title": "FieldRoutes marketplace integrations",
+      "url": "https://marketplace.fieldroutes.com/t/partner-types/integrations"
+    },
+    {
+      "title": "LoyaltyLoop partner listing",
+      "url": "https://marketplace.fieldroutes.com/partners/loyaltyloop"
+    },
+    {
+      "title": "Capterra FieldRoutes profile",
+      "url": "https://www.capterra.com/p/146076/FieldRoutes/"
+    },
+    {
+      "title": "Capterra FieldRoutes reviews",
+      "url": "https://www.capterra.com/p/146076/FieldRoutes/reviews/"
+    },
+    {
+      "title": "Software Advice FieldRoutes profile",
+      "url": "https://www.softwareadvice.com/field-service/fieldroutes-profile/"
+    },
+    {
+      "title": "G2 FieldRoutes vs PestPac",
+      "url": "https://g2.com/compare/fieldroutes-a-servicetitan-company-vs-pestpac-by-workwave"
+    },
+    {
+      "title": "PricingSaaS FieldRoutes",
+      "url": "https://pricingsaas.com/companies/fieldroutes"
+    },
+    {
+      "title": "Landscape Management: FieldRoutes expands into lawn care",
+      "url": "https://www.landscapemanagement.net/fieldroutes-expands-software-service-into-lawn-care/"
+    },
+    {
+      "title": "Integrate IQ: RealGreen vs FieldRoutes",
+      "url": "https://integrateiq.com/comparisons/realgreen-vs-fieldroutes/"
+    },
+    {
+      "title": "Sales Cookie FieldRoutes integration",
+      "url": "https://salescookie.com/Home/IFieldRoutes"
+    },
+    {
+      "title": "ServiceTitan pest control software",
+      "url": "https://www.servicetitan.com/industries/pest-control-software"
+    }
   ]
 }

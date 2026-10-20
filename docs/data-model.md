@@ -59,7 +59,7 @@ erDiagram
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| service_types | tenant_id, service_line [general_pest, rodent, termite, mosquito, bed_bug, wildlife, lawn], name, tax_class, required_cert_categories text[], is_landscape bool | Drives tax, licensing and notice rules |
+| service_types | tenant_id, service_line [general_pest, rodent, termite, mosquito, bed_bug, wildlife], name, tax_class, required_cert_categories text[], is_landscape bool | Drives tax, licensing and notice rules |
 | price_book_items | tenant_id, service_type_id, tier rule (size bands), initial_price_cents, recurring_price_cents, add_on bool | |
 | products | (shared) name, epa_reg_no, active_ingredients, restricted_use bool, rei_hours, label_url, sds_url, signal_word | Platform-maintained master list |
 | tenant_products | tenant_id, product_id, enabled, unit, unit_cost_cents | Tenant switches on and costs products |

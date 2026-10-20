@@ -2,18 +2,6 @@
   "description": "Sales tax applies by service type tax class, never by free text. Rates come from DOR rate tables by service address; this file covers taxability only.",
   "cases": [
     {
-      "service_line": "lawn",
-      "work": "fertilizing and weed spraying of a lawn",
-      "taxable": true,
-      "source": "DOR Publication 210, lawn spraying and fertilizing"
-    },
-    {
-      "service_line": "lawn",
-      "work": "tree and shrub spraying",
-      "taxable": true,
-      "source": "DOR Publication 210, shrub and tree services"
-    },
-    {
       "service_line": "general_pest",
       "work": "interior and perimeter insect treatment of a house",
       "taxable": false,
@@ -25,14 +13,15 @@
       "work": "yard mosquito and tick spraying",
       "taxable": null,
       "status": "open question",
-      "source": "Confirm with DOR before launch"
+      "source": "Confirm with DOR before launch. Wisconsin taxes spraying of lawns, trees and shrubs as a landscaping service (DOR Publication 210), which may cover yard spraying."
     },
     {
-      "service_line": "lawn",
-      "work": "lawn fertilizing billed to a Wisconsin government unit with exemption certificate",
+      "service_line": "any",
+      "work": "a taxable line billed to a Wisconsin government unit with an exemption certificate on file",
       "taxable": false,
       "source": "DOR Publication 210, exempt sales to governmental units"
     }
   ],
-  "mixed_invoice_rule": "Invoices with taxable and nontaxable work show each portion separately and tax only the taxable portion (DOR Publication 210, mixed transactions)."
+  "mixed_invoice_rule": "Invoices with taxable and nontaxable work show each portion separately and tax only the taxable portion (DOR Publication 210, mixed transactions).",
+  "scope_note": "Out of scope: lawn care, tree and shrub care, and other trades. Mosquito and tick yard spraying, termite and wildlife are in scope because pest companies sell them."
 }

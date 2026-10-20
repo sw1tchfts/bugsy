@@ -35,14 +35,6 @@
       "is_landscape": false
     },
     {
-      "service_line": "lawn",
-      "required_categories": [
-        "3.0"
-      ],
-      "tax_class": "taxable_landscaping",
-      "is_landscape": true
-    },
-    {
       "service_line": "mosquito",
       "required_categories": [
         "5.0"
@@ -57,5 +49,6 @@
       "is_landscape": false,
       "note": "Add 7.1 when pesticides are used."
     }
-  ]
+  ],
+  "scope_note": "Out of scope: lawn care, tree and shrub care, and other trades. Mosquito and tick yard spraying, termite and wildlife are in scope because pest companies sell them."
 }

@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "status_values": {
     "Yes": "Built in and documented by the vendor (feature page, help center, release notes or app store listing).",
     "Partial": "Exists but limited, e.g. only some service lines, only via workaround, or missing a key part of the definition. Explain in notes.",
@@ -8,97 +8,486 @@
     "Unknown": "Could not confirm either way from public sources. Use this rather than guessing."
   },
   "features": [
-    {"id": "CRM-01", "module": "CRM and sales", "feature": "Lead capture and sales pipeline", "definition": "Leads tracked through stages from first contact to signed customer."},
-    {"id": "CRM-02", "module": "CRM and sales", "feature": "Lead source and marketing attribution", "definition": "Source recorded per lead; reports on close rate or revenue by source or campaign."},
-    {"id": "CRM-03", "module": "CRM and sales", "feature": "Estimates and quotes", "definition": "Build and send quotes, ideally with tiered (good, better, best) options."},
-    {"id": "CRM-04", "module": "CRM and sales", "feature": "E-signature on agreements", "definition": "Customer signs the service agreement electronically inside the product."},
-    {"id": "CRM-05", "module": "CRM and sales", "feature": "Door-to-door sales app", "definition": "Mobile tool for field sales reps: territory maps, knock tracking, sign-up at the door."},
-    {"id": "CRM-06", "module": "CRM and sales", "feature": "Sales commissions", "definition": "Commission rules for reps or technicians, including holds or chargebacks on early cancellation."},
-    {"id": "CRM-07", "module": "CRM and sales", "feature": "Automated marketing campaigns", "definition": "Email or SMS sequences for quote follow-up, upsells, renewals or win-backs."},
-    {"id": "CRM-08", "module": "CRM and sales", "feature": "Cancellation reasons and retention workflows", "definition": "Cancellation reason codes, save attempts, retention tracking."},
-    {"id": "CRM-09", "module": "CRM and sales", "feature": "Multi-property accounts", "definition": "One billing account with many service locations (landlord, property manager, chain)."},
-    {"id": "CRM-10", "module": "CRM and sales", "feature": "Phone and call center integration", "definition": "Click to call, call tracking, call recording or caller ID pop of the customer record."},
-
-    {"id": "AGR-01", "module": "Agreements and pricing", "feature": "Recurring service agreements", "definition": "Agreements with flexible cadence (monthly, every other month, quarterly, custom) that generate visits."},
-    {"id": "AGR-02", "module": "Agreements and pricing", "feature": "Seasonal programs and rounds", "definition": "Fixed number of service rounds inside a date window (lawn rounds, mosquito season)."},
-    {"id": "AGR-03", "module": "Agreements and pricing", "feature": "Price book with tiers and add-ons", "definition": "Prices by property size or tier, plus add-on items, maintained centrally."},
-    {"id": "AGR-04", "module": "Agreements and pricing", "feature": "Bulk price increases", "definition": "Apply yearly price increases across many agreements at once."},
-    {"id": "AGR-05", "module": "Agreements and pricing", "feature": "Contract terms and auto-renewal", "definition": "Term length, auto-renewal, early cancellation fees tracked per agreement."},
-    {"id": "AGR-06", "module": "Agreements and pricing", "feature": "Warranty and renewal tracking", "definition": "Termite or other warranties with yearly renewal billing and reminders."},
-    {"id": "AGR-07", "module": "Agreements and pricing", "feature": "Re-service and callback tracking", "definition": "Free return visits logged against the agreement, with their cost captured."},
-
-    {"id": "SCH-01", "module": "Scheduling and dispatch", "feature": "Auto-generated recurring visits", "definition": "Visits created automatically from agreements into due windows."},
-    {"id": "SCH-02", "module": "Scheduling and dispatch", "feature": "Dispatch board with map", "definition": "Drag and drop scheduling board with a map view."},
-    {"id": "SCH-03", "module": "Scheduling and dispatch", "feature": "Route optimization", "definition": "Automatic sequencing or assignment of stops to minimize drive time."},
-    {"id": "SCH-04", "module": "Scheduling and dispatch", "feature": "Skill or license-based assignment", "definition": "Scheduler considers technician skills, certifications or licenses when assigning work."},
-    {"id": "SCH-05", "module": "Scheduling and dispatch", "feature": "Customer online booking", "definition": "Customers can book or reschedule appointments themselves online."},
-    {"id": "SCH-06", "module": "Scheduling and dispatch", "feature": "GPS and vehicle tracking", "definition": "Live technician or vehicle location for dispatchers."},
-    {"id": "SCH-07", "module": "Scheduling and dispatch", "feature": "Bulk rescheduling", "definition": "Move many appointments at once, e.g. for weather."},
-
-    {"id": "MOB-01", "module": "Technician app", "feature": "Native mobile app", "definition": "iOS and Android technician app."},
-    {"id": "MOB-02", "module": "Technician app", "feature": "Offline mode", "definition": "Technicians can complete work without a connection and sync later."},
-    {"id": "MOB-03", "module": "Technician app", "feature": "Product usage capture at the visit", "definition": "Technician records products, amounts and areas treated on the visit."},
-    {"id": "MOB-04", "module": "Technician app", "feature": "Photos, notes and signature", "definition": "Capture photos, notes and a customer signature on the job."},
-    {"id": "MOB-05", "module": "Technician app", "feature": "Barcode scanning", "definition": "Scan device or station barcodes in the field."},
-    {"id": "MOB-06", "module": "Technician app", "feature": "Take payment in the field", "definition": "Collect card, check or cash payments from the app."},
-    {"id": "MOB-07", "module": "Technician app", "feature": "Time clock", "definition": "Clock in and out, track hours for payroll."},
-    {"id": "MOB-08", "module": "Technician app", "feature": "Truck inventory on device", "definition": "Technician sees and updates the stock on their vehicle."},
-
-    {"id": "CMP-01", "module": "Compliance", "feature": "Pesticide application records", "definition": "Application records meeting state requirements, generated from visit data."},
-    {"id": "CMP-02", "module": "Compliance", "feature": "Product catalog with EPA numbers, labels and SDS", "definition": "Master list of products with EPA registration numbers, label and safety data sheet documents."},
-    {"id": "CMP-03", "module": "Compliance", "feature": "Applicator license tracking", "definition": "Technician license and certification numbers, categories and expiry alerts."},
-    {"id": "CMP-04", "module": "Compliance", "feature": "State regulatory reports", "definition": "Reports or exports formatted for state pesticide regulators or inspections."},
-    {"id": "CMP-05", "module": "Compliance", "feature": "Automatic customer pesticide notices", "definition": "Pre- or post-application notices to customers or residents sent automatically."},
-    {"id": "CMP-06", "module": "Compliance", "feature": "Restricted-use pesticide controls", "definition": "Limits on who may apply restricted-use products, or RUP-specific record fields."},
-    {"id": "CMP-07", "module": "Compliance", "feature": "Inventory management", "definition": "Stock by warehouse or branch, purchasing, transfers, usage deduction."},
-    {"id": "CMP-08", "module": "Compliance", "feature": "Wisconsin-specific compliance", "definition": "Explicit Wisconsin support: ATCP 29 record fields, landscape registry advance notice, posting signs. Mark Unknown unless the vendor names Wisconsin."},
-
-    {"id": "COM-01", "module": "Commercial", "feature": "Device and station inventory per site", "definition": "Bait stations, traps and insect light traps tracked per site, usually with barcodes."},
-    {"id": "COM-02", "module": "Commercial", "feature": "Facility device maps", "definition": "Floor plan or site map showing device locations, maintained in the product."},
-    {"id": "COM-03", "module": "Commercial", "feature": "Pest activity trending", "definition": "Per-device activity history and trend reports over time."},
-    {"id": "COM-04", "module": "Commercial", "feature": "Food safety audit reporting", "definition": "Audit-ready documentation for AIB, SQF, BRC or similar food safety audits."},
-    {"id": "COM-05", "module": "Commercial", "feature": "Commercial customer document portal", "definition": "Commercial customers access service reports, maps, labels and SDS online."},
-    {"id": "COM-06", "module": "Commercial", "feature": "Sighting logs and corrective actions", "definition": "Customer pest sighting logs and recommendations tracked to closure."},
-    {"id": "COM-07", "module": "Commercial", "feature": "Commercial billing (PO, net terms, consolidated)", "definition": "PO numbers, net terms and consolidated invoices across sites."},
-
-    {"id": "SPC-01", "module": "Specialty services", "feature": "Termite (graphs, bait monitoring, WDI reports)", "definition": "Termite graphs or diagrams, bait station monitoring, wood-destroying insect inspection reports."},
-    {"id": "SPC-02", "module": "Specialty services", "feature": "Wildlife jobs", "definition": "Multi-visit trapping, exclusion and repair jobs with materials."},
-    {"id": "SPC-03", "module": "Specialty services", "feature": "Bed bug jobs", "definition": "Multi-visit treatments with customer prep checklists."},
-    {"id": "SPC-04", "module": "Specialty services", "feature": "Lawn care", "definition": "Lawn programs with rounds, measurements, fertilizer and weed control."},
-    {"id": "SPC-05", "module": "Specialty services", "feature": "Mosquito programs", "definition": "Seasonal mosquito and tick programs."},
-
-    {"id": "BIL-01", "module": "Billing and payments", "feature": "Integrated payment processing", "definition": "Card and ACH processing built in."},
-    {"id": "BIL-02", "module": "Billing and payments", "feature": "Autopay and card on file", "definition": "Saved payment methods charged automatically."},
-    {"id": "BIL-03", "module": "Billing and payments", "feature": "Flexible billing modes", "definition": "Per visit, flat monthly and annual prepay billing for the same service."},
-    {"id": "BIL-04", "module": "Billing and payments", "feature": "Sales tax by jurisdiction", "definition": "Tax rates by service address, with taxability set per service type."},
-    {"id": "BIL-05", "module": "Billing and payments", "feature": "Collections workflows", "definition": "Dunning reminders, payment retries, late fees, service holds for past-due accounts."},
-    {"id": "BIL-06", "module": "Billing and payments", "feature": "Statements and consolidated invoices", "definition": "Account statements combining many invoices or agreements."},
-    {"id": "BIL-07", "module": "Billing and payments", "feature": "Prorated refunds and cancellation billing", "definition": "Automatic proration or balance due when an agreement is cancelled."},
-
-    {"id": "ACC-01", "module": "Accounting", "feature": "Built-in general ledger", "definition": "Full double-entry accounting inside the product (not just an export)."},
-    {"id": "ACC-02", "module": "Accounting", "feature": "QuickBooks integration", "definition": "Sync to QuickBooks Online or Desktop."},
-    {"id": "ACC-03", "module": "Accounting", "feature": "Other accounting integrations", "definition": "Sage, Xero, NetSuite or similar."},
-    {"id": "ACC-04", "module": "Accounting", "feature": "Deferred revenue handling", "definition": "Prepayments held as deferred revenue and recognized as visits are performed."},
-    {"id": "ACC-05", "module": "Accounting", "feature": "Job costing", "definition": "Labor and material cost per job, with margin."},
-    {"id": "ACC-06", "module": "Accounting", "feature": "Payroll and production pay", "definition": "Payroll export or integration, including production-based technician pay."},
-
-    {"id": "CX-01", "module": "Customer experience", "feature": "Customer portal", "definition": "Customers pay, see history and request service online."},
-    {"id": "CX-02", "module": "Customer experience", "feature": "Reminders and on-the-way texts", "definition": "Automatic appointment reminders and technician en route notices."},
-    {"id": "CX-03", "module": "Customer experience", "feature": "Two-way SMS", "definition": "Office staff can text back and forth with customers."},
-    {"id": "CX-04", "module": "Customer experience", "feature": "Review requests", "definition": "Automated requests for online reviews after service."},
-    {"id": "CX-05", "module": "Customer experience", "feature": "Post-service reports", "definition": "Service report sent to the customer after the visit, listing products applied."},
-
-    {"id": "RPT-01", "module": "Reporting", "feature": "Standard financial and operational reports", "definition": "Revenue, AR aging, production and similar reports."},
-    {"id": "RPT-02", "module": "Reporting", "feature": "Retention and churn analytics", "definition": "Retention or cancellation rates by route, technician, service or period."},
-    {"id": "RPT-03", "module": "Reporting", "feature": "Technician productivity", "definition": "Revenue or stops per technician, time on site, re-service rates."},
-    {"id": "RPT-04", "module": "Reporting", "feature": "Custom report builder or BI", "definition": "User-built reports, dashboards or BI export."},
-
-    {"id": "PLT-01", "module": "Platform", "feature": "Multi-branch support", "definition": "Several branches or locations with separate settings and reporting."},
-    {"id": "PLT-02", "module": "Platform", "feature": "Role-based permissions", "definition": "Configurable roles controlling what each user can see and do."},
-    {"id": "PLT-03", "module": "Platform", "feature": "Open API or webhooks", "definition": "Public or partner API, webhooks, or Zapier."},
-    {"id": "PLT-04", "module": "Platform", "feature": "Data migration services", "definition": "Vendor imports data from a previous system."},
-    {"id": "PLT-05", "module": "Platform", "feature": "AI features", "definition": "Any AI assistant, AI call answering, AI summaries, predictions or similar."},
-    {"id": "PLT-06", "module": "Platform", "feature": "Website and lead forms", "definition": "Hosted website, embeddable booking or lead forms."},
-    {"id": "PLT-07", "module": "Platform", "feature": "Marketing tools (direct mail, call tracking, SEO)", "definition": "Built-in marketing services beyond email and SMS campaigns."}
-  ]
+    {
+      "id": "CRM-01",
+      "module": "CRM and sales",
+      "feature": "Lead capture and sales pipeline",
+      "definition": "Leads tracked through stages from first contact to signed customer."
+    },
+    {
+      "id": "CRM-02",
+      "module": "CRM and sales",
+      "feature": "Lead source and marketing attribution",
+      "definition": "Source recorded per lead; reports on close rate or revenue by source or campaign."
+    },
+    {
+      "id": "CRM-03",
+      "module": "CRM and sales",
+      "feature": "Estimates and quotes",
+      "definition": "Build and send quotes, ideally with tiered (good, better, best) options."
+    },
+    {
+      "id": "CRM-04",
+      "module": "CRM and sales",
+      "feature": "E-signature on agreements",
+      "definition": "Customer signs the service agreement electronically inside the product."
+    },
+    {
+      "id": "CRM-05",
+      "module": "CRM and sales",
+      "feature": "Door-to-door sales app",
+      "definition": "Mobile tool for field sales reps: territory maps, knock tracking, sign-up at the door."
+    },
+    {
+      "id": "CRM-06",
+      "module": "CRM and sales",
+      "feature": "Sales commissions",
+      "definition": "Commission rules for reps or technicians, including holds or chargebacks on early cancellation."
+    },
+    {
+      "id": "CRM-07",
+      "module": "CRM and sales",
+      "feature": "Automated marketing campaigns",
+      "definition": "Email or SMS sequences for quote follow-up, upsells, renewals or win-backs."
+    },
+    {
+      "id": "CRM-08",
+      "module": "CRM and sales",
+      "feature": "Cancellation reasons and retention workflows",
+      "definition": "Cancellation reason codes, save attempts, retention tracking."
+    },
+    {
+      "id": "CRM-09",
+      "module": "CRM and sales",
+      "feature": "Multi-property accounts",
+      "definition": "One billing account with many service locations (landlord, property manager, chain)."
+    },
+    {
+      "id": "CRM-10",
+      "module": "CRM and sales",
+      "feature": "Phone and call center integration",
+      "definition": "Click to call, call tracking, call recording or caller ID pop of the customer record."
+    },
+    {
+      "id": "AGR-01",
+      "module": "Agreements and pricing",
+      "feature": "Recurring service agreements",
+      "definition": "Agreements with flexible cadence (monthly, every other month, quarterly, custom) that generate visits."
+    },
+    {
+      "id": "AGR-02",
+      "module": "Agreements and pricing",
+      "feature": "Seasonal programs and rounds",
+      "definition": "Fixed number of service rounds inside a date window, such as a mosquito and tick season."
+    },
+    {
+      "id": "AGR-03",
+      "module": "Agreements and pricing",
+      "feature": "Price book with tiers and add-ons",
+      "definition": "Prices by property size or tier, plus add-on items, maintained centrally."
+    },
+    {
+      "id": "AGR-04",
+      "module": "Agreements and pricing",
+      "feature": "Bulk price increases",
+      "definition": "Apply yearly price increases across many agreements at once."
+    },
+    {
+      "id": "AGR-05",
+      "module": "Agreements and pricing",
+      "feature": "Contract terms and auto-renewal",
+      "definition": "Term length, auto-renewal, early cancellation fees tracked per agreement."
+    },
+    {
+      "id": "AGR-06",
+      "module": "Agreements and pricing",
+      "feature": "Warranty and renewal tracking",
+      "definition": "Termite or other warranties with yearly renewal billing and reminders."
+    },
+    {
+      "id": "AGR-07",
+      "module": "Agreements and pricing",
+      "feature": "Re-service and callback tracking",
+      "definition": "Free return visits logged against the agreement, with their cost captured."
+    },
+    {
+      "id": "SCH-01",
+      "module": "Scheduling and dispatch",
+      "feature": "Auto-generated recurring visits",
+      "definition": "Visits created automatically from agreements into due windows."
+    },
+    {
+      "id": "SCH-02",
+      "module": "Scheduling and dispatch",
+      "feature": "Dispatch board with map",
+      "definition": "Drag and drop scheduling board with a map view."
+    },
+    {
+      "id": "SCH-03",
+      "module": "Scheduling and dispatch",
+      "feature": "Route optimization",
+      "definition": "Automatic sequencing or assignment of stops to minimize drive time."
+    },
+    {
+      "id": "SCH-04",
+      "module": "Scheduling and dispatch",
+      "feature": "Skill or license-based assignment",
+      "definition": "Scheduler considers technician skills, certifications or licenses when assigning work."
+    },
+    {
+      "id": "SCH-05",
+      "module": "Scheduling and dispatch",
+      "feature": "Customer online booking",
+      "definition": "Customers can book or reschedule appointments themselves online."
+    },
+    {
+      "id": "SCH-06",
+      "module": "Scheduling and dispatch",
+      "feature": "GPS and vehicle tracking",
+      "definition": "Live technician or vehicle location for dispatchers."
+    },
+    {
+      "id": "SCH-07",
+      "module": "Scheduling and dispatch",
+      "feature": "Bulk rescheduling",
+      "definition": "Move many appointments at once, e.g. for weather."
+    },
+    {
+      "id": "MOB-01",
+      "module": "Technician app",
+      "feature": "Native mobile app",
+      "definition": "iOS and Android technician app."
+    },
+    {
+      "id": "MOB-02",
+      "module": "Technician app",
+      "feature": "Offline mode",
+      "definition": "Technicians can complete work without a connection and sync later."
+    },
+    {
+      "id": "MOB-03",
+      "module": "Technician app",
+      "feature": "Product usage capture at the visit",
+      "definition": "Technician records products, amounts and areas treated on the visit."
+    },
+    {
+      "id": "MOB-04",
+      "module": "Technician app",
+      "feature": "Photos, notes and signature",
+      "definition": "Capture photos, notes and a customer signature on the job."
+    },
+    {
+      "id": "MOB-05",
+      "module": "Technician app",
+      "feature": "Barcode scanning",
+      "definition": "Scan device or station barcodes in the field."
+    },
+    {
+      "id": "MOB-06",
+      "module": "Technician app",
+      "feature": "Take payment in the field",
+      "definition": "Collect card, check or cash payments from the app."
+    },
+    {
+      "id": "MOB-07",
+      "module": "Technician app",
+      "feature": "Time clock",
+      "definition": "Clock in and out, track hours for payroll."
+    },
+    {
+      "id": "MOB-08",
+      "module": "Technician app",
+      "feature": "Truck inventory on device",
+      "definition": "Technician sees and updates the stock on their vehicle."
+    },
+    {
+      "id": "CMP-01",
+      "module": "Compliance",
+      "feature": "Pesticide application records",
+      "definition": "Application records meeting state requirements, generated from visit data."
+    },
+    {
+      "id": "CMP-02",
+      "module": "Compliance",
+      "feature": "Product catalog with EPA numbers, labels and SDS",
+      "definition": "Master list of products with EPA registration numbers, label and safety data sheet documents."
+    },
+    {
+      "id": "CMP-03",
+      "module": "Compliance",
+      "feature": "Applicator license tracking",
+      "definition": "Technician license and certification numbers, categories and expiry alerts."
+    },
+    {
+      "id": "CMP-04",
+      "module": "Compliance",
+      "feature": "State regulatory reports",
+      "definition": "Reports or exports formatted for state pesticide regulators or inspections."
+    },
+    {
+      "id": "CMP-05",
+      "module": "Compliance",
+      "feature": "Automatic customer pesticide notices",
+      "definition": "Pre- or post-application notices to customers or residents sent automatically."
+    },
+    {
+      "id": "CMP-06",
+      "module": "Compliance",
+      "feature": "Restricted-use pesticide controls",
+      "definition": "Limits on who may apply restricted-use products, or RUP-specific record fields."
+    },
+    {
+      "id": "CMP-07",
+      "module": "Compliance",
+      "feature": "Inventory management",
+      "definition": "Stock by warehouse or branch, purchasing, transfers, usage deduction."
+    },
+    {
+      "id": "CMP-08",
+      "module": "Compliance",
+      "feature": "Wisconsin-specific compliance",
+      "definition": "Explicit Wisconsin support: ATCP 29 record fields, landscape registry advance notice, posting signs. Mark Unknown unless the vendor names Wisconsin."
+    },
+    {
+      "id": "COM-01",
+      "module": "Commercial",
+      "feature": "Device and station inventory per site",
+      "definition": "Bait stations, traps and insect light traps tracked per site, usually with barcodes."
+    },
+    {
+      "id": "COM-02",
+      "module": "Commercial",
+      "feature": "Facility device maps",
+      "definition": "Floor plan or site map showing device locations, maintained in the product."
+    },
+    {
+      "id": "COM-03",
+      "module": "Commercial",
+      "feature": "Pest activity trending",
+      "definition": "Per-device activity history and trend reports over time."
+    },
+    {
+      "id": "COM-04",
+      "module": "Commercial",
+      "feature": "Food safety audit reporting",
+      "definition": "Audit-ready documentation for AIB, SQF, BRC or similar food safety audits."
+    },
+    {
+      "id": "COM-05",
+      "module": "Commercial",
+      "feature": "Commercial customer document portal",
+      "definition": "Commercial customers access service reports, maps, labels and SDS online."
+    },
+    {
+      "id": "COM-06",
+      "module": "Commercial",
+      "feature": "Sighting logs and corrective actions",
+      "definition": "Customer pest sighting logs and recommendations tracked to closure."
+    },
+    {
+      "id": "COM-07",
+      "module": "Commercial",
+      "feature": "Commercial billing (PO, net terms, consolidated)",
+      "definition": "PO numbers, net terms and consolidated invoices across sites."
+    },
+    {
+      "id": "SPC-01",
+      "module": "Specialty services",
+      "feature": "Termite (graphs, bait monitoring, WDI reports)",
+      "definition": "Termite graphs or diagrams, bait station monitoring, wood-destroying insect inspection reports."
+    },
+    {
+      "id": "SPC-02",
+      "module": "Specialty services",
+      "feature": "Wildlife jobs",
+      "definition": "Multi-visit trapping, exclusion and repair jobs with materials."
+    },
+    {
+      "id": "SPC-03",
+      "module": "Specialty services",
+      "feature": "Bed bug jobs",
+      "definition": "Multi-visit treatments with customer prep checklists."
+    },
+    {
+      "id": "SPC-05",
+      "module": "Specialty services",
+      "feature": "Mosquito programs",
+      "definition": "Seasonal mosquito and tick programs."
+    },
+    {
+      "id": "BIL-01",
+      "module": "Billing and payments",
+      "feature": "Integrated payment processing",
+      "definition": "Card and ACH processing built in."
+    },
+    {
+      "id": "BIL-02",
+      "module": "Billing and payments",
+      "feature": "Autopay and card on file",
+      "definition": "Saved payment methods charged automatically."
+    },
+    {
+      "id": "BIL-03",
+      "module": "Billing and payments",
+      "feature": "Flexible billing modes",
+      "definition": "Per visit, flat monthly and annual prepay billing for the same service."
+    },
+    {
+      "id": "BIL-04",
+      "module": "Billing and payments",
+      "feature": "Sales tax by jurisdiction",
+      "definition": "Tax rates by service address, with taxability set per service type."
+    },
+    {
+      "id": "BIL-05",
+      "module": "Billing and payments",
+      "feature": "Collections workflows",
+      "definition": "Dunning reminders, payment retries, late fees, service holds for past-due accounts."
+    },
+    {
+      "id": "BIL-06",
+      "module": "Billing and payments",
+      "feature": "Statements and consolidated invoices",
+      "definition": "Account statements combining many invoices or agreements."
+    },
+    {
+      "id": "BIL-07",
+      "module": "Billing and payments",
+      "feature": "Prorated refunds and cancellation billing",
+      "definition": "Automatic proration or balance due when an agreement is cancelled."
+    },
+    {
+      "id": "ACC-01",
+      "module": "Accounting",
+      "feature": "Built-in general ledger",
+      "definition": "Full double-entry accounting inside the product (not just an export)."
+    },
+    {
+      "id": "ACC-02",
+      "module": "Accounting",
+      "feature": "QuickBooks integration",
+      "definition": "Sync to QuickBooks Online or Desktop."
+    },
+    {
+      "id": "ACC-03",
+      "module": "Accounting",
+      "feature": "Other accounting integrations",
+      "definition": "Sage, Xero, NetSuite or similar."
+    },
+    {
+      "id": "ACC-04",
+      "module": "Accounting",
+      "feature": "Deferred revenue handling",
+      "definition": "Prepayments held as deferred revenue and recognized as visits are performed."
+    },
+    {
+      "id": "ACC-05",
+      "module": "Accounting",
+      "feature": "Job costing",
+      "definition": "Labor and material cost per job, with margin."
+    },
+    {
+      "id": "ACC-06",
+      "module": "Accounting",
+      "feature": "Payroll and production pay",
+      "definition": "Payroll export or integration, including production-based technician pay."
+    },
+    {
+      "id": "CX-01",
+      "module": "Customer experience",
+      "feature": "Customer portal",
+      "definition": "Customers pay, see history and request service online."
+    },
+    {
+      "id": "CX-02",
+      "module": "Customer experience",
+      "feature": "Reminders and on-the-way texts",
+      "definition": "Automatic appointment reminders and technician en route notices."
+    },
+    {
+      "id": "CX-03",
+      "module": "Customer experience",
+      "feature": "Two-way SMS",
+      "definition": "Office staff can text back and forth with customers."
+    },
+    {
+      "id": "CX-04",
+      "module": "Customer experience",
+      "feature": "Review requests",
+      "definition": "Automated requests for online reviews after service."
+    },
+    {
+      "id": "CX-05",
+      "module": "Customer experience",
+      "feature": "Post-service reports",
+      "definition": "Service report sent to the customer after the visit, listing products applied."
+    },
+    {
+      "id": "RPT-01",
+      "module": "Reporting",
+      "feature": "Standard financial and operational reports",
+      "definition": "Revenue, AR aging, production and similar reports."
+    },
+    {
+      "id": "RPT-02",
+      "module": "Reporting",
+      "feature": "Retention and churn analytics",
+      "definition": "Retention or cancellation rates by route, technician, service or period."
+    },
+    {
+      "id": "RPT-03",
+      "module": "Reporting",
+      "feature": "Technician productivity",
+      "definition": "Revenue or stops per technician, time on site, re-service rates."
+    },
+    {
+      "id": "RPT-04",
+      "module": "Reporting",
+      "feature": "Custom report builder or BI",
+      "definition": "User-built reports, dashboards or BI export."
+    },
+    {
+      "id": "PLT-01",
+      "module": "Platform",
+      "feature": "Multi-branch support",
+      "definition": "Several branches or locations with separate settings and reporting."
+    },
+    {
+      "id": "PLT-02",
+      "module": "Platform",
+      "feature": "Role-based permissions",
+      "definition": "Configurable roles controlling what each user can see and do."
+    },
+    {
+      "id": "PLT-03",
+      "module": "Platform",
+      "feature": "Open API or webhooks",
+      "definition": "Public or partner API, webhooks, or Zapier."
+    },
+    {
+      "id": "PLT-04",
+      "module": "Platform",
+      "feature": "Data migration services",
+      "definition": "Vendor imports data from a previous system."
+    },
+    {
+      "id": "PLT-05",
+      "module": "Platform",
+      "feature": "AI features",
+      "definition": "Any AI assistant, AI call answering, AI summaries, predictions or similar."
+    },
+    {
+      "id": "PLT-06",
+      "module": "Platform",
+      "feature": "Website and lead forms",
+      "definition": "Hosted website, embeddable booking or lead forms."
+    },
+    {
+      "id": "PLT-07",
+      "module": "Platform",
+      "feature": "Marketing tools (direct mail, call tracking, SEO)",
+      "definition": "Built-in marketing services beyond email and SMS campaigns."
+    }
+  ],
+  "scope": "Pest control only. Lawn care, tree and shrub care, and other trades are out of scope; products that serve them are compared on their pest features only."
 }

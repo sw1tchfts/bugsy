@@ -10,7 +10,7 @@ Dispatchers turn due windows into dated routes on a map-based board with drag an
 ## Already decided (from the discovery doc)
 - Phase 1 is manual dispatch with simple sequencing; route optimization is Phase 2.
 - The board blocks assigning work a technician is not licensed for, and blocks bat exclusions inside the DNR blackout window (rules from lib/compliance/rules/wi.ts).
-- Landscape and beyond-10-feet jobs at addresses on the DATCP landscape registry need advance notice before they can be scheduled.
+- Yard mosquito and tick jobs, and structural jobs reaching more than 10 feet from the building, at addresses on the DATCP landscape registry need advance notice before they can be scheduled.
 
 ## Questions for the spec interview
 - Board layout: by technician rows, by day columns, or map-first?

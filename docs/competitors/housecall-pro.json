@@ -10,7 +10,25 @@
     "pricing_source": "https://www.housecallpro.com/pricing/",
     "deployment": "Cloud web app plus native mobile apps; no desktop install.",
     "mobile_app": "Housecall Pro: Field Service (iOS and Android, English and Spanish); separate Force Fleet Tracking app for vehicle GPS hardware.",
-    "integrations": ["QuickBooks Online", "QuickBooks Desktop", "Gusto", "Zapier", "Mailchimp", "Google Local Services Ads", "Yelp", "Angi", "Thumbtack", "CallRail", "CompanyCam", "Wisetack", "Klarna", "Force by Mojio", "Beeline Routes", "Ply (inventory)", "Bluon"],
+    "integrations": [
+      "QuickBooks Online",
+      "QuickBooks Desktop",
+      "Gusto",
+      "Zapier",
+      "Mailchimp",
+      "Google Local Services Ads",
+      "Yelp",
+      "Angi",
+      "Thumbtack",
+      "CallRail",
+      "CompanyCam",
+      "Wisetack",
+      "Klarna",
+      "Force by Mojio",
+      "Beeline Routes",
+      "Ply (inventory)",
+      "Bluon"
+    ],
     "strengths": [
       "Very easy to learn for office staff and technicians; consistently top theme on Capterra and G2.",
       "Strong all-in-one front office: online booking, estimates, invoicing, payments, reviews and customer portal on the base plan.",
@@ -28,144 +46,717 @@
     "wisconsin_notes": "No sign of Wisconsin pest control customers or any Wisconsin pesticide rules (ATCP 29, landscape registry notice, posting) on the vendor site or in searches. Automated sales tax by service address could cover Wisconsin sales tax once registered."
   },
   "features": [
-    {"id": "CRM-01", "status": "Add-on", "notes": "Leads available on all plans since fall 2025; the stage-based Pipeline board is activated separately and third-party pricing guides list it as a paid add-on.", "source": "https://www.housecallpro.com/features/pipeline/"},
-    {"id": "CRM-02", "status": "Yes", "notes": "Lead source recorded on jobs and customers; job reports filter by lead source, and Voice call tracking shows which sources bring leads.", "source": "https://www.housecallpro.com/features/advanced-reporting/"},
-    {"id": "CRM-03", "status": "Yes", "notes": "Estimates on all plans; Sales Proposal Tool adds good, better, best options and financing (included on MAX, otherwise roughly $40/mo).", "source": "https://www.housecallpro.com/features/sales-proposal-tool/"},
-    {"id": "CRM-04", "status": "Partial", "notes": "E-signatures on estimates with attached terms, signed PDF with timestamp. Signing of service plan agreements is not documented.", "source": "https://help.housecallpro.com/en/articles/10040275-e-signatures-on-estimates"},
-    {"id": "CRM-05", "status": "Unknown", "notes": "No door-to-door sales app, territory maps or knock tracking found in vendor materials.", "source": "https://www.housecallpro.com/features/"},
-    {"id": "CRM-06", "status": "Partial", "notes": "Essentials tier and up: revenue or gross profit commissions split by sold-by and worked-by. No holds or chargebacks on cancellation documented.", "source": "https://help.housecallpro.com/en/articles/6649542-using-commission-on-the-job"},
-    {"id": "CRM-07", "status": "Add-on", "notes": "Campaigns offer email, SMS and postcard sequences with triggers and stop conditions; third-party pricing guides list Campaigns as a separate charge or MAX feature.", "source": "https://www.housecallpro.com/resources/february-2026-product-updates/"},
-    {"id": "CRM-08", "status": "Unknown", "notes": "Canceled jobs appear in reports, but no cancellation reason codes or save workflows were found.", "source": "https://www.housecallpro.com/features/advanced-reporting/"},
-    {"id": "CRM-09", "status": "Yes", "notes": "Multiple service addresses per customer with a billing address, plus parent and sub-customer setup for property managers and tenants.", "source": "https://help.housecallpro.com/en/articles/932653-what-is-the-difference-between-sub-customers-and-multiple-addresses"},
-    {"id": "CRM-10", "status": "Add-on", "notes": "Voice add-on: call recording, caller details and job history before answering, call tracking, IVR and queues. CallRail integration also available.", "source": "https://www.housecallpro.com/features/voice-solutions/"},
-    {"id": "AGR-01", "status": "Add-on", "notes": "Recurring service plans that auto-generate visits are a MAX-tier feature; plans bill monthly, quarterly, semiannually or annually.", "source": "https://www.housecallpro.com/pricing/"},
-    {"id": "AGR-02", "status": "Unknown", "notes": "No documented support for a fixed number of rounds within a seasonal date window.", "source": "https://www.housecallpro.com/features/recurring-service-plans/"},
-    {"id": "AGR-03", "status": "Partial", "notes": "Central price book with flat-rate pricing, discounts, recurring discounts and service area pricing. Pricing by property size or tier not documented.", "source": "https://www.housecallpro.com/resources/may-2026-product-updates/"},
-    {"id": "AGR-04", "status": "Unknown", "notes": "No bulk price increase across active service plans found; active plan billing settings cannot be changed in place.", "source": "https://help.housecallpro.com/en/articles/5485025-service-plans-faqs"},
-    {"id": "AGR-05", "status": "Partial", "notes": "Plans can have an end date or continue until cancelled, with renewal emails and a Renew button. Early cancellation fees not documented.", "source": "https://help.housecallpro.com/en/articles/5485025-service-plans-faqs"},
-    {"id": "AGR-06", "status": "Partial", "notes": "No warranty object; annual service plans with renewal emails and warranty perks could approximate termite warranty renewals (MAX tier).", "source": "https://www.housecallpro.com/features/recurring-service-plans/"},
-    {"id": "AGR-07", "status": "Unknown", "notes": "No callback or re-service tracking against agreements found in help center or feature pages.", "source": "https://www.housecallpro.com/features/recurring-service-plans/"},
-    {"id": "SCH-01", "status": "Yes", "notes": "Recurring jobs created from service plans or the recurring job page. Due-window scheduling is not documented.", "source": "https://www.housecallpro.com/resources/february-2026-product-updates/"},
-    {"id": "SCH-02", "status": "Yes", "notes": "Drag and drop dispatch calendar; vehicle and employee locations shown on a map beside the schedule.", "source": "https://www.housecallpro.com/features/vehicle-gps-tracking/"},
-    {"id": "SCH-03", "status": "Add-on", "notes": "Routes on Essentials; automatic route optimization with live traffic and locked stops is MAX tier only.", "source": "https://www.housecallpro.com/pricing/"},
-    {"id": "SCH-04", "status": "Unknown", "notes": "Only a promotional blog mentions assigning techs with the right skills; no skill or license matching documented.", "source": "https://www.housecallpro.com/resources/best-pest-control-apps/"},
-    {"id": "SCH-05", "status": "Yes", "notes": "Online booking on all plans with service areas and trip charges; customers can book, cancel or reschedule in the portal.", "source": "https://www.housecallpro.com/features/customer-portal/"},
-    {"id": "SCH-06", "status": "Add-on", "notes": "Employee phone GPS on Essentials and up; vehicle OBD trackers via Force by Mojio at $20 per vehicle monthly.", "source": "https://www.housecallpro.com/features/vehicle-gps-tracking/"},
-    {"id": "SCH-07", "status": "Yes", "notes": "Calendar bulk actions reschedule or reassign up to 15 jobs at once, with optional customer notification.", "source": "https://help.housecallpro.com/en/articles/13907740-bulk-actions-on-the-calendar"},
-    {"id": "MOB-01", "status": "Yes", "notes": "Free iOS and Android app on every plan, available in English and Spanish.", "source": "https://www.housecallpro.com/pricing/"},
-    {"id": "MOB-02", "status": "Partial", "notes": "Offline viewing only for jobs opened while connected; editing without a connection is not supported.", "source": "https://help.housecallpro.com/en/articles/4747652-housecall-pro-mobile-faq"},
-    {"id": "MOB-03", "status": "Partial", "notes": "Techs add materials with quantities as job line items or inputs; no pesticide fields such as rate, target pest or area treated.", "source": "https://help.housecallpro.com/en/articles/7119757-material-inventory-detail-tracking"},
-    {"id": "MOB-04", "status": "Yes", "notes": "Field techs capture photos, notes and customer signatures in the app; photo reports with annotations on Essentials and up.", "source": "https://help.housecallpro.com/en/articles/1073431-employee-roles-permissions-explained"},
-    {"id": "MOB-05", "status": "Unknown", "notes": "No barcode scanning documented; the Bluon integration scans HVAC nameplates only.", "source": "https://housecallpro.com/resources/fall-2025-product-updates"},
-    {"id": "MOB-06", "status": "Yes", "notes": "Techs take card payments, mobile check deposits and cash in the app, controlled by permissions.", "source": "https://help.housecallpro.com/en/articles/1073431-employee-roles-permissions-explained"},
-    {"id": "MOB-07", "status": "Yes", "notes": "Clock in and out feeds payroll hours with overtime, double time and pay periods (2026 unified time tracking).", "source": "https://www.housecallpro.com/resources/february-2026-product-updates/"},
-    {"id": "MOB-08", "status": "Unknown", "notes": "No native truck stock found; inventory help article points to QuickBooks Online Plus or Ply instead.", "source": "https://help.housecallpro.com/en/articles/2154660-effective-strategies-for-inventory-tracking-and-reporting"},
-    {"id": "CMP-01", "status": "No", "notes": "Pest page lists no chemical tracking; a competitor's comparison article states there is no native chemical log, so techs use paper or spreadsheets.", "source": "https://www.fieldproxy.ai/resources/blog/best-housecall-pro-alternatives-for-pest-control-businesses-2026"},
-    {"id": "CMP-02", "status": "Unknown", "notes": "Price book holds materials, but no EPA registration number, label or SDS fields were found.", "source": "https://www.housecallpro.com/industries/pest-control-software/"},
-    {"id": "CMP-03", "status": "Unknown", "notes": "No applicator license or certification tracking found in vendor documentation.", "source": "https://www.housecallpro.com/industries/pest-control-software/"},
-    {"id": "CMP-04", "status": "Unknown", "notes": "No state regulatory report or export found; pest page omits compliance entirely.", "source": "https://www.housecallpro.com/industries/pest-control-software/"},
-    {"id": "CMP-05", "status": "Partial", "notes": "Only via workaround: customizable automatic pre-job and post-job emails; no pesticide-specific or neighbor notices.", "source": "https://www.housecallpro.com/features/automated-marketing/"},
-    {"id": "CMP-06", "status": "Unknown", "notes": "No restricted-use pesticide controls or RUP record fields found.", "source": "https://www.housecallpro.com/industries/pest-control-software/"},
-    {"id": "CMP-07", "status": "Add-on", "notes": "Native tool tracks material usage, source and vendor only; stock quantities rely on QuickBooks Online Plus inventory or the Ply integration.", "source": "https://help.housecallpro.com/en/articles/2154660-effective-strategies-for-inventory-tracking-and-reporting"},
-    {"id": "CMP-08", "status": "Unknown", "notes": "Vendor never mentions Wisconsin or ATCP 29 requirements.", "source": "https://www.housecallpro.com/industries/pest-control-software/"},
-    {"id": "COM-01", "status": "Unknown", "notes": "Property profiles store equipment, but bait station or trap inventory per site is not documented.", "source": "https://www.housecallpro.com/features/property-profiles/"},
-    {"id": "COM-02", "status": "Unknown", "notes": "No facility device maps found.", "source": "https://www.housecallpro.com/industries/pest-control-software/"},
-    {"id": "COM-03", "status": "Unknown", "notes": "No per-device pest activity history or trending found.", "source": "https://www.housecallpro.com/industries/pest-control-software/"},
-    {"id": "COM-04", "status": "Unknown", "notes": "No AIB, SQF or BRC audit reporting found.", "source": "https://www.housecallpro.com/industries/pest-control-software/"},
-    {"id": "COM-05", "status": "Partial", "notes": "Portal shows invoices, appointments and estimates; photo reports share by link. Labels, SDS and device maps not documented.", "source": "https://www.housecallpro.com/features/customer-portal/"},
-    {"id": "COM-06", "status": "Unknown", "notes": "No customer sighting logs or corrective action tracking found.", "source": "https://www.housecallpro.com/industries/pest-control-software/"},
-    {"id": "COM-07", "status": "Partial", "notes": "Batch-send multiple invoices per customer and sub-customer billing; PO numbers and net terms not documented.", "source": "https://help.housecallpro.com/en/articles/2782323-batched-invoices-send-and-take-payment"},
-    {"id": "SPC-01", "status": "Unknown", "notes": "No termite graphs, bait monitoring or WDI inspection reports found.", "source": "https://www.housecallpro.com/industries/pest-control-software/"},
-    {"id": "SPC-02", "status": "Partial", "notes": "Generic multi-day jobs with materials and progress invoicing could handle exclusion work; no trapping-specific tools.", "source": "https://www.housecallpro.com/features/invoicing-software/"},
-    {"id": "SPC-03", "status": "Partial", "notes": "Generic recurring jobs and technician checklists only; no customer prep checklists or bed bug workflow documented.", "source": "https://www.housecallpro.com/industries/pest-control-software/"},
-    {"id": "SPC-04", "status": "Unknown", "notes": "Lawn rounds, measurements and fertilizer tracking not found for this product.", "source": "https://www.housecallpro.com/features/"},
-    {"id": "SPC-05", "status": "Unknown", "notes": "No seasonal mosquito or tick program support documented beyond generic service plans.", "source": "https://www.housecallpro.com/features/recurring-service-plans/"},
-    {"id": "BIL-01", "status": "Yes", "notes": "Built-in card processing from 2.59% and ACH bank payments at 1%, plus card reader.", "source": "https://www.housecallpro.com/pricing/"},
-    {"id": "BIL-02", "status": "Yes", "notes": "Cards on file auto-charged for invoices and service plan payments.", "source": "https://www.housecallpro.com/features/invoicing-software/"},
-    {"id": "BIL-03", "status": "Add-on", "notes": "MAX-tier service plans bill monthly, quarterly, semiannually or annually; per-visit billing uses a $0 plan workaround.", "source": "https://help.housecallpro.com/en/articles/5485025-service-plans-faqs"},
-    {"id": "BIL-04", "status": "Yes", "notes": "Automated sales tax by service address with price book tax categories; requires HCP payments, not available in Canada.", "source": "https://help.housecallpro.com/en/articles/12805669-automated-sales-tax"},
-    {"id": "BIL-05", "status": "Partial", "notes": "Automatic overdue invoice reminders by email or text and a Do Not Service flag; late fees and payment retries not documented.", "source": "https://www.housecallpro.com/features/invoicing-software/"},
-    {"id": "BIL-06", "status": "Partial", "notes": "Several invoices can be batch-sent together; a true account statement is not documented.", "source": "https://help.housecallpro.com/en/articles/2782323-batched-invoices-send-and-take-payment"},
-    {"id": "BIL-07", "status": "Unknown", "notes": "Service plan FAQ covers refunds and pending payments but not automatic proration on cancellation.", "source": "https://help.housecallpro.com/en/articles/5485025-service-plans-faqs"},
-    {"id": "ACC-01", "status": "Add-on", "notes": "Housecall Pro Accounting add-on: in-house bookkeeping with reconciliation, P&L and balance sheet. Double-entry GL depth not documented.", "source": "https://www.housecallpro.com/features/accounting/"},
-    {"id": "ACC-02", "status": "Add-on", "notes": "QuickBooks Online sync on Essentials and MAX; QuickBooks Desktop also listed in integrations.", "source": "https://www.housecallpro.com/pricing/"},
-    {"id": "ACC-03", "status": "No", "notes": "Integrations directory lists only QuickBooks for accounting; no Xero, Sage or NetSuite.", "source": "https://www.housecallpro.com/integrations/"},
-    {"id": "ACC-04", "status": "Unknown", "notes": "No deferred revenue handling for prepaid service plans documented.", "source": "https://www.housecallpro.com/features/accounting/"},
-    {"id": "ACC-05", "status": "Yes", "notes": "Job costing on all plans: labor, material and other inputs with margin per job and service line item reports.", "source": "https://www.housecallpro.com/pricing/"},
-    {"id": "ACC-06", "status": "Add-on", "notes": "Payroll add-on with tax filing and time tracking; Gusto integration. Production-based pay not documented beyond commissions.", "source": "https://www.housecallpro.com/features/payroll/"},
-    {"id": "CX-01", "status": "Yes", "notes": "Branded portal: pay invoices, view history, book or reschedule, approve estimates, share referrals.", "source": "https://www.housecallpro.com/features/customer-portal/"},
-    {"id": "CX-02", "status": "Yes", "notes": "Automated appointment reminders and On My Way texts with a live map link.", "source": "https://www.housecallpro.com/features/vehicle-gps-tracking/"},
-    {"id": "CX-03", "status": "Yes", "notes": "Office staff text customers through the shared inbox once Text Messaging is activated.", "source": "https://help.housecallpro.com/en/articles/5981299-messaging-within-your-housecall-pro-inbox"},
-    {"id": "CX-04", "status": "Yes", "notes": "Automatic review requests after jobs or payments with follow-ups; Google and Facebook reviews managed in one dashboard.", "source": "https://www.housecallpro.com/features/review-management-software/"},
-    {"id": "CX-05", "status": "Partial", "notes": "Job photo reports and work summaries can be shared; no service report listing pesticides applied with rates.", "source": "https://www.housecallpro.com/resources/may-2026-product-updates/"},
-    {"id": "RPT-01", "status": "Yes", "notes": "Job, invoice and AR aging reports plus an Insights dashboard with goals and benchmarks.", "source": "https://www.housecallpro.com/features/advanced-reporting/"},
-    {"id": "RPT-02", "status": "Unknown", "notes": "Canceled jobs and service plan reports exist, but no retention or churn rate analytics found.", "source": "https://www.housecallpro.com/features/advanced-reporting/"},
-    {"id": "RPT-03", "status": "Yes", "notes": "Technician performance shown in job reports and the Insights dashboard.", "source": "https://www.housecallpro.com/features/advanced-reporting/"},
-    {"id": "RPT-04", "status": "Yes", "notes": "Custom reports across jobs, leads, plans and invoices; Analyst AI builds reports from prompts. A third party says advanced custom reporting is MAX only.", "source": "https://www.housecallpro.com/features/advanced-reporting/"},
-    {"id": "PLT-01", "status": "Yes", "notes": "Parent and child multi-location accounts with separate settings and aggregated, filterable cross-location reporting.", "source": "https://help.housecallpro.com/en/articles/5845648-how-to-use-your-multi-location-hcp-account"},
-    {"id": "PLT-02", "status": "Yes", "notes": "Admin, office and field tech roles with granular per-user permission toggles; no custom named roles documented.", "source": "https://help.housecallpro.com/en/articles/1073431-employee-roles-permissions-explained"},
-    {"id": "PLT-03", "status": "Add-on", "notes": "Open API access is MAX tier only; Zapier connector listed in the integrations directory.", "source": "https://www.housecallpro.com/pricing/"},
-    {"id": "PLT-04", "status": "Add-on", "notes": "Data Import team only for MAX customers (complex files may cost extra); other plans use a self-serve import wizard.", "source": "https://help.housecallpro.com/en/articles/6584603-prepare-to-import-your-data"},
-    {"id": "PLT-05", "status": "Yes", "notes": "AI Team: CSR AI chat, Analyst, Coach and Marketing AI on all plans; 24/7 AI call answering is paid extra.", "source": "https://www.housecallpro.com/features/ai-team/"},
-    {"id": "PLT-06", "status": "Yes", "notes": "Online booking on all plans; separate Websites product adds hosted site, lead form and portal.", "source": "https://housecallpro.com/resources/fall-2025-product-updates"},
-    {"id": "PLT-07", "status": "Add-on", "notes": "Targeted postcards billed per piece, call tracking via Voice add-on or CallRail, Google Local Services integration. No SEO service found.", "source": "https://www.housecallpro.com/features/automated-marketing/"}
+    {
+      "id": "CRM-01",
+      "status": "Add-on",
+      "notes": "Leads available on all plans since fall 2025; the stage-based Pipeline board is activated separately and third-party pricing guides list it as a paid add-on.",
+      "source": "https://www.housecallpro.com/features/pipeline/"
+    },
+    {
+      "id": "CRM-02",
+      "status": "Yes",
+      "notes": "Lead source recorded on jobs and customers; job reports filter by lead source, and Voice call tracking shows which sources bring leads.",
+      "source": "https://www.housecallpro.com/features/advanced-reporting/"
+    },
+    {
+      "id": "CRM-03",
+      "status": "Yes",
+      "notes": "Estimates on all plans; Sales Proposal Tool adds good, better, best options and financing (included on MAX, otherwise roughly $40/mo).",
+      "source": "https://www.housecallpro.com/features/sales-proposal-tool/"
+    },
+    {
+      "id": "CRM-04",
+      "status": "Partial",
+      "notes": "E-signatures on estimates with attached terms, signed PDF with timestamp. Signing of service plan agreements is not documented.",
+      "source": "https://help.housecallpro.com/en/articles/10040275-e-signatures-on-estimates"
+    },
+    {
+      "id": "CRM-05",
+      "status": "Unknown",
+      "notes": "No door-to-door sales app, territory maps or knock tracking found in vendor materials.",
+      "source": "https://www.housecallpro.com/features/"
+    },
+    {
+      "id": "CRM-06",
+      "status": "Partial",
+      "notes": "Essentials tier and up: revenue or gross profit commissions split by sold-by and worked-by. No holds or chargebacks on cancellation documented.",
+      "source": "https://help.housecallpro.com/en/articles/6649542-using-commission-on-the-job"
+    },
+    {
+      "id": "CRM-07",
+      "status": "Add-on",
+      "notes": "Campaigns offer email, SMS and postcard sequences with triggers and stop conditions; third-party pricing guides list Campaigns as a separate charge or MAX feature.",
+      "source": "https://www.housecallpro.com/resources/february-2026-product-updates/"
+    },
+    {
+      "id": "CRM-08",
+      "status": "Unknown",
+      "notes": "Canceled jobs appear in reports, but no cancellation reason codes or save workflows were found.",
+      "source": "https://www.housecallpro.com/features/advanced-reporting/"
+    },
+    {
+      "id": "CRM-09",
+      "status": "Yes",
+      "notes": "Multiple service addresses per customer with a billing address, plus parent and sub-customer setup for property managers and tenants.",
+      "source": "https://help.housecallpro.com/en/articles/932653-what-is-the-difference-between-sub-customers-and-multiple-addresses"
+    },
+    {
+      "id": "CRM-10",
+      "status": "Add-on",
+      "notes": "Voice add-on: call recording, caller details and job history before answering, call tracking, IVR and queues. CallRail integration also available.",
+      "source": "https://www.housecallpro.com/features/voice-solutions/"
+    },
+    {
+      "id": "AGR-01",
+      "status": "Add-on",
+      "notes": "Recurring service plans that auto-generate visits are a MAX-tier feature; plans bill monthly, quarterly, semiannually or annually.",
+      "source": "https://www.housecallpro.com/pricing/"
+    },
+    {
+      "id": "AGR-02",
+      "status": "Unknown",
+      "notes": "No documented support for a fixed number of rounds within a seasonal date window.",
+      "source": "https://www.housecallpro.com/features/recurring-service-plans/"
+    },
+    {
+      "id": "AGR-03",
+      "status": "Partial",
+      "notes": "Central price book with flat-rate pricing, discounts, recurring discounts and service area pricing. Pricing by property size or tier not documented.",
+      "source": "https://www.housecallpro.com/resources/may-2026-product-updates/"
+    },
+    {
+      "id": "AGR-04",
+      "status": "Unknown",
+      "notes": "No bulk price increase across active service plans found; active plan billing settings cannot be changed in place.",
+      "source": "https://help.housecallpro.com/en/articles/5485025-service-plans-faqs"
+    },
+    {
+      "id": "AGR-05",
+      "status": "Partial",
+      "notes": "Plans can have an end date or continue until cancelled, with renewal emails and a Renew button. Early cancellation fees not documented.",
+      "source": "https://help.housecallpro.com/en/articles/5485025-service-plans-faqs"
+    },
+    {
+      "id": "AGR-06",
+      "status": "Partial",
+      "notes": "No warranty object; annual service plans with renewal emails and warranty perks could approximate termite warranty renewals (MAX tier).",
+      "source": "https://www.housecallpro.com/features/recurring-service-plans/"
+    },
+    {
+      "id": "AGR-07",
+      "status": "Unknown",
+      "notes": "No callback or re-service tracking against agreements found in help center or feature pages.",
+      "source": "https://www.housecallpro.com/features/recurring-service-plans/"
+    },
+    {
+      "id": "SCH-01",
+      "status": "Yes",
+      "notes": "Recurring jobs created from service plans or the recurring job page. Due-window scheduling is not documented.",
+      "source": "https://www.housecallpro.com/resources/february-2026-product-updates/"
+    },
+    {
+      "id": "SCH-02",
+      "status": "Yes",
+      "notes": "Drag and drop dispatch calendar; vehicle and employee locations shown on a map beside the schedule.",
+      "source": "https://www.housecallpro.com/features/vehicle-gps-tracking/"
+    },
+    {
+      "id": "SCH-03",
+      "status": "Add-on",
+      "notes": "Routes on Essentials; automatic route optimization with live traffic and locked stops is MAX tier only.",
+      "source": "https://www.housecallpro.com/pricing/"
+    },
+    {
+      "id": "SCH-04",
+      "status": "Unknown",
+      "notes": "Only a promotional blog mentions assigning techs with the right skills; no skill or license matching documented.",
+      "source": "https://www.housecallpro.com/resources/best-pest-control-apps/"
+    },
+    {
+      "id": "SCH-05",
+      "status": "Yes",
+      "notes": "Online booking on all plans with service areas and trip charges; customers can book, cancel or reschedule in the portal.",
+      "source": "https://www.housecallpro.com/features/customer-portal/"
+    },
+    {
+      "id": "SCH-06",
+      "status": "Add-on",
+      "notes": "Employee phone GPS on Essentials and up; vehicle OBD trackers via Force by Mojio at $20 per vehicle monthly.",
+      "source": "https://www.housecallpro.com/features/vehicle-gps-tracking/"
+    },
+    {
+      "id": "SCH-07",
+      "status": "Yes",
+      "notes": "Calendar bulk actions reschedule or reassign up to 15 jobs at once, with optional customer notification.",
+      "source": "https://help.housecallpro.com/en/articles/13907740-bulk-actions-on-the-calendar"
+    },
+    {
+      "id": "MOB-01",
+      "status": "Yes",
+      "notes": "Free iOS and Android app on every plan, available in English and Spanish.",
+      "source": "https://www.housecallpro.com/pricing/"
+    },
+    {
+      "id": "MOB-02",
+      "status": "Partial",
+      "notes": "Offline viewing only for jobs opened while connected; editing without a connection is not supported.",
+      "source": "https://help.housecallpro.com/en/articles/4747652-housecall-pro-mobile-faq"
+    },
+    {
+      "id": "MOB-03",
+      "status": "Partial",
+      "notes": "Techs add materials with quantities as job line items or inputs; no pesticide fields such as rate, target pest or area treated.",
+      "source": "https://help.housecallpro.com/en/articles/7119757-material-inventory-detail-tracking"
+    },
+    {
+      "id": "MOB-04",
+      "status": "Yes",
+      "notes": "Field techs capture photos, notes and customer signatures in the app; photo reports with annotations on Essentials and up.",
+      "source": "https://help.housecallpro.com/en/articles/1073431-employee-roles-permissions-explained"
+    },
+    {
+      "id": "MOB-05",
+      "status": "Unknown",
+      "notes": "No barcode scanning documented; the Bluon integration scans HVAC nameplates only.",
+      "source": "https://housecallpro.com/resources/fall-2025-product-updates"
+    },
+    {
+      "id": "MOB-06",
+      "status": "Yes",
+      "notes": "Techs take card payments, mobile check deposits and cash in the app, controlled by permissions.",
+      "source": "https://help.housecallpro.com/en/articles/1073431-employee-roles-permissions-explained"
+    },
+    {
+      "id": "MOB-07",
+      "status": "Yes",
+      "notes": "Clock in and out feeds payroll hours with overtime, double time and pay periods (2026 unified time tracking).",
+      "source": "https://www.housecallpro.com/resources/february-2026-product-updates/"
+    },
+    {
+      "id": "MOB-08",
+      "status": "Unknown",
+      "notes": "No native truck stock found; inventory help article points to QuickBooks Online Plus or Ply instead.",
+      "source": "https://help.housecallpro.com/en/articles/2154660-effective-strategies-for-inventory-tracking-and-reporting"
+    },
+    {
+      "id": "CMP-01",
+      "status": "No",
+      "notes": "Pest page lists no chemical tracking; a competitor's comparison article states there is no native chemical log, so techs use paper or spreadsheets.",
+      "source": "https://www.fieldproxy.ai/resources/blog/best-housecall-pro-alternatives-for-pest-control-businesses-2026"
+    },
+    {
+      "id": "CMP-02",
+      "status": "Unknown",
+      "notes": "Price book holds materials, but no EPA registration number, label or SDS fields were found.",
+      "source": "https://www.housecallpro.com/industries/pest-control-software/"
+    },
+    {
+      "id": "CMP-03",
+      "status": "Unknown",
+      "notes": "No applicator license or certification tracking found in vendor documentation.",
+      "source": "https://www.housecallpro.com/industries/pest-control-software/"
+    },
+    {
+      "id": "CMP-04",
+      "status": "Unknown",
+      "notes": "No state regulatory report or export found; pest page omits compliance entirely.",
+      "source": "https://www.housecallpro.com/industries/pest-control-software/"
+    },
+    {
+      "id": "CMP-05",
+      "status": "Partial",
+      "notes": "Only via workaround: customizable automatic pre-job and post-job emails; no pesticide-specific or neighbor notices.",
+      "source": "https://www.housecallpro.com/features/automated-marketing/"
+    },
+    {
+      "id": "CMP-06",
+      "status": "Unknown",
+      "notes": "No restricted-use pesticide controls or RUP record fields found.",
+      "source": "https://www.housecallpro.com/industries/pest-control-software/"
+    },
+    {
+      "id": "CMP-07",
+      "status": "Add-on",
+      "notes": "Native tool tracks material usage, source and vendor only; stock quantities rely on QuickBooks Online Plus inventory or the Ply integration.",
+      "source": "https://help.housecallpro.com/en/articles/2154660-effective-strategies-for-inventory-tracking-and-reporting"
+    },
+    {
+      "id": "CMP-08",
+      "status": "Unknown",
+      "notes": "Vendor never mentions Wisconsin or ATCP 29 requirements.",
+      "source": "https://www.housecallpro.com/industries/pest-control-software/"
+    },
+    {
+      "id": "COM-01",
+      "status": "Unknown",
+      "notes": "Property profiles store equipment, but bait station or trap inventory per site is not documented.",
+      "source": "https://www.housecallpro.com/features/property-profiles/"
+    },
+    {
+      "id": "COM-02",
+      "status": "Unknown",
+      "notes": "No facility device maps found.",
+      "source": "https://www.housecallpro.com/industries/pest-control-software/"
+    },
+    {
+      "id": "COM-03",
+      "status": "Unknown",
+      "notes": "No per-device pest activity history or trending found.",
+      "source": "https://www.housecallpro.com/industries/pest-control-software/"
+    },
+    {
+      "id": "COM-04",
+      "status": "Unknown",
+      "notes": "No AIB, SQF or BRC audit reporting found.",
+      "source": "https://www.housecallpro.com/industries/pest-control-software/"
+    },
+    {
+      "id": "COM-05",
+      "status": "Partial",
+      "notes": "Portal shows invoices, appointments and estimates; photo reports share by link. Labels, SDS and device maps not documented.",
+      "source": "https://www.housecallpro.com/features/customer-portal/"
+    },
+    {
+      "id": "COM-06",
+      "status": "Unknown",
+      "notes": "No customer sighting logs or corrective action tracking found.",
+      "source": "https://www.housecallpro.com/industries/pest-control-software/"
+    },
+    {
+      "id": "COM-07",
+      "status": "Partial",
+      "notes": "Batch-send multiple invoices per customer and sub-customer billing; PO numbers and net terms not documented.",
+      "source": "https://help.housecallpro.com/en/articles/2782323-batched-invoices-send-and-take-payment"
+    },
+    {
+      "id": "SPC-01",
+      "status": "Unknown",
+      "notes": "No termite graphs, bait monitoring or WDI inspection reports found.",
+      "source": "https://www.housecallpro.com/industries/pest-control-software/"
+    },
+    {
+      "id": "SPC-02",
+      "status": "Partial",
+      "notes": "Generic multi-day jobs with materials and progress invoicing could handle exclusion work; no trapping-specific tools.",
+      "source": "https://www.housecallpro.com/features/invoicing-software/"
+    },
+    {
+      "id": "SPC-03",
+      "status": "Partial",
+      "notes": "Generic recurring jobs and technician checklists only; no customer prep checklists or bed bug workflow documented.",
+      "source": "https://www.housecallpro.com/industries/pest-control-software/"
+    },
+    {
+      "id": "SPC-05",
+      "status": "Unknown",
+      "notes": "No seasonal mosquito or tick program support documented beyond generic service plans.",
+      "source": "https://www.housecallpro.com/features/recurring-service-plans/"
+    },
+    {
+      "id": "BIL-01",
+      "status": "Yes",
+      "notes": "Built-in card processing from 2.59% and ACH bank payments at 1%, plus card reader.",
+      "source": "https://www.housecallpro.com/pricing/"
+    },
+    {
+      "id": "BIL-02",
+      "status": "Yes",
+      "notes": "Cards on file auto-charged for invoices and service plan payments.",
+      "source": "https://www.housecallpro.com/features/invoicing-software/"
+    },
+    {
+      "id": "BIL-03",
+      "status": "Add-on",
+      "notes": "MAX-tier service plans bill monthly, quarterly, semiannually or annually; per-visit billing uses a $0 plan workaround.",
+      "source": "https://help.housecallpro.com/en/articles/5485025-service-plans-faqs"
+    },
+    {
+      "id": "BIL-04",
+      "status": "Yes",
+      "notes": "Automated sales tax by service address with price book tax categories; requires HCP payments, not available in Canada.",
+      "source": "https://help.housecallpro.com/en/articles/12805669-automated-sales-tax"
+    },
+    {
+      "id": "BIL-05",
+      "status": "Partial",
+      "notes": "Automatic overdue invoice reminders by email or text and a Do Not Service flag; late fees and payment retries not documented.",
+      "source": "https://www.housecallpro.com/features/invoicing-software/"
+    },
+    {
+      "id": "BIL-06",
+      "status": "Partial",
+      "notes": "Several invoices can be batch-sent together; a true account statement is not documented.",
+      "source": "https://help.housecallpro.com/en/articles/2782323-batched-invoices-send-and-take-payment"
+    },
+    {
+      "id": "BIL-07",
+      "status": "Unknown",
+      "notes": "Service plan FAQ covers refunds and pending payments but not automatic proration on cancellation.",
+      "source": "https://help.housecallpro.com/en/articles/5485025-service-plans-faqs"
+    },
+    {
+      "id": "ACC-01",
+      "status": "Add-on",
+      "notes": "Housecall Pro Accounting add-on: in-house bookkeeping with reconciliation, P&L and balance sheet. Double-entry GL depth not documented.",
+      "source": "https://www.housecallpro.com/features/accounting/"
+    },
+    {
+      "id": "ACC-02",
+      "status": "Add-on",
+      "notes": "QuickBooks Online sync on Essentials and MAX; QuickBooks Desktop also listed in integrations.",
+      "source": "https://www.housecallpro.com/pricing/"
+    },
+    {
+      "id": "ACC-03",
+      "status": "No",
+      "notes": "Integrations directory lists only QuickBooks for accounting; no Xero, Sage or NetSuite.",
+      "source": "https://www.housecallpro.com/integrations/"
+    },
+    {
+      "id": "ACC-04",
+      "status": "Unknown",
+      "notes": "No deferred revenue handling for prepaid service plans documented.",
+      "source": "https://www.housecallpro.com/features/accounting/"
+    },
+    {
+      "id": "ACC-05",
+      "status": "Yes",
+      "notes": "Job costing on all plans: labor, material and other inputs with margin per job and service line item reports.",
+      "source": "https://www.housecallpro.com/pricing/"
+    },
+    {
+      "id": "ACC-06",
+      "status": "Add-on",
+      "notes": "Payroll add-on with tax filing and time tracking; Gusto integration. Production-based pay not documented beyond commissions.",
+      "source": "https://www.housecallpro.com/features/payroll/"
+    },
+    {
+      "id": "CX-01",
+      "status": "Yes",
+      "notes": "Branded portal: pay invoices, view history, book or reschedule, approve estimates, share referrals.",
+      "source": "https://www.housecallpro.com/features/customer-portal/"
+    },
+    {
+      "id": "CX-02",
+      "status": "Yes",
+      "notes": "Automated appointment reminders and On My Way texts with a live map link.",
+      "source": "https://www.housecallpro.com/features/vehicle-gps-tracking/"
+    },
+    {
+      "id": "CX-03",
+      "status": "Yes",
+      "notes": "Office staff text customers through the shared inbox once Text Messaging is activated.",
+      "source": "https://help.housecallpro.com/en/articles/5981299-messaging-within-your-housecall-pro-inbox"
+    },
+    {
+      "id": "CX-04",
+      "status": "Yes",
+      "notes": "Automatic review requests after jobs or payments with follow-ups; Google and Facebook reviews managed in one dashboard.",
+      "source": "https://www.housecallpro.com/features/review-management-software/"
+    },
+    {
+      "id": "CX-05",
+      "status": "Partial",
+      "notes": "Job photo reports and work summaries can be shared; no service report listing pesticides applied with rates.",
+      "source": "https://www.housecallpro.com/resources/may-2026-product-updates/"
+    },
+    {
+      "id": "RPT-01",
+      "status": "Yes",
+      "notes": "Job, invoice and AR aging reports plus an Insights dashboard with goals and benchmarks.",
+      "source": "https://www.housecallpro.com/features/advanced-reporting/"
+    },
+    {
+      "id": "RPT-02",
+      "status": "Unknown",
+      "notes": "Canceled jobs and service plan reports exist, but no retention or churn rate analytics found.",
+      "source": "https://www.housecallpro.com/features/advanced-reporting/"
+    },
+    {
+      "id": "RPT-03",
+      "status": "Yes",
+      "notes": "Technician performance shown in job reports and the Insights dashboard.",
+      "source": "https://www.housecallpro.com/features/advanced-reporting/"
+    },
+    {
+      "id": "RPT-04",
+      "status": "Yes",
+      "notes": "Custom reports across jobs, leads, plans and invoices; Analyst AI builds reports from prompts. A third party says advanced custom reporting is MAX only.",
+      "source": "https://www.housecallpro.com/features/advanced-reporting/"
+    },
+    {
+      "id": "PLT-01",
+      "status": "Yes",
+      "notes": "Parent and child multi-location accounts with separate settings and aggregated, filterable cross-location reporting.",
+      "source": "https://help.housecallpro.com/en/articles/5845648-how-to-use-your-multi-location-hcp-account"
+    },
+    {
+      "id": "PLT-02",
+      "status": "Yes",
+      "notes": "Admin, office and field tech roles with granular per-user permission toggles; no custom named roles documented.",
+      "source": "https://help.housecallpro.com/en/articles/1073431-employee-roles-permissions-explained"
+    },
+    {
+      "id": "PLT-03",
+      "status": "Add-on",
+      "notes": "Open API access is MAX tier only; Zapier connector listed in the integrations directory.",
+      "source": "https://www.housecallpro.com/pricing/"
+    },
+    {
+      "id": "PLT-04",
+      "status": "Add-on",
+      "notes": "Data Import team only for MAX customers (complex files may cost extra); other plans use a self-serve import wizard.",
+      "source": "https://help.housecallpro.com/en/articles/6584603-prepare-to-import-your-data"
+    },
+    {
+      "id": "PLT-05",
+      "status": "Yes",
+      "notes": "AI Team: CSR AI chat, Analyst, Coach and Marketing AI on all plans; 24/7 AI call answering is paid extra.",
+      "source": "https://www.housecallpro.com/features/ai-team/"
+    },
+    {
+      "id": "PLT-06",
+      "status": "Yes",
+      "notes": "Online booking on all plans; separate Websites product adds hosted site, lead form and portal.",
+      "source": "https://housecallpro.com/resources/fall-2025-product-updates"
+    },
+    {
+      "id": "PLT-07",
+      "status": "Add-on",
+      "notes": "Targeted postcards billed per piece, call tracking via Voice add-on or CallRail, Google Local Services integration. No SEO service found.",
+      "source": "https://www.housecallpro.com/features/automated-marketing/"
+    }
   ],
   "extra_features": [
-    {"feature": "Consumer financing and buy now pay later", "module": "Billing and payments", "notes": "Wisetack loans up to 120 months and Klarna installments on estimates and invoices.", "source": "https://www.housecallpro.com/resources/may-2026-product-updates/"},
-    {"feature": "Instapay instant payouts", "module": "Billing and payments", "notes": "Same-day access to card payments for about 1% per transaction.", "source": "https://www.housecallpro.com/features/instapay/"},
-    {"feature": "Progress invoicing", "module": "Billing and payments", "notes": "Bill large or multi-day jobs in stages by amount or percentage with due dates.", "source": "https://www.housecallpro.com/features/invoicing-software/"},
-    {"feature": "HCP Assist virtual call answering", "module": "CRM and sales", "notes": "Human 24/7 virtual assistant answering service sold alongside the software.", "source": "https://www.housecallpro.com/features/voice-solutions/"},
-    {"feature": "Job Inbox lead aggregation", "module": "CRM and sales", "notes": "Collects leads from Yelp, Google Local Services, Angi and Thumbtack in one inbox with auto reply.", "source": "https://www.housecallpro.com/resources/may-2026-product-updates/"},
-    {"feature": "Customer referral program", "module": "Customer experience", "notes": "Customers share referral links from the portal and rewards apply automatically.", "source": "https://www.housecallpro.com/features/customer-portal/"},
-    {"feature": "Dashcam video monitoring", "module": "Scheduling and dispatch", "notes": "Dual-facing dashcams at $49 per device monthly; GEICO commercial auto discount program.", "source": "https://www.housecallpro.com/features/vehicle-gps-tracking/"},
-    {"feature": "Do Not Service flag", "module": "CRM and sales", "notes": "Red label in chat and voice warns staff before booking flagged customers.", "source": "https://housecallpro.com/resources/fall-2025-product-updates"},
-    {"feature": "Accountant AI", "module": "Accounting", "notes": "Ask accounting questions in the app and get answers from company financial data.", "source": "https://www.housecallpro.com/resources/february-2026-product-updates/"},
-    {"feature": "Expense cards, business financing and insurance", "module": "Platform", "notes": "Company expense cards with cashback, business credit and business insurance offers.", "source": "https://www.housecallpro.com/product-release-roadmap/"},
-    {"feature": "401(k) plans", "module": "Accounting", "notes": "Employee 401(k) through Vestwell tied to payroll.", "source": "https://www.housecallpro.com/resources/may-2026-product-updates/"},
-    {"feature": "Route-based scheduling", "module": "Scheduling and dispatch", "notes": "Recurring routes grouped by geography or service type, set once and adjusted for call-outs.", "source": "https://www.housecallpro.com/resources/may-2026-product-updates/"}
+    {
+      "feature": "Consumer financing and buy now pay later",
+      "module": "Billing and payments",
+      "notes": "Wisetack loans up to 120 months and Klarna installments on estimates and invoices.",
+      "source": "https://www.housecallpro.com/resources/may-2026-product-updates/"
+    },
+    {
+      "feature": "Instapay instant payouts",
+      "module": "Billing and payments",
+      "notes": "Same-day access to card payments for about 1% per transaction.",
+      "source": "https://www.housecallpro.com/features/instapay/"
+    },
+    {
+      "feature": "Progress invoicing",
+      "module": "Billing and payments",
+      "notes": "Bill large or multi-day jobs in stages by amount or percentage with due dates.",
+      "source": "https://www.housecallpro.com/features/invoicing-software/"
+    },
+    {
+      "feature": "HCP Assist virtual call answering",
+      "module": "CRM and sales",
+      "notes": "Human 24/7 virtual assistant answering service sold alongside the software.",
+      "source": "https://www.housecallpro.com/features/voice-solutions/"
+    },
+    {
+      "feature": "Job Inbox lead aggregation",
+      "module": "CRM and sales",
+      "notes": "Collects leads from Yelp, Google Local Services, Angi and Thumbtack in one inbox with auto reply.",
+      "source": "https://www.housecallpro.com/resources/may-2026-product-updates/"
+    },
+    {
+      "feature": "Customer referral program",
+      "module": "Customer experience",
+      "notes": "Customers share referral links from the portal and rewards apply automatically.",
+      "source": "https://www.housecallpro.com/features/customer-portal/"
+    },
+    {
+      "feature": "Dashcam video monitoring",
+      "module": "Scheduling and dispatch",
+      "notes": "Dual-facing dashcams at $49 per device monthly; GEICO commercial auto discount program.",
+      "source": "https://www.housecallpro.com/features/vehicle-gps-tracking/"
+    },
+    {
+      "feature": "Do Not Service flag",
+      "module": "CRM and sales",
+      "notes": "Red label in chat and voice warns staff before booking flagged customers.",
+      "source": "https://housecallpro.com/resources/fall-2025-product-updates"
+    },
+    {
+      "feature": "Accountant AI",
+      "module": "Accounting",
+      "notes": "Ask accounting questions in the app and get answers from company financial data.",
+      "source": "https://www.housecallpro.com/resources/february-2026-product-updates/"
+    },
+    {
+      "feature": "Route-based scheduling",
+      "module": "Scheduling and dispatch",
+      "notes": "Recurring routes grouped by geography or service type, set once and adjusted for call-outs.",
+      "source": "https://www.housecallpro.com/resources/may-2026-product-updates/"
+    }
   ],
   "sources": [
-    {"title": "Housecall Pro pest control software page", "url": "https://www.housecallpro.com/industries/pest-control-software/"},
-    {"title": "Housecall Pro pricing", "url": "https://www.housecallpro.com/pricing/"},
-    {"title": "Housecall Pro features index", "url": "https://www.housecallpro.com/features/"},
-    {"title": "Recurring service plans", "url": "https://www.housecallpro.com/features/recurring-service-plans/"},
-    {"title": "Service plans FAQs (help center)", "url": "https://help.housecallpro.com/en/articles/5485025-service-plans-faqs"},
-    {"title": "Accounting feature page", "url": "https://www.housecallpro.com/features/accounting/"},
-    {"title": "Inventory tracking strategies (help center)", "url": "https://help.housecallpro.com/en/articles/2154660-effective-strategies-for-inventory-tracking-and-reporting"},
-    {"title": "Material inventory detail tracking (help center)", "url": "https://help.housecallpro.com/en/articles/7119757-material-inventory-detail-tracking"},
-    {"title": "Product release roadmap", "url": "https://www.housecallpro.com/product-release-roadmap/"},
-    {"title": "February 2026 product updates", "url": "https://www.housecallpro.com/resources/february-2026-product-updates/"},
-    {"title": "May 2026 product updates", "url": "https://www.housecallpro.com/resources/may-2026-product-updates/"},
-    {"title": "Fall 2025 product updates", "url": "https://housecallpro.com/resources/fall-2025-product-updates"},
-    {"title": "Pipeline feature page", "url": "https://www.housecallpro.com/features/pipeline/"},
-    {"title": "Voice feature page", "url": "https://www.housecallpro.com/features/voice-solutions/"},
-    {"title": "Sales proposal tool", "url": "https://www.housecallpro.com/features/sales-proposal-tool/"},
-    {"title": "E-signatures on estimates (help center)", "url": "https://help.housecallpro.com/en/articles/10040275-e-signatures-on-estimates"},
-    {"title": "Sub customers vs multiple addresses (help center)", "url": "https://help.housecallpro.com/en/articles/932653-what-is-the-difference-between-sub-customers-and-multiple-addresses"},
-    {"title": "Mobile FAQ (help center)", "url": "https://help.housecallpro.com/en/articles/4747652-housecall-pro-mobile-faq"},
-    {"title": "Multi-location accounts (help center)", "url": "https://help.housecallpro.com/en/articles/5845648-how-to-use-your-multi-location-hcp-account"},
-    {"title": "Employee roles and permissions (help center)", "url": "https://help.housecallpro.com/en/articles/1073431-employee-roles-permissions-explained"},
-    {"title": "Invoicing feature page", "url": "https://www.housecallpro.com/features/invoicing-software/"},
-    {"title": "Batched invoices (help center)", "url": "https://help.housecallpro.com/en/articles/2782323-batched-invoices-send-and-take-payment"},
-    {"title": "Customer portal", "url": "https://www.housecallpro.com/features/customer-portal/"},
-    {"title": "Route optimization", "url": "https://www.housecallpro.com/features/route-optimization-software/"},
-    {"title": "Vehicle GPS tracking", "url": "https://www.housecallpro.com/features/vehicle-gps-tracking/"},
-    {"title": "Integrations directory", "url": "https://www.housecallpro.com/integrations/"},
-    {"title": "Prepare to import your data (help center)", "url": "https://help.housecallpro.com/en/articles/6584603-prepare-to-import-your-data"},
-    {"title": "Bulk actions on the calendar (help center)", "url": "https://help.housecallpro.com/en/articles/13907740-bulk-actions-on-the-calendar"},
-    {"title": "AI Team", "url": "https://www.housecallpro.com/features/ai-team/"},
-    {"title": "Payroll feature page", "url": "https://www.housecallpro.com/features/payroll/"},
-    {"title": "Advanced reporting", "url": "https://www.housecallpro.com/features/advanced-reporting/"},
-    {"title": "Automated marketing", "url": "https://www.housecallpro.com/features/automated-marketing/"},
-    {"title": "Automated sales tax (help center)", "url": "https://help.housecallpro.com/en/articles/12805669-automated-sales-tax"},
-    {"title": "Messaging within the inbox (help center)", "url": "https://help.housecallpro.com/en/articles/5981299-messaging-within-your-housecall-pro-inbox"},
-    {"title": "Review management", "url": "https://www.housecallpro.com/features/review-management-software/"},
-    {"title": "Using commission on the job (help center)", "url": "https://help.housecallpro.com/en/articles/6649542-using-commission-on-the-job"},
-    {"title": "Capterra reviews", "url": "https://capterra.com/p/140363/HouseCall-Pro/reviews/"},
-    {"title": "G2 reviews", "url": "https://www.g2.com/products/housecall-pro/reviews_and_filters"},
-    {"title": "ContractorToolStack pricing guide (Sept 2026)", "url": "https://contractortoolstack.com/software/housecall-pro/pricing/"},
-    {"title": "Projul Housecall Pro pricing analysis 2026", "url": "https://projul.com/blog/housecall-pro-pricing-analysis-2026"},
-    {"title": "Fieldproxy: Housecall Pro alternatives for pest control (competitor blog)", "url": "https://www.fieldproxy.ai/resources/blog/best-housecall-pro-alternatives-for-pest-control-businesses-2026"},
-    {"title": "PitchBook company profile", "url": "https://pitchbook.com/profiles/company/58361-41"}
+    {
+      "title": "Housecall Pro pest control software page",
+      "url": "https://www.housecallpro.com/industries/pest-control-software/"
+    },
+    {
+      "title": "Housecall Pro pricing",
+      "url": "https://www.housecallpro.com/pricing/"
+    },
+    {
+      "title": "Housecall Pro features index",
+      "url": "https://www.housecallpro.com/features/"
+    },
+    {
+      "title": "Recurring service plans",
+      "url": "https://www.housecallpro.com/features/recurring-service-plans/"
+    },
+    {
+      "title": "Service plans FAQs (help center)",
+      "url": "https://help.housecallpro.com/en/articles/5485025-service-plans-faqs"
+    },
+    {
+      "title": "Accounting feature page",
+      "url": "https://www.housecallpro.com/features/accounting/"
+    },
+    {
+      "title": "Inventory tracking strategies (help center)",
+      "url": "https://help.housecallpro.com/en/articles/2154660-effective-strategies-for-inventory-tracking-and-reporting"
+    },
+    {
+      "title": "Material inventory detail tracking (help center)",
+      "url": "https://help.housecallpro.com/en/articles/7119757-material-inventory-detail-tracking"
+    },
+    {
+      "title": "Product release roadmap",
+      "url": "https://www.housecallpro.com/product-release-roadmap/"
+    },
+    {
+      "title": "February 2026 product updates",
+      "url": "https://www.housecallpro.com/resources/february-2026-product-updates/"
+    },
+    {
+      "title": "May 2026 product updates",
+      "url": "https://www.housecallpro.com/resources/may-2026-product-updates/"
+    },
+    {
+      "title": "Fall 2025 product updates",
+      "url": "https://housecallpro.com/resources/fall-2025-product-updates"
+    },
+    {
+      "title": "Pipeline feature page",
+      "url": "https://www.housecallpro.com/features/pipeline/"
+    },
+    {
+      "title": "Voice feature page",
+      "url": "https://www.housecallpro.com/features/voice-solutions/"
+    },
+    {
+      "title": "Sales proposal tool",
+      "url": "https://www.housecallpro.com/features/sales-proposal-tool/"
+    },
+    {
+      "title": "E-signatures on estimates (help center)",
+      "url": "https://help.housecallpro.com/en/articles/10040275-e-signatures-on-estimates"
+    },
+    {
+      "title": "Sub customers vs multiple addresses (help center)",
+      "url": "https://help.housecallpro.com/en/articles/932653-what-is-the-difference-between-sub-customers-and-multiple-addresses"
+    },
+    {
+      "title": "Mobile FAQ (help center)",
+      "url": "https://help.housecallpro.com/en/articles/4747652-housecall-pro-mobile-faq"
+    },
+    {
+      "title": "Multi-location accounts (help center)",
+      "url": "https://help.housecallpro.com/en/articles/5845648-how-to-use-your-multi-location-hcp-account"
+    },
+    {
+      "title": "Employee roles and permissions (help center)",
+      "url": "https://help.housecallpro.com/en/articles/1073431-employee-roles-permissions-explained"
+    },
+    {
+      "title": "Invoicing feature page",
+      "url": "https://www.housecallpro.com/features/invoicing-software/"
+    },
+    {
+      "title": "Batched invoices (help center)",
+      "url": "https://help.housecallpro.com/en/articles/2782323-batched-invoices-send-and-take-payment"
+    },
+    {
+      "title": "Customer portal",
+      "url": "https://www.housecallpro.com/features/customer-portal/"
+    },
+    {
+      "title": "Route optimization",
+      "url": "https://www.housecallpro.com/features/route-optimization-software/"
+    },
+    {
+      "title": "Vehicle GPS tracking",
+      "url": "https://www.housecallpro.com/features/vehicle-gps-tracking/"
+    },
+    {
+      "title": "Integrations directory",
+      "url": "https://www.housecallpro.com/integrations/"
+    },
+    {
+      "title": "Prepare to import your data (help center)",
+      "url": "https://help.housecallpro.com/en/articles/6584603-prepare-to-import-your-data"
+    },
+    {
+      "title": "Bulk actions on the calendar (help center)",
+      "url": "https://help.housecallpro.com/en/articles/13907740-bulk-actions-on-the-calendar"
+    },
+    {
+      "title": "AI Team",
+      "url": "https://www.housecallpro.com/features/ai-team/"
+    },
+    {
+      "title": "Payroll feature page",
+      "url": "https://www.housecallpro.com/features/payroll/"
+    },
+    {
+      "title": "Advanced reporting",
+      "url": "https://www.housecallpro.com/features/advanced-reporting/"
+    },
+    {
+      "title": "Automated marketing",
+      "url": "https://www.housecallpro.com/features/automated-marketing/"
+    },
+    {
+      "title": "Automated sales tax (help center)",
+      "url": "https://help.housecallpro.com/en/articles/12805669-automated-sales-tax"
+    },
+    {
+      "title": "Messaging within the inbox (help center)",
+      "url": "https://help.housecallpro.com/en/articles/5981299-messaging-within-your-housecall-pro-inbox"
+    },
+    {
+      "title": "Review management",
+      "url": "https://www.housecallpro.com/features/review-management-software/"
+    },
+    {
+      "title": "Using commission on the job (help center)",
+      "url": "https://help.housecallpro.com/en/articles/6649542-using-commission-on-the-job"
+    },
+    {
+      "title": "Capterra reviews",
+      "url": "https://capterra.com/p/140363/HouseCall-Pro/reviews/"
+    },
+    {
+      "title": "G2 reviews",
+      "url": "https://www.g2.com/products/housecall-pro/reviews_and_filters"
+    },
+    {
+      "title": "ContractorToolStack pricing guide (Sept 2026)",
+      "url": "https://contractortoolstack.com/software/housecall-pro/pricing/"
+    },
+    {
+      "title": "Projul Housecall Pro pricing analysis 2026",
+      "url": "https://projul.com/blog/housecall-pro-pricing-analysis-2026"
+    },
+    {
+      "title": "Fieldproxy: Housecall Pro alternatives for pest control (competitor blog)",
+      "url": "https://www.fieldproxy.ai/resources/blog/best-housecall-pro-alternatives-for-pest-control-businesses-2026"
+    },
+    {
+      "title": "PitchBook company profile",
+      "url": "https://pitchbook.com/profiles/company/58361-41"
+    }
   ]
 }

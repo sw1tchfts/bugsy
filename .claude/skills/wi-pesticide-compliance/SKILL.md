@@ -1,6 +1,6 @@
 ---
 name: wi-pesticide-compliance
-description: Wisconsin pest control compliance rules (DATCP ATCP 29 licensing, application records, customer notices, landscape registry, bat exclusion blackout, sales tax on lawn work). Use when building or changing visits, the technician app, scheduling restrictions, credentials, application records, notices, product catalog fields or tax classes.
+description: Wisconsin pest control compliance rules (DATCP ATCP 29 licensing, application records, customer notices, landscape registry, bat exclusion blackout, sales tax questions). Use when building or changing visits, the technician app, scheduling restrictions, credentials, application records, notices, product catalog fields or tax classes.
 ---
 
 # Wisconsin pest control compliance
@@ -31,13 +31,12 @@ Rules become data in `lib/compliance/rules/wi.ts`, read by scheduling, the techn
 | --- | --- |
 | General pest, rodent, bed bug | 7.1 Structural |
 | Termite | 7.3 Termite (with structural) |
-| Lawn and turf | 3.0 Turf and Landscape |
 | Mosquito (yard) | 5.0 Aquatic and Mosquito |
 | Mosquito misting systems | 26.0 Chemigation subcategory, on top of a base category |
 | Tick (yard) | Unconfirmed: treat as 3.0 plus 5.0 until DATCP confirms |
 | Wildlife (no pesticide) | None from DATCP; DNR rules apply |
 
-Structural certification excludes mosquito control. A lawn applicator needs 5.0 to treat for mosquitoes.
+Structural certification excludes mosquito control. Out of scope: lawn care, tree and shrub care, and other trades. Mosquito and tick yard spraying, termite and wildlife are in scope because pest companies sell them.
 
 ## Behavior the product must enforce
 
@@ -47,16 +46,16 @@ Structural certification excludes mosquito control. A lawn applicator needs 5.0 
 - Records lock at day end. Corrections are amendment rows with author and reason.
 - Every required notice gets a `notices` row with due time, channel and proof of sending.
 - Scheduling blocks bat exclusion visits inside the blackout. DNR's health exemption covers a landowner conducting the exclusion (form filed within 5 days of starting); whether a hired operator may work under it is unconfirmed, so keep the block until it is.
-- Lawn and beyond-10-feet structural jobs at a registry address cannot start until the advance notice is recorded as sent in time.
+- Yard mosquito and tick spraying, and structural work more than 10 feet from the building, are landscape applications. At a registry address they cannot start until the advance notice is recorded as sent in time.
 
 ## Sales tax touchpoint
 
-Wisconsin taxes lawn spraying and fertilizing and tree and shrub spraying (DOR Publication 210). Structural pest control does not appear among taxable services in the sources reviewed. Treat it as not taxable until confirmed with DOR; keep taxability on the service type so it can change without code. Details in the `pest-accounting` skill.
+Wisconsin taxes landscaping and lawn maintenance services, which include spraying lawns, trees and shrubs (DOR Publication 210). That is why yard mosquito and tick spraying is an open tax question. Structural pest control does not appear among taxable services in the sources reviewed. Treat it as not taxable until confirmed with DOR; keep taxability on the service type so it can change without code. Details in the `pest-accounting` skill.
 
 ## Open questions (do not invent answers)
 
 - Which certification category covers yard tick control.
-- Whether yard mosquito and tick spraying is taxable like lawn spraying.
+- Whether yard mosquito and tick spraying is taxable as a lawn and landscape spraying service.
 - What DNR rule NR 12.10 requires of a hired wildlife operator (written landowner approval fields, permits).
 - The file format DATCP uses for the yearly landscape registry.
 - Whether a hired wildlife operator may perform a bat exclusion inside the blackout under a landowner's health exemption.
