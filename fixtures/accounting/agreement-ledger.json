@@ -1,0 +1,791 @@
+{
+  "description": "Expected contract positions per agreement. Tests must load these values rather than restating them.",
+  "conventions": {
+    "amounts": "integer cents",
+    "recognition": "Each visit's price is recognized as revenue when the visit is completed. Re-services are $0 visits.",
+    "position": "Cumulative billed minus cumulative recognized, per agreement. Positive is deferred revenue (contract liability). Negative is an unbilled receivable (contract asset).",
+    "month_end": "Includes every billing event and completed visit dated in or before the month.",
+    "installments": "Contract total divided by the number of installments, rounded down to the cent; the remainder goes on the final installment."
+  },
+  "installment_rounding_cases": [
+    {
+      "total_cents": 54000,
+      "count": 12,
+      "expected": [
+        4500,
+        4500,
+        4500,
+        4500,
+        4500,
+        4500,
+        4500,
+        4500,
+        4500,
+        4500,
+        4500,
+        4500
+      ]
+    },
+    {
+      "total_cents": 50000,
+      "count": 12,
+      "expected": [
+        4166,
+        4166,
+        4166,
+        4166,
+        4166,
+        4166,
+        4166,
+        4166,
+        4166,
+        4166,
+        4166,
+        4174
+      ]
+    },
+    {
+      "total_cents": 9999,
+      "count": 3,
+      "expected": [
+        3333,
+        3333,
+        3333
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "A",
+      "name": "Flat monthly billing, visits early in each quarter",
+      "agreement": {
+        "service_type": "general_pest",
+        "cadence": "quarterly",
+        "term_months": 12,
+        "starts_on": "2027-01-01",
+        "initial_price_cents": 18000,
+        "recurring_price_cents": 12000,
+        "visits_in_term": 4,
+        "contract_total_cents": 54000,
+        "billing_mode": "flat_monthly"
+      },
+      "billing": [
+        {
+          "date": "2027-01-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-02-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-03-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-04-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-05-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-06-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-07-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-08-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-09-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-10-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-11-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-12-01",
+          "amount_cents": 4500
+        }
+      ],
+      "visits": [
+        {
+          "date": "2027-01-15",
+          "kind": "initial",
+          "price_cents": 18000
+        },
+        {
+          "date": "2027-04-15",
+          "kind": "recurring",
+          "price_cents": 12000
+        },
+        {
+          "date": "2027-07-15",
+          "kind": "recurring",
+          "price_cents": 12000
+        },
+        {
+          "date": "2027-10-15",
+          "kind": "recurring",
+          "price_cents": 12000
+        }
+      ],
+      "expected_month_end": [
+        {
+          "month": "2027-01",
+          "billed_cents": 4500,
+          "recognized_cents": 18000,
+          "position_cents": -13500,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 13500
+        },
+        {
+          "month": "2027-02",
+          "billed_cents": 9000,
+          "recognized_cents": 18000,
+          "position_cents": -9000,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 9000
+        },
+        {
+          "month": "2027-03",
+          "billed_cents": 13500,
+          "recognized_cents": 18000,
+          "position_cents": -4500,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 4500
+        },
+        {
+          "month": "2027-04",
+          "billed_cents": 18000,
+          "recognized_cents": 30000,
+          "position_cents": -12000,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 12000
+        },
+        {
+          "month": "2027-05",
+          "billed_cents": 22500,
+          "recognized_cents": 30000,
+          "position_cents": -7500,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 7500
+        },
+        {
+          "month": "2027-06",
+          "billed_cents": 27000,
+          "recognized_cents": 30000,
+          "position_cents": -3000,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 3000
+        },
+        {
+          "month": "2027-07",
+          "billed_cents": 31500,
+          "recognized_cents": 42000,
+          "position_cents": -10500,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 10500
+        },
+        {
+          "month": "2027-08",
+          "billed_cents": 36000,
+          "recognized_cents": 42000,
+          "position_cents": -6000,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 6000
+        },
+        {
+          "month": "2027-09",
+          "billed_cents": 40500,
+          "recognized_cents": 42000,
+          "position_cents": -1500,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 1500
+        },
+        {
+          "month": "2027-10",
+          "billed_cents": 45000,
+          "recognized_cents": 54000,
+          "position_cents": -9000,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 9000
+        },
+        {
+          "month": "2027-11",
+          "billed_cents": 49500,
+          "recognized_cents": 54000,
+          "position_cents": -4500,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 4500
+        },
+        {
+          "month": "2027-12",
+          "billed_cents": 54000,
+          "recognized_cents": 54000,
+          "position_cents": 0,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 0
+        }
+      ],
+      "lesson": "Visits run ahead of billing, so the agreement carries an unbilled receivable (contract asset) most of the year."
+    },
+    {
+      "id": "B",
+      "name": "Flat monthly billing from signup in January, first visit in March",
+      "agreement": {
+        "service_type": "general_pest",
+        "cadence": "quarterly",
+        "term_months": 12,
+        "starts_on": "2027-01-01",
+        "initial_price_cents": 18000,
+        "recurring_price_cents": 12000,
+        "visits_in_term": 4,
+        "contract_total_cents": 54000,
+        "billing_mode": "flat_monthly"
+      },
+      "billing": [
+        {
+          "date": "2027-01-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-02-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-03-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-04-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-05-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-06-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-07-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-08-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-09-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-10-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-11-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-12-01",
+          "amount_cents": 4500
+        }
+      ],
+      "visits": [
+        {
+          "date": "2027-03-20",
+          "kind": "initial",
+          "price_cents": 18000
+        },
+        {
+          "date": "2027-06-20",
+          "kind": "recurring",
+          "price_cents": 12000
+        },
+        {
+          "date": "2027-09-20",
+          "kind": "recurring",
+          "price_cents": 12000
+        },
+        {
+          "date": "2027-12-20",
+          "kind": "recurring",
+          "price_cents": 12000
+        }
+      ],
+      "expected_month_end": [
+        {
+          "month": "2027-01",
+          "billed_cents": 4500,
+          "recognized_cents": 0,
+          "position_cents": 4500,
+          "deferred_revenue_cents": 4500,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-02",
+          "billed_cents": 9000,
+          "recognized_cents": 0,
+          "position_cents": 9000,
+          "deferred_revenue_cents": 9000,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-03",
+          "billed_cents": 13500,
+          "recognized_cents": 18000,
+          "position_cents": -4500,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 4500
+        },
+        {
+          "month": "2027-04",
+          "billed_cents": 18000,
+          "recognized_cents": 18000,
+          "position_cents": 0,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-05",
+          "billed_cents": 22500,
+          "recognized_cents": 18000,
+          "position_cents": 4500,
+          "deferred_revenue_cents": 4500,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-06",
+          "billed_cents": 27000,
+          "recognized_cents": 30000,
+          "position_cents": -3000,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 3000
+        },
+        {
+          "month": "2027-07",
+          "billed_cents": 31500,
+          "recognized_cents": 30000,
+          "position_cents": 1500,
+          "deferred_revenue_cents": 1500,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-08",
+          "billed_cents": 36000,
+          "recognized_cents": 30000,
+          "position_cents": 6000,
+          "deferred_revenue_cents": 6000,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-09",
+          "billed_cents": 40500,
+          "recognized_cents": 42000,
+          "position_cents": -1500,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 1500
+        },
+        {
+          "month": "2027-10",
+          "billed_cents": 45000,
+          "recognized_cents": 42000,
+          "position_cents": 3000,
+          "deferred_revenue_cents": 3000,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-11",
+          "billed_cents": 49500,
+          "recognized_cents": 42000,
+          "position_cents": 7500,
+          "deferred_revenue_cents": 7500,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-12",
+          "billed_cents": 54000,
+          "recognized_cents": 54000,
+          "position_cents": 0,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 0
+        }
+      ],
+      "lesson": "The same agreement swings between deferred revenue and contract asset depending on visit timing. Report the net position per agreement."
+    },
+    {
+      "id": "C",
+      "name": "Annual prepay",
+      "agreement": {
+        "service_type": "general_pest",
+        "cadence": "quarterly",
+        "term_months": 12,
+        "starts_on": "2027-01-01",
+        "initial_price_cents": 18000,
+        "recurring_price_cents": 12000,
+        "visits_in_term": 4,
+        "contract_total_cents": 54000,
+        "billing_mode": "annual_prepay"
+      },
+      "billing": [
+        {
+          "date": "2027-01-01",
+          "amount_cents": 54000
+        }
+      ],
+      "visits": [
+        {
+          "date": "2027-01-15",
+          "kind": "initial",
+          "price_cents": 18000
+        },
+        {
+          "date": "2027-04-15",
+          "kind": "recurring",
+          "price_cents": 12000
+        },
+        {
+          "date": "2027-07-15",
+          "kind": "recurring",
+          "price_cents": 12000
+        },
+        {
+          "date": "2027-10-15",
+          "kind": "recurring",
+          "price_cents": 12000
+        }
+      ],
+      "expected_month_end": [
+        {
+          "month": "2027-01",
+          "billed_cents": 54000,
+          "recognized_cents": 18000,
+          "position_cents": 36000,
+          "deferred_revenue_cents": 36000,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-02",
+          "billed_cents": 54000,
+          "recognized_cents": 18000,
+          "position_cents": 36000,
+          "deferred_revenue_cents": 36000,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-03",
+          "billed_cents": 54000,
+          "recognized_cents": 18000,
+          "position_cents": 36000,
+          "deferred_revenue_cents": 36000,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-04",
+          "billed_cents": 54000,
+          "recognized_cents": 30000,
+          "position_cents": 24000,
+          "deferred_revenue_cents": 24000,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-05",
+          "billed_cents": 54000,
+          "recognized_cents": 30000,
+          "position_cents": 24000,
+          "deferred_revenue_cents": 24000,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-06",
+          "billed_cents": 54000,
+          "recognized_cents": 30000,
+          "position_cents": 24000,
+          "deferred_revenue_cents": 24000,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-07",
+          "billed_cents": 54000,
+          "recognized_cents": 42000,
+          "position_cents": 12000,
+          "deferred_revenue_cents": 12000,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-08",
+          "billed_cents": 54000,
+          "recognized_cents": 42000,
+          "position_cents": 12000,
+          "deferred_revenue_cents": 12000,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-09",
+          "billed_cents": 54000,
+          "recognized_cents": 42000,
+          "position_cents": 12000,
+          "deferred_revenue_cents": 12000,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-10",
+          "billed_cents": 54000,
+          "recognized_cents": 54000,
+          "position_cents": 0,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-11",
+          "billed_cents": 54000,
+          "recognized_cents": 54000,
+          "position_cents": 0,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-12",
+          "billed_cents": 54000,
+          "recognized_cents": 54000,
+          "position_cents": 0,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 0
+        }
+      ],
+      "lesson": "Prepayment sits in deferred revenue and is released as each visit is completed."
+    },
+    {
+      "id": "D",
+      "name": "Per-visit billing",
+      "agreement": {
+        "service_type": "general_pest",
+        "cadence": "quarterly",
+        "term_months": 12,
+        "starts_on": "2027-01-01",
+        "initial_price_cents": 18000,
+        "recurring_price_cents": 12000,
+        "visits_in_term": 4,
+        "contract_total_cents": 54000,
+        "billing_mode": "per_visit"
+      },
+      "billing": [
+        {
+          "date": "2027-01-15",
+          "amount_cents": 18000
+        },
+        {
+          "date": "2027-04-15",
+          "amount_cents": 12000
+        },
+        {
+          "date": "2027-07-15",
+          "amount_cents": 12000
+        },
+        {
+          "date": "2027-10-15",
+          "amount_cents": 12000
+        }
+      ],
+      "visits": [
+        {
+          "date": "2027-01-15",
+          "kind": "initial",
+          "price_cents": 18000
+        },
+        {
+          "date": "2027-04-15",
+          "kind": "recurring",
+          "price_cents": 12000
+        },
+        {
+          "date": "2027-07-15",
+          "kind": "recurring",
+          "price_cents": 12000
+        },
+        {
+          "date": "2027-10-15",
+          "kind": "recurring",
+          "price_cents": 12000
+        }
+      ],
+      "expected_month_end": [
+        {
+          "month": "2027-01",
+          "billed_cents": 18000,
+          "recognized_cents": 18000,
+          "position_cents": 0,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-02",
+          "billed_cents": 18000,
+          "recognized_cents": 18000,
+          "position_cents": 0,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-03",
+          "billed_cents": 18000,
+          "recognized_cents": 18000,
+          "position_cents": 0,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-04",
+          "billed_cents": 30000,
+          "recognized_cents": 30000,
+          "position_cents": 0,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-05",
+          "billed_cents": 30000,
+          "recognized_cents": 30000,
+          "position_cents": 0,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-06",
+          "billed_cents": 30000,
+          "recognized_cents": 30000,
+          "position_cents": 0,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-07",
+          "billed_cents": 42000,
+          "recognized_cents": 42000,
+          "position_cents": 0,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-08",
+          "billed_cents": 42000,
+          "recognized_cents": 42000,
+          "position_cents": 0,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-09",
+          "billed_cents": 42000,
+          "recognized_cents": 42000,
+          "position_cents": 0,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-10",
+          "billed_cents": 54000,
+          "recognized_cents": 54000,
+          "position_cents": 0,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-11",
+          "billed_cents": 54000,
+          "recognized_cents": 54000,
+          "position_cents": 0,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 0
+        },
+        {
+          "month": "2027-12",
+          "billed_cents": 54000,
+          "recognized_cents": 54000,
+          "position_cents": 0,
+          "deferred_revenue_cents": 0,
+          "contract_asset_cents": 0
+        }
+      ],
+      "lesson": "Invoice and recognition happen together, so the position is always zero."
+    },
+    {
+      "id": "E",
+      "name": "Scenario A cancelled on 2027-05-10",
+      "agreement": {
+        "service_type": "general_pest",
+        "cadence": "quarterly",
+        "term_months": 12,
+        "starts_on": "2027-01-01",
+        "initial_price_cents": 18000,
+        "recurring_price_cents": 12000,
+        "visits_in_term": 4,
+        "contract_total_cents": 54000,
+        "billing_mode": "flat_monthly",
+        "cancel_fee_cents": 0
+      },
+      "billing": [
+        {
+          "date": "2027-01-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-02-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-03-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-04-01",
+          "amount_cents": 4500
+        },
+        {
+          "date": "2027-05-01",
+          "amount_cents": 4500
+        }
+      ],
+      "visits": [
+        {
+          "date": "2027-01-15",
+          "kind": "initial",
+          "price_cents": 18000
+        },
+        {
+          "date": "2027-04-15",
+          "kind": "recurring",
+          "price_cents": 12000
+        }
+      ],
+      "cancelled_on": "2027-05-10",
+      "expected_at_cancellation": {
+        "billed_cents": 22500,
+        "recognized_cents": 30000,
+        "contract_asset_cents": 7500
+      },
+      "expected_settlement": {
+        "final_invoice_cents": 7500,
+        "position_after_cents": 0,
+        "future_visits": "cancelled",
+        "autopay": "stopped",
+        "note": "Bills services already delivered but not yet billed, if the agreement terms allow. Any cancellation fee is a separate line credited to cancellation fee income and does not change the contract position."
+      },
+      "lesson": "An early cancellation after a visit leaves delivered but unbilled service. This is what early cancellation terms protect."
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "description": "A completed visit must yield an application record with every ATCP 29.21 field. Invalid cases must block visit completion.",
+  "required_fields": [
+    "applicator_first_name",
+    "applicator_last_name",
+    "customer_name",
+    "customer_address",
+    "site_treated",
+    "location_description",
+    "date",
+    "start_time",
+    "end_time",
+    "product_name",
+    "epa_reg_no",
+    "quantity_basis",
+    "mix_load_site_or_exemption"
+  ],
+  "valid_case": {
+    "visit": {
+      "technician": {
+        "first_name": "Dana",
+        "last_name": "Kowalski",
+        "license_number": "123456"
+      },
+      "account": {
+        "name": "Maria Lopez"
+      },
+      "property": {
+        "address": "1234 N Example St, Milwaukee, WI 53212"
+      },
+      "arrived_at": "2027-05-03T15:05:00-05:00",
+      "departed_at": "2027-05-03T15:40:00-05:00",
+      "products": [
+        {
+          "name": "Example Bifenthrin SC",
+          "epa_reg_no": "00000-000",
+          "site_treated": "residential structure exterior perimeter",
+          "location_description": "foundation perimeter, 3 ft band, all four sides of house",
+          "concentration": "0.06%",
+          "total_quantity": "1.5 gal finished spray",
+          "equipment_capacity_gal": 2
+        }
+      ]
+    },
+    "expected": {
+      "valid": true,
+      "mix_load_site_required": false,
+      "date": "2027-05-03",
+      "start_time": "15:05",
+      "end_time": "15:40"
+    }
+  },
+  "invalid_cases": [
+    {
+      "change": "products[0].epa_reg_no = null",
+      "expected_error": "epa_reg_no is required"
+    },
+    {
+      "change": "products[0].concentration = null and no rate or area",
+      "expected_error": "either concentration and total quantity, or rate and area treated, is required"
+    },
+    {
+      "change": "products[0].location_description = ''",
+      "expected_error": "location_description is required"
+    },
+    {
+      "change": "products[0].equipment_capacity_gal = 50 and mix_load_site = null and not applied from retail container",
+      "expected_error": "mix_load_site is required"
+    },
+    {
+      "change": "departed_at = null",
+      "expected_error": "end time is required"
+    }
+  ],
+  "note": "Product names and EPA numbers here are placeholders, not real registrations."
+}

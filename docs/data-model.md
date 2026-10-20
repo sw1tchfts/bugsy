@@ -1,0 +1,115 @@
+# Data model
+
+The shared vocabulary every spec builds on. Specs may add columns; changing a relationship here needs a decision recorded in the spec.
+
+## Conventions
+
+- Primary keys: `id uuid default gen_random_uuid()`.
+- Every tenant-owned table: `tenant_id uuid not null references tenants(id)`, RLS enabled, policies via `app.is_member(tenant_id)`.
+- Branch-scoped tables also carry `branch_id`; branch scoping is enforced in the app layer through role scopes, tenant isolation in the database.
+- Money: `*_cents bigint`. Quantities: `numeric`. Timestamps: `timestamptz`. Business dates: `date` in tenant time zone.
+- `created_at`, `updated_at`, `created_by` on every table. Deletes are soft (`archived_at`) for anything referenced by financial or compliance records.
+- Enum-like values are Postgres enums or check constraints, listed below in brackets.
+
+## Overview
+
+```mermaid
+erDiagram
+  TENANT ||--o{ BRANCH : has
+  TENANT ||--o{ MEMBERSHIP : has
+  ACCOUNT ||--o{ PROPERTY : owns
+  ACCOUNT ||--o{ CONTACT : has
+  PROPERTY ||--o{ CONTACT : "residents"
+  ACCOUNT ||--o{ AGREEMENT : signs
+  PROPERTY ||--o{ AGREEMENT : "serviced under"
+  SERVICE_TYPE ||--o{ AGREEMENT : defines
+  AGREEMENT ||--o{ VISIT : generates
+  VISIT ||--o{ VISIT_PRODUCT : records
+  PRODUCT ||--o{ VISIT_PRODUCT : "applied as"
+  VISIT ||--o| APPLICATION_RECORD : "locks into"
+  VISIT ||--o{ NOTICE : triggers
+  AGREEMENT ||--o{ INVOICE_LINE : bills
+  INVOICE ||--o{ INVOICE_LINE : contains
+  INVOICE ||--o{ PAYMENT_ALLOCATION : "paid by"
+  VISIT ||--o{ JOURNAL_ENTRY : posts
+  INVOICE ||--o{ JOURNAL_ENTRY : posts
+```
+
+## Platform and tenancy
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| tenants | name, legal_name, timezone, state_code [WI], stripe_account_id, status | One pest company |
+| branches | tenant_id, name, address, business_license_number, license_year | One licensed business location (ATCP 29.20) |
+| memberships | tenant_id, user_id (auth.users), role, branch_ids uuid[] null | Null branch_ids means all branches |
+| roles | tenant_id null, key, permissions text[] | Platform defaults have tenant_id null; tenants copy and edit |
+| audit_log | tenant_id, actor_id, table_name, row_id, action, before, after | Written by triggers on sensitive tables |
+
+## Customers and sales
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| accounts | tenant_id, name, type [residential, commercial, property_manager], billing_address, tax_exempt_cert_id, terms_days, status | Who pays |
+| properties | tenant_id, account_id, address, lat, lng, property_type, size_sqft, unit_count, notes, landscape_registry_match bool | Where work happens |
+| contacts | tenant_id, account_id null, property_id null, name, email, phone, role [billing, primary, resident, site_contact], sms_opt_in, e_notice_consent_at | Residents get pesticide notices |
+| leads | tenant_id, contact fields, property address, source, stage [new, inspection_booked, quoted, won, lost], lost_reason, owner_id | Converts to account and property |
+| quotes / quote_lines | tenant_id, lead_id or account_id, property_id, status, lines with price_book_item_id and price_cents | Tiered options as separate quote groups |
+
+## Catalog and pricing
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| service_types | tenant_id, service_line [general_pest, rodent, termite, mosquito, bed_bug, wildlife, lawn], name, tax_class, required_cert_categories text[], is_landscape bool | Drives tax, licensing and notice rules |
+| price_book_items | tenant_id, service_type_id, tier rule (size bands), initial_price_cents, recurring_price_cents, add_on bool | |
+| products | (shared) name, epa_reg_no, active_ingredients, restricted_use bool, rei_hours, label_url, sds_url, signal_word | Platform-maintained master list |
+| tenant_products | tenant_id, product_id, enabled, unit, unit_cost_cents | Tenant switches on and costs products |
+
+## Agreements and visits
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| agreements | tenant_id, account_id, property_id, service_type_id, cadence [monthly, bimonthly, quarterly, custom, seasonal_rounds], cadence_rule jsonb, season_start, season_end, initial_price_cents, recurring_price_cents, billing_mode [per_visit, flat_monthly, annual_prepay], term_months, auto_renew, cancel_fee_cents, starts_on, ends_on, status, signed_at, signature_file_id | Central object |
+| visits | tenant_id, agreement_id null, property_id, branch_id, kind [initial, recurring, reservice, one_time, inspection], due_start, due_end, scheduled_for, technician_id, status [planned, scheduled, en_route, in_progress, completed, skipped, cancelled], arrived_at, departed_at, price_cents | Re-services have price_cents 0 |
+| visit_products | tenant_id, visit_id, product_id, site_treated, location_description, amount, amount_unit, concentration, area_treated, area_unit, mix_load_site, target_pests text[] | Feeds the legal record |
+| visit_notes / visit_photos / visit_signatures | tenant_id, visit_id, content or file | |
+
+## Compliance
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| applicator_credentials | tenant_id, user_id, cert_number, categories text[], cert_expires_on, license_number, license_year, trainee_registered_on null, supervisor_id null | One row per technician |
+| application_records | tenant_id, visit_id, snapshot jsonb with every ATCP 29.21 field, locked_at, retention_until | Immutable after lock |
+| application_record_amendments | tenant_id, record_id, changed_fields jsonb, reason, author_id | Corrections only |
+| notices | tenant_id, kind [post_application, pre_application_offer, resident_notice, rei_sign, landscape_advance], visit_id null, agreement_id null, recipient_contact_id, channel [email, sms, print, mail, phone], due_by, sent_at, proof | Proof of every required notice |
+| landscape_registry | tenant_id, registry_year, address, normalized_address, contact | Imported yearly from DATCP |
+
+## Billing
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| invoices | tenant_id, account_id, number, issued_on, due_on, status, po_number, subtotal_cents, tax_cents, total_cents | |
+| invoice_lines | tenant_id, invoice_id, agreement_id null, visit_id null, description, amount_cents, tax_class, tax_jurisdiction_id, tax_cents | |
+| payments | tenant_id, account_id, amount_cents, method, stripe_payment_intent_id, received_at, status | |
+| payment_allocations | tenant_id, payment_id, invoice_id, amount_cents | |
+| payment_methods | tenant_id, account_id, stripe_payment_method_id, brand, last4, autopay | No card data stored |
+| tax_jurisdictions / tax_rates | (shared) code, name, type [state, county, city, district], rate, effective_from | Loaded from DOR rate tables |
+
+## General ledger
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| gl_accounts | tenant_id, number, name, type [asset, liability, equity, revenue, expense], subtype | Seeded from the pest template |
+| journal_entries | tenant_id, posted_on, source_type, source_id, memo, reversed_by | One per business event |
+| journal_lines | tenant_id, entry_id, gl_account_id, debit_cents, credit_cents, agreement_id null, jurisdiction_id null | Agreement and jurisdiction subledgers |
+| period_closes | tenant_id, period, closed_at, closed_by | Closed periods reject postings |
+
+## Inventory
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| stock_locations | tenant_id, branch_id, kind [warehouse, truck], vehicle_id null | |
+| stock_movements | tenant_id, product_id, from_location_id, to_location_id, quantity, unit, reason [receipt, transfer, usage, adjustment], visit_product_id null | Usage rows created from visit_products |
+
+## Phase 2 tables (named now so specs do not collide)
+
+devices, device_checks, site_maps, sightings, recommendations, warranties, commissions, door_knocks.

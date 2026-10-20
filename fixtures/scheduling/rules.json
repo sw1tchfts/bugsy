@@ -1,0 +1,219 @@
+{
+  "description": "Assignment and scheduling rules. Rule values come from lib/compliance/rules/wi.ts.",
+  "cases": [
+    {
+      "id": "license-current",
+      "input": {
+        "service_line": "general_pest",
+        "visit_date": "2027-03-10",
+        "tech": {
+          "license_year": 2027,
+          "categories": [
+            "7.1"
+          ],
+          "cert_expires_on": "2029-04-30"
+        }
+      },
+      "expected": {
+        "allowed": true
+      }
+    },
+    {
+      "id": "license-expired-new-year",
+      "input": {
+        "service_line": "general_pest",
+        "visit_date": "2027-01-02",
+        "tech": {
+          "license_year": 2026,
+          "categories": [
+            "7.1"
+          ],
+          "cert_expires_on": "2029-04-30"
+        }
+      },
+      "expected": {
+        "allowed": false,
+        "reason": "license expired December 31"
+      }
+    },
+    {
+      "id": "cert-expired",
+      "input": {
+        "service_line": "general_pest",
+        "visit_date": "2027-06-01",
+        "tech": {
+          "license_year": 2027,
+          "categories": [
+            "7.1"
+          ],
+          "cert_expires_on": "2027-05-31"
+        }
+      },
+      "expected": {
+        "allowed": false,
+        "reason": "certification expired"
+      }
+    },
+    {
+      "id": "termite-needs-7.3",
+      "input": {
+        "service_line": "termite",
+        "visit_date": "2027-05-01",
+        "tech": {
+          "license_year": 2027,
+          "categories": [
+            "7.1"
+          ],
+          "cert_expires_on": "2029-04-30"
+        }
+      },
+      "expected": {
+        "allowed": false,
+        "reason": "missing category 7.3"
+      }
+    },
+    {
+      "id": "mosquito-needs-5.0",
+      "input": {
+        "service_line": "mosquito",
+        "visit_date": "2027-06-15",
+        "tech": {
+          "license_year": 2027,
+          "categories": [
+            "3.0"
+          ],
+          "cert_expires_on": "2029-04-30"
+        }
+      },
+      "expected": {
+        "allowed": false,
+        "reason": "missing category 5.0"
+      }
+    },
+    {
+      "id": "trainee-within-window",
+      "input": {
+        "service_line": "general_pest",
+        "visit_date": "2027-04-30",
+        "tech": {
+          "trainee_registered_on": "2027-04-01",
+          "supervisor_assigned": true
+        }
+      },
+      "expected": {
+        "allowed": true
+      },
+      "note": "Registration expires 30 days after filing (2027-05-01 here). Behavior on that exact day is decided in spec 07."
+    },
+    {
+      "id": "trainee-expired",
+      "input": {
+        "service_line": "general_pest",
+        "visit_date": "2027-05-02",
+        "tech": {
+          "trainee_registered_on": "2027-04-01",
+          "supervisor_assigned": true
+        }
+      },
+      "expected": {
+        "allowed": false,
+        "reason": "trainee registration expired"
+      }
+    },
+    {
+      "id": "trainee-no-supervisor",
+      "input": {
+        "service_line": "general_pest",
+        "visit_date": "2027-04-10",
+        "tech": {
+          "trainee_registered_on": "2027-04-01",
+          "supervisor_assigned": false
+        }
+      },
+      "expected": {
+        "allowed": false,
+        "reason": "trainee needs an on-site supervisor"
+      }
+    },
+    {
+      "id": "rup-trainee",
+      "input": {
+        "product_restricted_use": true,
+        "tech": {
+          "trainee_registered_on": "2027-04-01"
+        }
+      },
+      "expected": {
+        "allowed": false,
+        "reason": "restricted-use products need a licensed, certified applicator"
+      }
+    },
+    {
+      "id": "bat-blackout-start",
+      "input": {
+        "service_line": "wildlife",
+        "job_kind": "bat_exclusion",
+        "visit_date": "2027-06-01"
+      },
+      "expected": {
+        "allowed": false
+      }
+    },
+    {
+      "id": "bat-blackout-end",
+      "input": {
+        "service_line": "wildlife",
+        "job_kind": "bat_exclusion",
+        "visit_date": "2027-07-31"
+      },
+      "expected": {
+        "allowed": false
+      }
+    },
+    {
+      "id": "bat-after-blackout",
+      "input": {
+        "service_line": "wildlife",
+        "job_kind": "bat_exclusion",
+        "visit_date": "2027-08-01"
+      },
+      "expected": {
+        "allowed": true
+      }
+    },
+    {
+      "id": "bat-before-blackout",
+      "input": {
+        "service_line": "wildlife",
+        "job_kind": "bat_exclusion",
+        "visit_date": "2027-05-31"
+      },
+      "expected": {
+        "allowed": true
+      }
+    },
+    {
+      "id": "beyond-10-feet",
+      "input": {
+        "service_line": "general_pest",
+        "max_distance_from_structure_ft": 15,
+        "registry_match": true
+      },
+      "expected": {
+        "landscape_rules_apply": true,
+        "advance_notice_required": true
+      }
+    },
+    {
+      "id": "within-10-feet",
+      "input": {
+        "service_line": "general_pest",
+        "max_distance_from_structure_ft": 3,
+        "registry_match": true
+      },
+      "expected": {
+        "landscape_rules_apply": false
+      }
+    }
+  ]
+}

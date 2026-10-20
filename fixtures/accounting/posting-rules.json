@@ -1,0 +1,162 @@
+{
+  "description": "Expected journal lines for single business events. Account keys refer to the chart of accounts template in the pest-accounting skill. Every entry must balance.",
+  "test_tax_rate": {
+    "rate": "0.055",
+    "note": "Synthetic rate for tests only, not a real Wisconsin jurisdiction rate."
+  },
+  "cases": [
+    {
+      "event": "invoice_issued",
+      "input": {
+        "lines": [
+          {
+            "service_type": "general_pest",
+            "tax_class": "nontaxable",
+            "amount_cents": 4500
+          }
+        ]
+      },
+      "expected_lines": [
+        {
+          "account": "accounts_receivable",
+          "debit_cents": 4500
+        },
+        {
+          "account": "contract_liability",
+          "credit_cents": 4500
+        }
+      ]
+    },
+    {
+      "event": "invoice_issued",
+      "input": {
+        "lines": [
+          {
+            "service_type": "lawn",
+            "tax_class": "taxable_landscaping",
+            "amount_cents": 6000,
+            "tax_rate": "0.055"
+          }
+        ]
+      },
+      "expected_lines": [
+        {
+          "account": "accounts_receivable",
+          "debit_cents": 6330
+        },
+        {
+          "account": "contract_liability",
+          "credit_cents": 6000
+        },
+        {
+          "account": "sales_tax_payable",
+          "credit_cents": 330,
+          "subledger": "jurisdiction"
+        }
+      ]
+    },
+    {
+      "event": "visit_completed",
+      "input": {
+        "service_line": "general_pest",
+        "price_cents": 12000
+      },
+      "expected_lines": [
+        {
+          "account": "contract_liability",
+          "debit_cents": 12000
+        },
+        {
+          "account": "revenue_general_pest",
+          "credit_cents": 12000
+        }
+      ]
+    },
+    {
+      "event": "visit_completed",
+      "input": {
+        "service_line": "general_pest",
+        "kind": "reservice",
+        "price_cents": 0
+      },
+      "expected_lines": [],
+      "note": "No revenue entry. Product usage and labor still post as costs."
+    },
+    {
+      "event": "product_used",
+      "input": {
+        "quantity": "0.5",
+        "unit_cost_cents": 3200
+      },
+      "expected_lines": [
+        {
+          "account": "chemical_cost",
+          "debit_cents": 1600
+        },
+        {
+          "account": "chemical_inventory",
+          "credit_cents": 1600
+        }
+      ]
+    },
+    {
+      "event": "payment_received",
+      "input": {
+        "amount_cents": 4500,
+        "method": "card"
+      },
+      "expected_lines": [
+        {
+          "account": "stripe_clearing",
+          "debit_cents": 4500
+        },
+        {
+          "account": "accounts_receivable",
+          "credit_cents": 4500
+        }
+      ]
+    },
+    {
+      "event": "stripe_payout",
+      "input": {
+        "gross_cents": 4500,
+        "fee_cents": 161
+      },
+      "expected_lines": [
+        {
+          "account": "operating_bank",
+          "debit_cents": 4339
+        },
+        {
+          "account": "processing_fees",
+          "debit_cents": 161
+        },
+        {
+          "account": "stripe_clearing",
+          "credit_cents": 4500
+        }
+      ]
+    },
+    {
+      "event": "period_end_reclass",
+      "input": {
+        "agreement_positions_cents": [
+          4500,
+          -7500,
+          0
+        ]
+      },
+      "expected_lines": [
+        {
+          "account": "contract_asset",
+          "debit_cents": 7500
+        },
+        {
+          "account": "contract_liability",
+          "credit_cents": 7500
+        }
+      ],
+      "note": "Agreements with a debit (negative) contract balance are presented as a contract asset at period end; reverse on the first day of the next period."
+    }
+  ]
+}
