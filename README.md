@@ -20,7 +20,7 @@ This repository starts empty of app code on purpose. It holds the reference mate
 
 ## How to use it
 
-1. Put this folder in a new GitHub repository and clone it. Install Claude Code, Node 20+, the Supabase CLI and Git.
+1. Open this repository in Claude Code (on the web, choose it as the session's repo; locally, clone it and run `claude` in the folder). Local work also needs Node 20+, the Supabase CLI and Git.
 2. Open the folder in Claude Code. Run `/context` once to confirm CLAUDE.md loaded, and `/hooks` to confirm the three hooks are registered.
 3. Read `specs/phase-1/01-foundation.md` and change anything you disagree with. Set its status to `ready`.
 4. Start a fresh session and run `/implement-spec specs/phase-1/01-foundation.md`. Approve the plan, let it build, and check the evidence it reports (test output and screenshots).
