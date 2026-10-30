@@ -2,14 +2,15 @@
   "competitor": "ServSuite",
   "slug": "servsuite",
   "researched_on": "2026-10-20",
+  "updated_on": "2026-10-29",
   "profile": {
     "owner": "FieldRoutes, a ServiceTitan company. ServiceTitan bought developer ServicePro.net in Feb 2021 and later folded it into FieldRoutes. FieldRoutes now says ServSuite is sunsetting and is moving customers to FieldRoutes.",
     "website": "https://www.servsuite.net (product page now at https://www.fieldroutes.com/servsuite-by-fieldroutes)",
     "target_customers": "Pest control, lawn care and arbor companies. Marketed as enterprise software for single or multi-branch operators. Most review-site reviewers are small businesses (2 to 50 employees). FieldRoutes says 40 of the PCT Top 100 use FieldRoutes or ServSuite (combined figure).",
-    "pricing": "Not published by vendor (quote only). Capterra lists a Basic plan from $55 per user per month. One reviewer called it costly. FieldRoutes offers unspecified discounts to ServSuite customers who switch.",
+    "pricing": "Not published by vendor (quote only; G2 says the vendor has not published pricing). A Basic plan from $55 per user per month, listed on Capterra in earlier research, could not be re-verified in October 2026. One reviewer called it costly. FieldRoutes offers unspecified, cohort-based migration incentives to ServSuite customers who switch.",
     "pricing_source": "https://www.capterra.com/p/25008/ServSuite/reviews/",
     "deployment": "Cloud, browser-based web application (multi-browser), with iOS and Android mobile apps. Capterra Canada also lists a Windows on-premise option.",
-    "mobile_app": "ServSuite Mobile (iPhone and Android phones) and ServSuite Mobile Tablet (iPad and Android tablets), published by Service Pro.net. Still receiving fix releases in 2026. App Store rating 1.0 from 13 ratings.",
+    "mobile_app": "ServSuite Mobile (iPhone and Android phones) and ServSuite Mobile Tablet (iPad and Android tablets), published by Service Pro.net. Still receiving fix releases through October 2026. App Store rating 1.0 from 13 ratings.",
     "integrations": [
       "Integrated payment processing (Worldpay per app release notes; a third-party audit cites Global Payments)",
       "QuickBooks (listed on Capterra, GetApp and Software Advice; no vendor doc found)",
@@ -26,13 +27,13 @@
       "Reviewers praise reporting depth and easy invoicing and work order emailing"
     ],
     "weaknesses": [
-      "Product is being sunset by FieldRoutes, with customers steered to migrate; no public end date",
+      "Product is being sunset by FieldRoutes with no public end date; FieldRoutes moves customers in incentive-based migration cohorts (at least four), while the ServSuite product page still promises no change",
       "Low review scores: Capterra 2.5/5 (2 reviews), G2 3.1/5 (17 reviews), App Store 1.0/5",
       "Complaints of slow performance, glitches, crashes and slow syncing in the mobile app",
       "Slow support response and resolution, including training requests left pending for months",
       "Dated interface and steep learning curve; routing add-on reported to underperform; pricing not public"
     ],
-    "wisconsin_notes": "No Wisconsin customers, ATCP 29 record support, landscape registry notice or other Wisconsin-specific compliance found in public sources."
+    "wisconsin_notes": "Kwik Kill Pest Control of Madison ran ServSuite from 2013 until it moved to FieldRoutes in 2023 (FieldRoutes case study). No current Wisconsin ServSuite user found: a 2026-10-29 scan of 38 Wisconsin independents' websites found no ServSuite portal. No ATCP 29 record support, landscape registry notice or other Wisconsin-specific compliance found in public sources."
   },
   "features": [
     {
@@ -182,7 +183,7 @@
     {
       "id": "MOB-01",
       "status": "Yes",
-      "notes": "ServSuite Mobile for phones and ServSuite Mobile Tablet, on iOS and Android; fix releases continued into 2026.",
+      "notes": "ServSuite Mobile for phones and ServSuite Mobile Tablet, on iOS and Android; fix releases continued through October 2026.",
       "source": "https://apps.apple.com/us/app/servsuite-mobile/id534271165"
     },
     {
@@ -427,8 +428,8 @@
     },
     {
       "id": "CX-02",
-      "status": "Yes",
-      "notes": "App sends on-my-way emails; vendor and reviewers cite automated reminders and calls. Text message reminders not confirmed.",
+      "status": "Partial",
+      "notes": "App sends on-my-way emails, and vendor and reviewers cite automated reminders and calls; text message reminders and on-the-way texts are not confirmed.",
       "source": "https://apps.apple.com/us/app/servsuite-mobile/id534271165"
     },
     {
@@ -662,6 +663,22 @@
     {
       "title": "Voice for Pest: ServSuite by FieldRoutes integration partner",
       "url": "https://www.voiceforpest.com/?p=4276"
+    },
+    {
+      "title": "G2 ServSuite pricing",
+      "url": "https://g2.com/products/servsuite-by-fieldroutes/pricing"
+    },
+    {
+      "title": "FieldRoutes ServSuite migration, cohort 4 offer",
+      "url": "https://fieldroutes.com/lp/ss-migration/cohort-4/free-demo"
+    },
+    {
+      "title": "FieldRoutes Kwik Kill Pest Control case study (2023)",
+      "url": "https://www.fieldroutes.com/resources/case-studies/kwik-kill-pest-control-case-study"
+    },
+    {
+      "title": "Superpages Madison pest control listings (Wisconsin website scan sample)",
+      "url": "https://www.superpages.com/madison-wi/pest-control-services"
     }
   ]
 }

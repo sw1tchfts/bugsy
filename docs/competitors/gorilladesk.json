@@ -2,14 +2,15 @@
   "competitor": "GorillaDesk",
   "slug": "gorilladesk",
   "researched_on": "2026-10-20",
+  "updated_on": "2026-10-29",
   "profile": {
     "owner": "GorillaDesk LLC, privately held and founder-led (founder and CEO Chris Moreschi per CB Insights). Craft lists a Boca Raton, Florida headquarters and 2012 founding. No parent company or outside investor found.",
     "website": "https://gorilladesk.com",
-    "target_customers": "Small owner-operator and small-team home service businesses (pest, mosquito, termite, wildlife, lawn, pool, cleaning and 25+ other trades). Capterra reviewers mostly report 2-10 employees; the Growth tier adds multi-branch for growing firms. Not pest-only.",
+    "target_customers": "Small owner-operator and small-team home service businesses (pest, mosquito, termite, wildlife, lawn, pool, cleaning and 25+ other trades). Capterra reviewers mostly report 2-10 employees, but the pest page showcases pest and wildlife firms with 13 to 27 technicians, including Midwest companies; the Growth tier adds multi-branch for growing firms. Not pest-only.",
     "pricing": "Priced per route (schedule) per month, each plan including 1 route: Basic $49, Pro $99, Growth $149. Extra routes cost $30 to $100 each depending on tier. Unlimited office users. SMS add-on $5/mo plus credits ($50 per 1,000). VoIP $65 to $275/mo. AI agents $1.00 to $1.75 per completed conversation. MailStream email $5 per 1,000. Yearly billing gives one month free. No setup fee, no contract, free data migration.",
     "pricing_source": "https://gorilladesk.com/pricing/",
     "deployment": "Cloud (web app at app.gorilladesk.com) plus native iOS and Android apps. No on-premise or desktop install.",
-    "mobile_app": "GorillaDesk (iOS and Android, phone and tablet, one app for office and technicians); DoorMamba (free door-to-door sales app built by GorillaDesk).",
+    "mobile_app": "GorillaDesk (iOS and Android, phone and tablet, one app for office and technicians; rated 4.4 from 62 ratings on the US App Store and about 4.2 from 406 ratings on Google Play per a third-party tracker, October 2026); DoorMamba (free door-to-door sales app built by GorillaDesk).",
     "integrations": [
       "Stripe (cards, ACH, subscriptions, Tap to Pay)",
       "Square (cards, card hardware, Tap to Pay)",
@@ -37,9 +38,9 @@
       "Many core features are gated to Pro or Growth, and SMS, VoIP, AI conversations and MailStream are billed separately, so costs climb.",
       "Reviewers call reporting basic: no report builder, custom reports cannot be saved, and no automatic sales tax by address.",
       "Shallow compliance depth: no documented applicator license tracking, label or SDS storage, stock-level inventory, or state-specific report formats.",
-      "Offline mode limited to the current week with read-only invoices; some reviewers report bugs after the V3 release."
+      "Offline mode is limited to the current week, and job and invoice details cannot be edited offline; some reviewers report bugs after the V3 release."
     ],
-    "wisconsin_notes": "No Wisconsin-specific compliance found (no ATCP 29 fields, landscape registry notice or posting support); chemical tracking pages refer only to generic state requirements. One Wisconsin customer is showcased: Mosquito Police of Antigo, WI (8 techs) on the mosquito industry page. Nearby Midwest customers shown in Minnesota and Michigan."
+    "wisconsin_notes": "No Wisconsin-specific compliance found (no ATCP 29 fields, landscape registry notice or posting support); chemical tracking pages refer only to generic state requirements. Wisconsin users: Mosquito Police of Antigo, WI (8 techs) is showcased on the mosquito industry page, and a 2026-10-29 scan of Wisconsin pest company websites found GorillaDesk customer portals at Bourn Pest Solutions (Waukesha), Nexus Pest Solutions (Mequon area) and 1st Choice Pest Control (Appleton). Nearby Midwest customers shown in Minnesota, Michigan, Ohio and Missouri."
   },
   "features": [
     {
@@ -164,9 +165,9 @@
     },
     {
       "id": "SCH-04",
-      "status": "Unknown",
-      "notes": "No skill, certification or license-based assignment found; Best Available Time (Growth) suggests open slots without stated skill criteria.",
-      "source": "https://gorilladesk.com/pricing/"
+      "status": "Partial",
+      "notes": "Mantis AI Routing (beta, Growth plan, preview only with the live version coming soon) matches service type to technician skills from a Skills Manager; licenses and certifications are not used, and whether a mismatch blocks assignment is not stated.",
+      "source": "https://intercom.help/gorilladesk/en/articles/16069037-mantis-ai-routing-beta"
     },
     {
       "id": "SCH-05",
@@ -189,13 +190,13 @@
     {
       "id": "MOB-01",
       "status": "Yes",
-      "notes": "GorillaDesk app for iOS and Android phones and tablets (App Store rating 4.4), with Spanish support, dark mode and offline mode.",
+      "notes": "GorillaDesk app for iOS and Android phones and tablets (App Store 4.4 from 62 ratings; Google Play about 4.2 from 406 per a third-party tracker), with Spanish support, dark mode and offline mode.",
       "source": "https://apps.apple.com/app/id978627591"
     },
     {
       "id": "MOB-02",
       "status": "Partial",
-      "notes": "Offline mode covers only the current week once loaded; techs can change status, add notes and materials, but job and invoice details are read-only.",
+      "notes": "Offline mode covers only the current week once loaded (article dated Dec 2024); techs can change status, add check-in and check-out times, notes and materials, but job and invoice details are read-only, and offline photos, signatures and payments are not documented.",
       "source": "https://intercom.help/gorilladesk/en/articles/6993151-app-offline-mode"
     },
     {
@@ -219,7 +220,7 @@
     {
       "id": "MOB-06",
       "status": "Yes",
-      "notes": "Card payments in the app through Stripe or Square, including Tap to Pay on the phone and Square card hardware.",
+      "notes": "Card payments in the app through Stripe or Square, including Tap to Pay on the phone and Square card hardware; mobile tipping added May 2026 (Stripe only).",
       "source": "https://apps.apple.com/app/id978627591"
     },
     {
@@ -237,7 +238,7 @@
     {
       "id": "CMP-01",
       "status": "Yes",
-      "notes": "Per-visit material records with EPA number, rate, target pest, area and method appear on invoices; applicator license and weather fields not documented.",
+      "notes": "Per-visit material records with EPA number, rate, target pest, area and method appear on invoices; weather data is labeled on PDFs (April 2025 change log); applicator license fields not documented.",
       "source": "https://gorilladesk.com/features/chemical-tracking-software/"
     },
     {
@@ -321,8 +322,8 @@
     {
       "id": "COM-07",
       "status": "Partial",
-      "notes": "Net 30/60/90 payment term templates and statements spanning multiple locations; PO number fields not documented.",
-      "source": "https://intercom.help/gorilladesk/en/articles/10364322-payment-terms-and-late-payment-fees"
+      "notes": "Net 30/60/90 payment terms (March 2025), PO numbers that repeat on recurring invoices with PO search (December 2025), and statements spanning multiple locations; a single consolidated invoice across sites is not documented.",
+      "source": "https://intercom.help/gorilladesk/en/articles/8420909-gorilladesk-software-change-log-and-updates"
     },
     {
       "id": "SPC-01",
@@ -434,8 +435,8 @@
     },
     {
       "id": "CX-02",
-      "status": "Yes",
-      "notes": "Automated appointment confirmations, reminders and on-my-way messages with optional live location; texting requires the paid SMS add-on.",
+      "status": "Add-on",
+      "notes": "Automated appointment confirmations, reminders and on-my-way messages with optional live location; texting requires the paid SMS add-on ($5 a month plus credits), so it is scored Add-on like Pocomos and PestPac.",
       "source": "https://gorilladesk.com/features/appointment-confirmations-reminders/"
     },
     {
@@ -809,6 +810,30 @@
     {
       "title": "Craft GorillaDesk company profile",
       "url": "https://craft.co/gorilladesk"
+    },
+    {
+      "title": "GorillaDesk Mantis AI routing (beta)",
+      "url": "https://intercom.help/gorilladesk/en/articles/16069037-mantis-ai-routing-beta"
+    },
+    {
+      "title": "GorillaDesk tipping",
+      "url": "https://intercom.help/gorilladesk/en/articles/14711280-tipping"
+    },
+    {
+      "title": "AppGoblin: GorillaDesk on Google Play",
+      "url": "https://appgoblin.info/apps/com.gorilladesk.app"
+    },
+    {
+      "title": "Bourn Pest Solutions (Wisconsin GorillaDesk portal user)",
+      "url": "https://bournpestsolutions.com/"
+    },
+    {
+      "title": "Nexus Pest Solutions (Wisconsin GorillaDesk portal user)",
+      "url": "https://nexuspestsolutions.com/"
+    },
+    {
+      "title": "1st Choice Pest Control, Appleton (Wisconsin GorillaDesk portal user)",
+      "url": "https://1stchoicepestcontrolllc.com/"
     }
   ]
 }

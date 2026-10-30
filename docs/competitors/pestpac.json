@@ -2,14 +2,15 @@
   "competitor": "PestPac",
   "slug": "pestpac",
   "researched_on": "2026-10-20",
+  "updated_on": "2026-10-29",
   "profile": {
     "owner": "WorkWave LLC. EQT funds have held WorkWave as a standalone portfolio company since June 2021, after it separated from IFS, which bought it in 2017. Sister brands: RealGreen (lawn) and TEAM Software (WinTeam, Lighthouse).",
     "website": "https://www.pestpac.com/",
     "target_customers": "Pest control operators from small to enterprise, focused on mid-size and large multi-branch residential and commercial companies. The vendor claims it processes about 70% of PCT Top 100 revenue. Named users include Terminix, Truly Nolen and Arrow (third-party data). Capterra reviewers are mostly small businesses.",
-    "pricing": "Not published. Quote-based Small Business, Professional and Enterprise packages, with many features gated by tier. Third-party estimates: about $100 per user per month, setup fees around $1,500, annual auto-renewing contracts with 3 to 5% yearly increases. Extra notification credits are billed separately, and payment processing rates depend on volume.",
+    "pricing": "Not published. Quote-based Small Business, Professional and Enterprise packages, with many features gated by tier. Third-party estimates only (CostBench, last verified June 2026): about $100 per user per month within a reported range of about $80 to $150; setup fees around $1,500, a figure that rests on a single Reddit report (one user reported it waived); annual auto-renewing contracts with 3 to 5% yearly increases. Extra notification credits are billed at unpublished tiered rates, and payment processing rates depend on volume.",
     "pricing_source": "https://www.pestpac.com/pricing",
     "deployment": "Cloud. Browser web app (PestPac Desktop) on Windows or macOS, modernized in March 2024, plus native mobile apps. Releases ship every two weeks.",
-    "mobile_app": "PestPac Mobile (version 3) for iOS and Android (64-bit devices, latest OS plus two prior versions). Rated 2.4 from 148 ratings on the US App Store. Classic Mobile and Mobile 2 are retired.",
+    "mobile_app": "PestPac Mobile (version 3) for iOS and Android (64-bit devices, latest OS plus two prior versions). Rated 2.4 from 150 ratings on the US App Store and 2.26 from 336 ratings on Google Play per a third-party tracker (October 2026). Classic Mobile and Mobile 2 are retired.",
     "integrations": [
       "WorkWave Payments (native card, ACH, Apple Pay, Samsung Pay)",
       "QuickBooks (general ledger export)",
@@ -35,10 +36,10 @@
       "Reviewers call pricing high and opaque, citing costly modules, setup fees and long auto-renewing contracts.",
       "The interface is complicated and dated, with a steep learning curve for admins and staff.",
       "Reviewers report persistent bugs and slow support when issues need escalation.",
-      "The mobile app is rated 2.4 on the App Store, and some users report unreliable camera barcode scanning.",
-      "There is no built-in general ledger. QuickBooks is fed by a GL export, and users report reconciliation discrepancies."
+      "The mobile app is rated 2.4 on the App Store and about 2.3 on Google Play, and some users report unreliable camera barcode scanning.",
+      "There is no built-in general ledger. QuickBooks is fed by a periodic GL export that the vendor says is not a live sync; reports of reconciliation discrepancies could not be verified in 2025 or 2026 reviews."
     ],
-    "wisconsin_notes": "No Wisconsin customers, forms or ATCP 29 support found. The vendor names only California, Arizona and New York state reports plus generic state-specific exports. Third-party data says its customer base skews to the Southeast and California."
+    "wisconsin_notes": "No Wisconsin forms or ATCP 29 support found. The vendor names only California, Arizona and New York state reports plus generic state-specific exports. Wisconsin users exist though the vendor names none: a 2026-10-29 scan of Wisconsin pest company websites found PestPac customer portals at Fenix Pest Control (listed in Appleton and Madison) and at roll-up entrants Greenix (which absorbed Rove) and Hawx. Third-party data says its customer base skews to the Southeast and California."
   },
   "features": [
     {
@@ -140,8 +141,8 @@
     {
       "id": "AGR-07",
       "status": "Unknown",
-      "notes": "No callback logging documented in core PestPac; Wavelytics is said to flag callback spikes, and cost capture is undocumented.",
-      "source": "https://www.pestpac.com/compare/fieldroutes-vs-pestpac"
+      "notes": "No callback logging or cost capture documented in core PestPac. Wavelytics is said to flag callback spikes, and the Customer Hub announced Oct 20, 2026 shows callback rate by technician; its availability and packaging are unconfirmed.",
+      "source": "https://www.prnewswire.com/news-releases/workwave-announces-two-new-ai-driven-analytics-decision-support-for-pestpac-and-realgreen-that-reduce-customer-churn-and-increase-services-per-tech-302913580.html"
     },
     {
       "id": "SCH-01",
@@ -188,7 +189,7 @@
     {
       "id": "MOB-01",
       "status": "Yes",
-      "notes": "PestPac Mobile (version 3) for iOS and Android; App Store rating 2.4 from 148 ratings.",
+      "notes": "PestPac Mobile (version 3) for iOS and Android; App Store rating 2.4 from 150 ratings (October 2026).",
       "source": "https://apps.apple.com/us/app/-/id1211298978"
     },
     {
@@ -434,7 +435,7 @@
     {
       "id": "CX-02",
       "status": "Add-on",
-      "notes": "Call, text or email reminders and on-my-way alerts; Customer Communications is listed from the Professional package, and extra notification credits cost more.",
+      "notes": "Call, text or email reminders and on-my-way alerts; Customer Communications is listed from the Professional package, and extra notification credits cost more. App version 3.28 (June 2026) added Technician Tracker live On My Way notices.",
       "source": "https://www.pestpac.com/features/customer-communication"
     },
     {
@@ -463,9 +464,9 @@
     },
     {
       "id": "RPT-02",
-      "status": "Unknown",
-      "notes": "Canceled appointment and Renewals reports exist, but retention or churn rates by route, technician or service are not documented.",
-      "source": "https://www.pestpac.com/features/pest-control-reporting-software"
+      "status": "Partial",
+      "notes": "Customer Hub, announced Oct 20, 2026 in Wavelytics Decision Intelligence, scores each account's risk of canceling with reasons and revenue at risk. No rates by route, technician or service; availability and packaging are unconfirmed, and the Wavelytics page still says Coming Soon.",
+      "source": "https://www.prnewswire.com/news-releases/workwave-announces-two-new-ai-driven-analytics-decision-support-for-pestpac-and-realgreen-that-reduce-customer-churn-and-increase-services-per-tech-302913580.html"
     },
     {
       "id": "RPT-03",
@@ -506,7 +507,7 @@
     {
       "id": "PLT-05",
       "status": "Add-on",
-      "notes": "Communication Center offers AI interaction summaries (Professional package and up); WAIve assistant and agents announced for the WorkWave suite from Q2 2026.",
+      "notes": "Communication Center offers AI interaction summaries (Professional package and up). WAIve assistant and agents were announced for the WorkWave suite from Q2 2026 and an AI churn-risk Customer Hub in Oct 2026; PestPac availability and pricing are unconfirmed.",
       "source": "https://www.pestpac.com/features/customer-communication"
     },
     {
@@ -770,6 +771,26 @@
     {
       "title": "Orbital: PestPac customer data",
       "url": "https://withorbital.com/data/software/pestpac/"
+    },
+    {
+      "title": "WorkWave announces AI Customer Hub for PestPac (PR Newswire, Oct 20 2026)",
+      "url": "https://www.prnewswire.com/news-releases/workwave-announces-two-new-ai-driven-analytics-decision-support-for-pestpac-and-realgreen-that-reduce-customer-churn-and-increase-services-per-tech-302913580.html"
+    },
+    {
+      "title": "AppGoblin: PestPac Mobile on Google Play",
+      "url": "https://appgoblin.info/apps/com.workwave.pestpacmobile3"
+    },
+    {
+      "title": "Fenix Pest Control (Wisconsin PestPac portal user)",
+      "url": "https://fenixpestcontrol.com/"
+    },
+    {
+      "title": "Greenix Pest Control (PestPac portal, Wisconsin entrant)",
+      "url": "https://greenixpc.com/"
+    },
+    {
+      "title": "Hawx Pest Control (PestPac portal, Wisconsin entrant)",
+      "url": "https://hawxpestcontrol.com/"
     }
   ]
 }

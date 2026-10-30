@@ -2,14 +2,15 @@
   "competitor": "Jobber",
   "slug": "jobber",
   "researched_on": "2026-10-20",
+  "updated_on": "2026-10-29",
   "profile": {
     "owner": "Jobber (legal entity Octopusapp Inc.), private, venture backed company headquartered in Edmonton, Alberta, Canada. Co-founder and CEO Sam Pillar; investors include General Atlantic, Summit Partners and OMERS Ventures.",
     "website": "https://www.getjobber.com",
     "target_customers": "Small home and commercial service businesses across 50+ trades (lawn, cleaning, HVAC, pest and others), from solo operators to teams of about 15 users. Claims 100,000+ businesses and 400,000+ service pros. Horizontal tool, not pest-specific.",
-    "pricing": "Published. Monthly list (no commitment): Core $49 (1 user); Connect $139 (1 user) to $399 (15 users); Grow $199 (1 user) to $499 (15 users); Plus $499 (5 users) to $699 (15 users). Annual billing lowers these (Core $29/mo, Connect from $99, Grow from $149, Plus from $399 at renewal rates), with promos up to 40% off through Oct 30, 2026. Extra users $29/mo. Add-ons: Marketing Suite $99/mo, AI Receptionist $29/mo, Pipeline $49/mo (bundled in Plus), Jobber Bookkeeping from $149/mo (US only), Jobber Central quoted by account manager. 14-day free trial. Status convention in this file: features limited to Plus or sold separately are marked Add-on; Connect or Grow gating is noted in the feature notes.",
+    "pricing": "Published. Monthly list (no commitment): Core $49 (1 user); Connect $139 (1 user) to $399 (15 users); Grow $199 (1 user) to $499 (15 users); Plus $499 (5 users) to $699 (15 users). Annual billing lowers these (Core $29/mo, Connect from $99, Grow from $149, Plus from $399 at renewal rates), with promos up to 40% off through Oct 30, 2026. Extra users $29/mo. Add-ons: Marketing Suite $99/mo, AI Receptionist $29/mo for 30 conversations then $0.79 each (unlimited on Plus), Pipeline $49/mo (bundled in Plus), Jobber Bookkeeping from $149/mo (US only), Jobber Central quoted by account manager. 14-day free trial. Status convention in this file: features limited to Plus or sold separately are marked Add-on; Connect or Grow gating is noted in the feature notes.",
     "pricing_source": "https://www.getjobber.com/pricing/",
     "deployment": "Cloud SaaS (web app at jobber.com) plus native mobile apps; no desktop or on-premise version.",
-    "mobile_app": "Jobber: Field Service Software (iOS, Android and tablets; one app for owners, office and technicians; CarPlay and Android Auto support added Aug 2026).",
+    "mobile_app": "Jobber: Field Service Software (iOS, Android and tablets; one app for owners, office and technicians; CarPlay and Android Auto support added Aug 2026). Jobber's pest page shows 4.8 from 13,861 App Store reviews and 4.5 from 4,883 Google Play reviews.",
     "integrations": [
       "QuickBooks Online (two-way legacy and new integration; no QuickBooks Desktop sync)",
       "Xero (built and maintained by Xero)",
@@ -25,7 +26,7 @@
       "FleetSharp and Force fleet tracking",
       "PLY inventory",
       "HighLevel CRM, WordPress forms, EagleView",
-      "Claude and ChatGPT connectors (Oct 2026)"
+      "Claude and ChatGPT connectors (launched September 25, 2026)"
     ],
     "strengths": [
       "Very easy to learn and set up; G2 ease of use 9.0 and Capterra 4.6/5 from about 1,487 reviews, setup in hours rather than weeks.",
@@ -167,8 +168,8 @@
     {
       "id": "SCH-04",
       "status": "Unknown",
-      "notes": "No assignment rules based on technician skills, certifications or licenses found.",
-      "source": "https://www.getjobber.com/features/route-optimization/"
+      "notes": "No assignment rules based on technician skills, certifications or licenses found; a Jobber support reply says there is no auto-assign or round-robin, so assignment is manual.",
+      "source": "https://community.getjobber.com/discussions/job-details-scheduling/scheduling---automated-round-robin/2765/replies/2803"
     },
     {
       "id": "SCH-05",
@@ -197,13 +198,13 @@
     {
       "id": "MOB-02",
       "status": "Partial",
-      "notes": "Since March 2026, forms, visit details and time tracking work offline and sync later; payments and other actions offline not confirmed.",
+      "notes": "A 2026 offline mode (dated January or March 2026 by different sources) covers job forms, notes and attachments, timers and viewing visit details. A third-party summary says editing existing records and capturing signatures do not work offline, and chemical records cannot be entered in the app.",
       "source": "https://productupdates.getjobber.com/134787-keep-working-in-jobber-even-without-internet"
     },
     {
       "id": "MOB-03",
       "status": "Partial",
-      "notes": "Chemical treatment records exist, but per the help center they are entered on the web only, not the mobile app. Custom forms are a workaround.",
+      "notes": "Chemical treatment records exist, but the help center says they are entered on the web only, not the mobile app; that article was last updated April 2024 and no newer change was found. Custom forms are a workaround.",
       "source": "https://help.getjobber.com/en/articles/chemical-tracking/"
     },
     {
@@ -239,7 +240,7 @@
     {
       "id": "CMP-01",
       "status": "Partial",
-      "notes": "Chemical treatment records (chemical, concentration, applicator, weather, address) entered separately on web, select plans; no amount or area fields or state compliance claim.",
+      "notes": "Chemical treatment records (chemical and concentration, application details, applicator, date, weather, address; registration numbers and target pests per the feature page) entered on the web only, on unnamed select plans; rate, amount and area fields and any state format not documented.",
       "source": "https://help.getjobber.com/en/articles/chemical-tracking/"
     },
     {
@@ -389,8 +390,8 @@
     {
       "id": "BIL-07",
       "status": "Unknown",
-      "notes": "No automatic proration or cancellation balance handling found for recurring jobs.",
-      "source": "https://help.getjobber.com/en/articles/create-a-recurring-job/"
+      "notes": "No automatic proration or cancellation balance handling; the help center says to close a canceled job, remove future visits and decide by hand whether to invoice.",
+      "source": "https://help.getjobber.com/en/articles/what-if-a-job-gets-canceled/"
     },
     {
       "id": "ACC-01",
@@ -509,7 +510,7 @@
     {
       "id": "PLT-05",
       "status": "Yes",
-      "notes": "AI quote drafting, campaign generator, website chat assistant, Claude and ChatGPT connectors; AI Receptionist ($29/mo) and AI custom reports (Plus) cost extra.",
+      "notes": "AI quote drafting, campaign generator, website chat assistant, and Claude and ChatGPT connectors (Sept 2026); AI Receptionist ($29/mo for 30 conversations) and AI custom reports (Plus) cost extra.",
       "source": "https://productupdates.getjobber.com/"
     },
     {
@@ -529,14 +530,14 @@
     {
       "feature": "AI Receptionist",
       "module": "Platform",
-      "notes": "Answers calls and texts 24/7, books visits, creates requests, escalates by keyword, logs transcripts and recordings; $29/mo for 100 conversations.",
-      "source": "https://www.getjobber.com/features/ai-receptionist/"
+      "notes": "Answers calls and texts 24/7, books visits, creates requests, escalates by keyword, logs transcripts and recordings; $29/mo including 30 conversations, then $0.79 per additional conversation; unlimited on Plus.",
+      "source": "https://help.getjobber.com/en/articles/receptionistpowered-by-jobber-ai/"
     },
     {
       "feature": "Claude and ChatGPT connectors",
       "module": "Platform",
-      "notes": "Query and update clients, jobs, quotes, invoices and schedule from Claude or ChatGPT (Oct 2026).",
-      "source": "https://productupdates.getjobber.com/"
+      "notes": "Launched September 25, 2026 for all customers: ask about clients, properties, jobs, quotes, invoices, requests and visits, update client, property and request records from notes, and find unbilled work from Claude or ChatGPT.",
+      "source": "https://www.prnewswire.com/news-releases/jobber-launches-mcp-bringing-home-and-commercial-service-data-and-workflows-directly-into-chatgpt-and-claude-302890385.html"
     },
     {
       "feature": "Jobber Bookkeeping managed service",
@@ -777,6 +778,26 @@
     {
       "title": "Workyard: Who owns Jobber",
       "url": "https://www.workyard.com/answers/who-owns-jobber"
+    },
+    {
+      "title": "Jobber help: Receptionist powered by Jobber AI (Oct 2026)",
+      "url": "https://help.getjobber.com/en/articles/receptionistpowered-by-jobber-ai/"
+    },
+    {
+      "title": "Jobber launches Claude and ChatGPT connectors (PR Newswire, Sept 25 2026)",
+      "url": "https://www.prnewswire.com/news-releases/jobber-launches-mcp-bringing-home-and-commercial-service-data-and-workflows-directly-into-chatgpt-and-claude-302890385.html"
+    },
+    {
+      "title": "Mowbius: Does Jobber work offline (2026)",
+      "url": "https://getmowbius.com/blog/does-jobber-work-offline"
+    },
+    {
+      "title": "Jobber community: automated round robin assignment",
+      "url": "https://community.getjobber.com/discussions/job-details-scheduling/scheduling---automated-round-robin/2765/replies/2803"
+    },
+    {
+      "title": "Jobber help: What if a job gets canceled",
+      "url": "https://help.getjobber.com/en/articles/what-if-a-job-gets-canceled/"
     }
   ]
 }

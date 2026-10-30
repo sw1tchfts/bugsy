@@ -2,14 +2,15 @@
   "competitor": "Briostack",
   "slug": "briostack",
   "researched_on": "2026-10-20",
+  "updated_on": "2026-10-29",
   "profile": {
-    "owner": "EverCommerce (Nasdaq: EVCM), which acquired Briostack in January 2021; sold under the EverPro home and field services brand. Founded by Brandon Grover; based in Lehi, Utah.",
+    "owner": "EverCommerce (Nasdaq: EVCM), which acquired Briostack in January 2021; sold under the EverPro home and field services brand. Founded by Brandon Grover; based in Lehi, Utah. EverCommerce bought AI agent company ZyraTalk in September 2025 and announced a CEO transition in August 2026.",
     "website": "https://www.briostack.com/",
     "target_customers": "Small and mid-sized residential and commercial pest control companies in North America, plus lawn care and mixed pest and lawn operators. Claims 3,700+ pest professionals as users. Capterra reviewers mostly have 2 to 50 employees. Strong fit for companies running door-to-door sales teams.",
-    "pricing": "Not published by the vendor (quote only, plans differ by user limits). Third-party demo report: $95 per month per office user, $45 per month per technician, annual contract required, SMS and voice about 4 cents each, $250 spreadsheet import, $250 training fee (waivable), Playbooks marketing add-on $299 per month list ($199 promo). Capterra lists a starting price of $50 per month (Basic). Public API Basic and Premium tiers are by quote.",
-    "pricing_source": "https://lawnstarter.com/blog/?p=52157",
+    "pricing": "Not published by the vendor: custom quotes with concurrent licensing by active users rather than total seats. Figures from a third-party demo report ($95 per month per office user, $45 per month per technician, $250 training fee, Playbooks marketing add-on $299 per month list) could not be re-verified because that page now returns 404. Terms (updated October 2025): one-year initial term from go-live that auto-renews, 30 days' notice to end, non-refundable fees and an early termination fee equal to the monthly fees for the remaining months. Published add-on fees include SMS $0.04 per text, calls $0.04 per minute, an $11 10DLC fee, $250 per additional import, $150 per custom document and $500 per database backup. Capterra lists a starting price of $50 per month (Basic). Public API Basic and Premium tiers are by quote.",
+    "pricing_source": "https://www.briostack.com/comparison/briostack-vs-jobber/",
     "deployment": "Cloud, browser-based web app for office staff (admin work is web only), with native iOS and Android technician app.",
-    "mobile_app": "Brio Tech (iOS and Android; technician app with offline support, also used for field sales and bids). Modules are branded Brio Office (web), Brio Tech (field) and Brio Sales (sales).",
+    "mobile_app": "Brio Tech (iOS and Android; technician app with claimed offline support, also used for field sales and bids; version 1.4.2 released October 2026) plus Brio Sales 2 for door-to-door reps. The US App Store showed no Brio Tech ratings on 2026-10-29; a third-party review cites 2.0 from 5 ratings. Modules are branded Brio Office (web), Brio Tech (field) and Brio Sales (sales).",
     "integrations": [
       "QuickBooks Online (including QuickBooks Online Advanced)",
       "CardConnect and Clover Connect payment processing (Fiserv)",
@@ -35,9 +36,9 @@
       "Contract and billing complaints: annual non-refundable terms, early termination fees, undisclosed add-on charges and SMS price increases.",
       "Reports can be hard to find; termite graphing, bundles and skills-based routing are requested gaps; some dislike route results.",
       "Support quality is inconsistent in negative reviews (slow replies, unreturned calls), and admin controls are limited.",
-      "No built-in general ledger (relies on QuickBooks Online); per-user pricing climbs quickly; seen as more pest-focused than lawn."
+      "No built-in general ledger (relies on QuickBooks Online); per-user pricing was a reviewer complaint, though the vendor now sells concurrent licenses by active users; seen as more pest-focused than lawn."
     ],
-    "wisconsin_notes": "No Wisconsin customers, case studies or Wisconsin-specific compliance support (ATCP 29 records, landscape registry notice, posting signs) found in public sources. Case studies do not name customer states; compliance is described only generically as pesticide logs for inspection readiness."
+    "wisconsin_notes": "No Wisconsin case studies or Wisconsin-specific compliance support (ATCP 29 records, landscape registry notice, posting signs) found in vendor materials; comparison pages claim WDI/WDO forms for all 50 states but never name Wisconsin. One Wisconsin user is visible: a 2026-10-29 scan of Wisconsin pest company websites found a Briostack customer portal at Werner Pest and Odor Control (Seymour). Case studies do not name customer states."
   },
   "features": [
     {
@@ -79,7 +80,7 @@
     {
       "id": "CRM-07",
       "status": "Add-on",
-      "notes": "Playbooks marketing add-on supplies email and text campaign templates and reporting; a third-party demo reported $299 per month list.",
+      "notes": "Playbooks marketing add-on (Growth Bundle) supplies email and text campaign templates and reporting; a third-party demo reported $299 per month list, but that page now returns 404.",
       "source": "https://www.briostack.com/pest-control-marketing-tools/"
     },
     {
@@ -109,13 +110,13 @@
     {
       "id": "AGR-02",
       "status": "Yes",
-      "notes": "Seasonal appointment templates space services by days; lawn page describes set rounds with recurring appointments.",
+      "notes": "Seasonal appointment templates space each service type by a number of days. A fixed number of rounds inside a date window is not described for pest (the lawn page describes rounds), so this Yes is weak.",
       "source": "https://www.briostack.com/pest-control-software/scheduling-routing-software/"
     },
     {
       "id": "AGR-03",
       "status": "Partial",
-      "notes": "Pricing calculator by square foot or flat rate standardizes bids. Reviewers report missing bundles; a central add-on price book is not documented.",
+      "notes": "Pricing calculator by square foot or flat rate standardizes bids, and a vendor comparison page now claims service bundles that reviewers had reported missing; a central add-on price book is not documented.",
       "source": "https://www.briostack.com/pest-control-software/bids-diagramming-software/"
     },
     {
@@ -139,7 +140,7 @@
     {
       "id": "AGR-07",
       "status": "Partial",
-      "notes": "Third-party demo notes a reservice rate report; logging free return visits with cost against the agreement is not documented.",
+      "notes": "A third-party demo noted a reservice rate report, but that page returned 404 on 2026-10-29 and no vendor page mentions re-service; logging free return visits with cost is not documented.",
       "source": "https://lawnstarter.com/blog/?p=52157"
     },
     {
@@ -187,13 +188,13 @@
     {
       "id": "MOB-01",
       "status": "Yes",
-      "notes": "Brio Tech app for iOS and Android, used for routes, jobs, chemical reporting and field sales.",
+      "notes": "Brio Tech app for iOS and Android (version 1.4.2, October 2026), used for routes, jobs, chemical reporting and payments; door-to-door reps also have the separate Brio Sales 2 app.",
       "source": "https://apps.apple.com/ca/app/brio-tech/id6462748506"
     },
     {
       "id": "MOB-02",
       "status": "Yes",
-      "notes": "Vendor says the tech app works without data connectivity; a February 2025 app update improved offline caching.",
+      "notes": "Scheduling page says tech app tools work with or without data connectivity and a comparison table checks offline mode, but the product FAQ says all you need is an internet connection; offline depth is undocumented.",
       "source": "https://www.briostack.com/pest-control-software/scheduling-routing-software/"
     },
     {
@@ -241,20 +242,20 @@
     {
       "id": "CMP-02",
       "status": "Partial",
-      "notes": "Custom chemical lists exist per a third-party demo; EPA numbers, label and SDS document storage are not documented.",
-      "source": "https://lawnstarter.com/blog/?p=52157"
+      "notes": "Vendor comparison pages cite chemical and product application tracking; EPA numbers, label and SDS storage are not documented. Custom chemical lists reported by a third-party demo could not be re-verified (page now returns 404).",
+      "source": "https://www.briostack.com/comparison/briostack-vs-jobber/"
     },
     {
       "id": "CMP-03",
       "status": "Unknown",
-      "notes": "No vendor documentation of applicator license numbers, categories or expiry alerts; review sites list only generic license management.",
-      "source": "https://www.capterra.com/p/160267/Briostack/"
+      "notes": "A vendor comparison page (October 2026) lists technician licensing and product controls with no detail; license numbers, categories and expiry alerts are not documented.",
+      "source": "https://www.briostack.com/comparison/briostack-vs-gorilladesk/"
     },
     {
       "id": "CMP-04",
-      "status": "Unknown",
-      "notes": "No reports or exports formatted for state pesticide regulators found in public sources.",
-      "source": "https://www.briostack.com/pest-control-software/"
+      "status": "Partial",
+      "notes": "A vendor comparison page (October 2026) claims built-in state-specific WDI/WDO forms for all 50 states and a direct California Department of Agriculture integration, without feature documentation; no other state pesticide report formats are named.",
+      "source": "https://www.briostack.com/comparison/briostack-vs-gorilladesk/"
     },
     {
       "id": "CMP-05",
@@ -265,8 +266,8 @@
     {
       "id": "CMP-06",
       "status": "Unknown",
-      "notes": "No public documentation of restricted-use pesticide controls or RUP record fields.",
-      "source": "https://www.briostack.com/pest-control-software/"
+      "notes": "No RUP record fields or controls documented; a vendor comparison page lists technician licensing and product controls with no detail.",
+      "source": "https://www.briostack.com/comparison/briostack-vs-gorilladesk/"
     },
     {
       "id": "CMP-07",
@@ -325,7 +326,7 @@
     {
       "id": "SPC-01",
       "status": "Partial",
-      "notes": "Satellite diagramming marketed as termite graph software, bait station annotations, termite warranties; WDI reports not documented; reviewers want better graphing.",
+      "notes": "Satellite diagramming marketed as termite graph software, bait station annotations and termite warranties; a vendor comparison page now claims state-specific WDI/WDO forms for all 50 states and a Sentricon integration, without documentation. Reviewers want better graphing.",
       "source": "https://www.briostack.com/pest-control-software/bids-diagramming-software/"
     },
     {
@@ -463,13 +464,13 @@
     {
       "id": "RPT-02",
       "status": "Partial",
-      "notes": "Attrition rate on dashboards and a cancellations report; breakdowns by route, technician or service are not documented.",
+      "notes": "Attrition rate on dashboards and a cancellations report, and Brio Insights dashboards (Growth Bundle) track cancellations; breakdowns by route, technician or service are not documented.",
       "source": "https://www.briostack.com/pest-control-software/pest-control-crm-software/"
     },
     {
       "id": "RPT-03",
       "status": "Partial",
-      "notes": "Production reports and a reservice rate report exist; time on site and per-technician productivity detail are not documented.",
+      "notes": "Production and payroll reports exist; a reservice rate report was reported only by a third-party demo whose page now returns 404, and time on site and per-technician productivity detail are not documented.",
       "source": "https://www.briostack.com/pest-control-software/invoicing-accounting-software/"
     },
     {
@@ -499,13 +500,13 @@
     {
       "id": "PLT-04",
       "status": "Yes",
-      "notes": "Onboarding includes data transfer and case studies cite migration. A third-party demo reported a $250 spreadsheet import fee.",
+      "notes": "Onboarding includes data transfer and case studies cite migration. The published fee schedule charges $250 per additional import, $150 per non-standard data manipulation and $500 for Sentricon migration.",
       "source": "https://www.briostack.com/case-studies/"
     },
     {
       "id": "PLT-05",
       "status": "Add-on",
-      "notes": "ZyraTalk AI answering service (EverPro) for inbound calls; Customer Lobby direct mail uses predictive AI targeting. Both priced by quote.",
+      "notes": "ZyraTalk AI answering service (EverPro) for inbound calls, priced by quote. A vendor page (October 2026) lists AI Note Refiner and Pest Identifier in preview and an AI Brio Assistant in development; Customer Lobby direct mail uses predictive AI targeting.",
       "source": "https://www.briostack.com/ai-answering-service/"
     },
     {
@@ -735,6 +736,54 @@
     {
       "title": "Merchant Cost Consulting: Briostack integrated payments guide",
       "url": "https://merchantcostconsulting.com/lower-credit-card-processing-fees/briostack-integrated-credit-card-processing-guide/"
+    },
+    {
+      "title": "Briostack vs GorillaDesk comparison (vendor, Oct 2026)",
+      "url": "https://www.briostack.com/comparison/briostack-vs-gorilladesk/"
+    },
+    {
+      "title": "Briostack vs Jobber comparison (vendor, Oct 2026)",
+      "url": "https://www.briostack.com/comparison/briostack-vs-jobber/"
+    },
+    {
+      "title": "Briostack vs FieldRoutes comparison (vendor)",
+      "url": "https://www.briostack.com/briostack-vs-fieldroutes/"
+    },
+    {
+      "title": "Briostack additional pricing schedule",
+      "url": "https://www.briostack.com/additionalpricing/"
+    },
+    {
+      "title": "Briostack terms of service (updated Oct 2025)",
+      "url": "https://www.briostack.com/terms/"
+    },
+    {
+      "title": "Briostack Growth Bundle",
+      "url": "https://www.briostack.com/growth-bundle/"
+    },
+    {
+      "title": "Brio Tech on the US App Store",
+      "url": "https://apps.apple.com/us/app/brio-tech/id6462748506"
+    },
+    {
+      "title": "Brio Sales 2 on the App Store",
+      "url": "https://apps.apple.com/us/app/brio-sales-2/id1454271702"
+    },
+    {
+      "title": "Contractor Software Hub Briostack review (Oct 2026)",
+      "url": "https://www.contractorsoftwarehub.com/briostack-review/"
+    },
+    {
+      "title": "EverCommerce acquires ZyraTalk (Sept 2025)",
+      "url": "https://www.evercommerce.com/news/evercommerce-acquires-ai-agentic-platform-company-zyratalk/"
+    },
+    {
+      "title": "EverCommerce Q2 2026 results",
+      "url": "https://finviz.com/news/377887/evercommerce-announces-second-quarter-2026-financial-results"
+    },
+    {
+      "title": "Werner Pest and Odor Control (Wisconsin Briostack portal user)",
+      "url": "https://wernerpest.com/"
     }
   ]
 }

@@ -2,14 +2,15 @@
   "competitor": "Pocomos",
   "slug": "pocomos",
   "researched_on": "2026-10-20",
+  "updated_on": "2026-10-29",
   "profile": {
     "owner": "Independent, privately held Utah company (Provo/Spanish Fork), founded 2011 by Jeremiah Olsen and Scott Hunter. No parent company or acquisition found. GetLatka estimates about 8 employees.",
     "website": "https://pocomos.com",
-    "target_customers": "Small to mid-sized residential pest control operators, especially door-to-door sales driven companies. Price tiers run to about 500 active recurring customers, with custom quotes above that.",
-    "pricing": "Monthly tiers by active recurring customer count, unlimited users, no long-term contract. G2 (vendor provided): Starter $59 (0-20 customers), Scale Light $109 (21-50), Large $159 (51-300), Larger $225 (300-500), custom above. Other sites quote higher figures ($99 to $275) and a $300 setup fee. Extras per help center: SMS $3 to $4 per number per month plus $0.03 to $0.04 per text; Find My Tech GPS and time clock $9 to $19 per tech per month. Pricing is not shown in fetchable form on pocomos.com.",
-    "pricing_source": "https://g2.com/products/pocomos/pricing",
+    "target_customers": "Small to mid-sized residential pest control operators, especially door-to-door sales driven companies. Published tiers run to 500 active customers, with a per-customer rate above that; a comparison page courts FieldRoutes users looking to switch.",
+    "pricing": "Published on pocomos.com, month to month, no per-user charge: Starter $109 (0 to 20 active customers), Growing $159 (21 to 50), Professional $239 (51 to 300), Business $275 (301 to 500), then $275 plus $0.16 per customer over 500. Active and on-hold customers count; inactive customers, one-time jobs, leads and users do not. No setup fee appears on the site. Add-ons: SMS $4 per location per month plus $0.04 per text; Find My Tech GPS, Time Tracking and Credit Card Auto Updater are add-ons (help center lists Find My Tech at $9 to $19 per tech per month); pay-per-call lead generation at $150 per call of 90 seconds or more. Processing rates conflict on the vendor site (interchange plus 1.0% vs 2.9% plus $0.30). Older G2 and ITQlick figures ($59 to $225) are out of date.",
+    "pricing_source": "https://pocomos.com/pricing",
     "deployment": "Cloud. Responsive web app for the office plus native iOS and Android apps for technicians and sales reps.",
-    "mobile_app": "Pocomos Tech App (iOS App Store) and Pocomos mobile app (Google Play), used by technicians, owners and door-to-door sales reps.",
+    "mobile_app": "Pocomos Tech App (iOS App Store, rated 2.89 from 19 US ratings in October 2026) and Pocomos mobile app (Google Play), used by technicians, owners and door-to-door sales reps.",
     "integrations": [
       "QuickBooks Online (one-way nightly sync of customers, invoices and paid payments)",
       "Google Maps (routing, geocoding, Street View)",
@@ -23,7 +24,7 @@
     "strengths": [
       "Support is consistently praised in reviews as fast and helpful",
       "Simple, easy to learn routing and drag-and-drop scheduling with an advanced optimizer included in every plan",
-      "Low entry price with unlimited users, priced by active customers",
+      "Published, month-to-month pricing by active customers with no per-user charge",
       "Strong door-to-door sales tooling: leads map, sales teams, leaderboards, commissions, recruiting and a video training platform",
       "Paperless agreements signed in person or remotely, plus estimates with e-signature approval"
     ],
@@ -34,7 +35,7 @@
       "Required in-house card processing seen as expensive by some users; few integrations and no documented API",
       "Common add-on costs (GPS tracking, time clock, SMS) and per-customer tiers that shift as customer counts fluctuate"
     ],
-    "wisconsin_notes": "No Wisconsin customers or Wisconsin-specific compliance found. No mention of ATCP 29 records, the landscape registry, posting signs or state regulatory reports. Compliance support is generic: chem sheets, dilution rates and per-service technician license numbers."
+    "wisconsin_notes": "No Wisconsin customers or Wisconsin-specific compliance found. No mention of ATCP 29 records, the landscape registry or posting signs; the Custom Documents feature names state forms for Arizona, Texas, Georgia, Virginia and Connecticut, not Wisconsin. Other compliance support is generic: chem sheets, dilution rates and per-service technician license numbers."
   },
   "features": [
     {
@@ -64,8 +65,8 @@
     {
       "id": "CRM-05",
       "status": "Yes",
-      "notes": "Door-to-door tools: leads map, My Spots time slots for reps, sales teams, leaderboard and sign-up from mobile. Knock tracking detail not documented.",
-      "source": "https://help.pocomos.com/en/articles/743704-how-do-i-set-up-my-door-to-door-tools-in-pocomos"
+      "notes": "Door-to-door tools: leads map, My Spots time slots for reps, sales teams, leaderboard and sign-up from mobile. Canvassing lets reps mark each door Not Home, Not Interested, Do Not Knock, Go Back or New Customer.",
+      "source": "https://pocomos.com/features/door-to-door"
     },
     {
       "id": "CRM-06",
@@ -112,7 +113,7 @@
     {
       "id": "AGR-03",
       "status": "Partial",
-      "notes": "Service types carry default pricing and descriptions; products, line items and default discount types exist. Pricing by property size or tier not documented.",
+      "notes": "Service types carry default pricing and descriptions; Dynamic Estimates let customers pick a package when options are offered. Pricing by property size or tier not documented.",
       "source": "https://help.pocomos.com/en/articles/1718026-service-types"
     },
     {
@@ -135,9 +136,9 @@
     },
     {
       "id": "AGR-07",
-      "status": "Unknown",
-      "notes": "No re-service or callback tracking with cost capture found in public docs.",
-      "source": "https://help.pocomos.com/en/collections/142814-routing"
+      "status": "Partial",
+      "notes": "Re-services are added as one-off jobs with Quick Add Service and can be colored on the Route Map; no link to the agreement, cost capture or re-service rate reporting.",
+      "source": "https://help.pocomos.com/en/articles/1067973-how-do-i-add-a-one-off-service"
     },
     {
       "id": "SCH-01",
@@ -154,8 +155,8 @@
     {
       "id": "SCH-03",
       "status": "Yes",
-      "notes": "Advanced route optimizer handles up to 1,000 jobs, with selectable start points; included in all plans per G2 pricing.",
-      "source": "https://help.pocomos.com/en/articles/11971493-new-advanced-route-optimization"
+      "notes": "Advanced route optimizer handles up to 10 trucks and 1,000 jobs at once, with selectable start points; included in plans per the vendor site.",
+      "source": "https://pocomos.com/features/route-optimization"
     },
     {
       "id": "SCH-04",
@@ -184,13 +185,13 @@
     {
       "id": "MOB-01",
       "status": "Yes",
-      "notes": "Pocomos Tech App on iOS and Android for technicians, owners and sales reps.",
+      "notes": "Pocomos Tech App on iOS and Android for technicians, owners and sales reps; App Store rating 2.89 from 19 US ratings (October 2026).",
       "source": "https://help.pocomos.com/en/articles/7258374-pocomos-mobile-tech-app"
     },
     {
       "id": "MOB-02",
       "status": "Yes",
-      "notes": "Vendor overview says technicians can work offline and sync later; G2 pricing also lists offline tech apps.",
+      "notes": "Vendor overview (2021) says technicians can work offline and sync later; October 2026 release notes say jobs completed offline now sync properly. What works offline is not documented.",
       "source": "https://intercom.help/pocomos/en/articles/2620473-pocomos-overview"
     },
     {
@@ -249,9 +250,9 @@
     },
     {
       "id": "CMP-04",
-      "status": "Unknown",
-      "notes": "Chemical usage reports exist, but no reports formatted for state regulators found.",
-      "source": "https://intercom.help/pocomos/en/articles/2620473-pocomos-overview"
+      "status": "Partial",
+      "notes": "Custom Documents lets users build templates for state forms, naming Arizona, Texas, Georgia, Virginia and Connecticut examples, but the vendor says they do not replace state-approved forms; no built-in regulator report formats found.",
+      "source": "https://help.pocomos.com/en/articles/17771127-custom-documents-state-forms-inspections-diagrams-and-signatures"
     },
     {
       "id": "CMP-05",
@@ -321,9 +322,9 @@
     },
     {
       "id": "SPC-01",
-      "status": "Unknown",
-      "notes": "No termite graphs, bait monitoring workflow or WDI reports found.",
-      "source": "https://help.pocomos.com/en/collections/142722-faqs"
+      "status": "Partial",
+      "notes": "Custom Documents support WDI and WDO forms (Texas, Arizona and Georgia examples), inspection diagrams and e-signature, and device tracking covers bait stations; no built-in termite graphing or bait monitoring workflow.",
+      "source": "https://help.pocomos.com/en/articles/17771127-custom-documents-state-forms-inspections-diagrams-and-signatures"
     },
     {
       "id": "SPC-02",
@@ -429,15 +430,15 @@
     },
     {
       "id": "CX-02",
-      "status": "Yes",
-      "notes": "Automatic email or SMS reminders before scheduled jobs, and one-tap En Route texts from the tech app.",
-      "source": "https://help.pocomos.com/en/articles/2372481-automatic-communications"
+      "status": "Add-on",
+      "notes": "Automatic email reminders before scheduled jobs are included; text reminders and en route texts from the tech app need the SMS Communications add-on ($4 per location monthly plus $0.04 per text).",
+      "source": "https://pocomos.com/features/sms-communications"
     },
     {
       "id": "CX-03",
-      "status": "Yes",
-      "notes": "Two-way SMS with history and unanswered message report; $4 per number monthly plus $0.04 per text.",
-      "source": "https://help.pocomos.com/en/articles/1430168-two-way-sms"
+      "status": "Add-on",
+      "notes": "Two-way SMS with history and an unanswered message report is part of the SMS Communications add-on, $4 per location monthly plus $0.04 per text.",
+      "source": "https://pocomos.com/features/sms-communications"
     },
     {
       "id": "CX-04",
@@ -684,6 +685,46 @@
     {
       "title": "GetLatka Pocomos company profile",
       "url": "https://getlatka.com/companies/pocomos.net"
+    },
+    {
+      "title": "Pocomos pricing",
+      "url": "https://pocomos.com/pricing"
+    },
+    {
+      "title": "Pocomos FAQ",
+      "url": "https://pocomos.com/faq"
+    },
+    {
+      "title": "Pocomos SMS communications add-on",
+      "url": "https://pocomos.com/features/sms-communications"
+    },
+    {
+      "title": "Pocomos route optimization",
+      "url": "https://pocomos.com/features/route-optimization"
+    },
+    {
+      "title": "Pocomos door-to-door and canvassing",
+      "url": "https://pocomos.com/features/door-to-door"
+    },
+    {
+      "title": "Pocomos Dynamic Estimates",
+      "url": "https://pocomos.com/features/dynamic-estimates"
+    },
+    {
+      "title": "Pocomos vs FieldRoutes",
+      "url": "https://pocomos.com/vs-fieldroutes"
+    },
+    {
+      "title": "Pocomos Tech App on the App Store",
+      "url": "https://apps.apple.com/us/app/pocomos-tech-app/id1439597267"
+    },
+    {
+      "title": "Pocomos Custom Documents (state forms, diagrams, signatures)",
+      "url": "https://help.pocomos.com/en/articles/17771127-custom-documents-state-forms-inspections-diagrams-and-signatures"
+    },
+    {
+      "title": "Pocomos: add a one-off service",
+      "url": "https://help.pocomos.com/en/articles/1067973-how-do-i-add-a-one-off-service"
     }
   ]
 }
