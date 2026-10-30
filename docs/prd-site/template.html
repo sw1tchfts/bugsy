@@ -1,0 +1,565 @@
+<title>Bugsy PRD</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a PRD in pages. Sticky title bar, a page list on the left (a scrolling strip on phones), one reading column per page, interactive views set off as panels. Same identity as the October crosswalk. */
+:root {
+  --bg: #f4f6f3;
+  --surface: #ffffff;
+  --sunk: #eaeeea;
+  --ink: #18211d;
+  --muted: #56625c;
+  --line: #d6ddd7;
+  --accent: #2c6a4c;
+  --accent-ink: #ffffff;
+  --accent-tint: #e1eee6;
+  --yes: #2f7d52;
+  --partial: #b57a14;
+  --addon: #2d63a8;
+  --no: #b3403a;
+  --unknown: #8a948e;
+  --risk-bg: #fbefe6;
+  --risk-ink: #8a3b12;
+  --font-display: "Barlow Semi Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --radius: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111613; --surface: #181f1b; --sunk: #202823; --ink: #e4eae6; --muted: #9ba7a0; --line: #2d3732;
+    --accent: #79c29c; --accent-ink: #0f1a14; --accent-tint: #1d2f25; --yes: #5fb784; --partial: #d9a443; --addon: #6f9fdf; --no: #e07b72; --unknown: #78827c;
+    --risk-bg: #2c1f16; --risk-ink: #f0b58c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111613; --surface: #181f1b; --sunk: #202823; --ink: #e4eae6; --muted: #9ba7a0; --line: #2d3732;
+  --accent: #79c29c; --accent-ink: #0f1a14; --accent-tint: #1d2f25; --yes: #5fb784; --partial: #d9a443; --addon: #6f9fdf; --no: #e07b72; --unknown: #78827c;
+  --risk-bg: #2c1f16; --risk-ink: #f0b58c; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+a { color: var(--accent); text-underline-offset: 2px; }
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.12; margin: 0; text-wrap: balance; }
+code { font-family: var(--font-mono); font-size: 0.86em; background: var(--sunk); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* title bar */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 9; background: var(--surface); border-bottom: 1px solid var(--line); }
+.bar-in { max-width: 1320px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px; display: flex; gap: 12px 20px; align-items: baseline; flex-wrap: wrap; }
+.bar h1 { font-size: 26px; letter-spacing: 0.005em; }
+.bar .meta { font: 500 12px var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.bar .pager { margin-left: auto; display: flex; gap: 6px; }
+.bar .pager button { font: 600 13px var(--font-body); background: var(--sunk); color: var(--ink); border: 0; border-radius: 4px; padding: 6px 10px; cursor: pointer; }
+.bar .pager button:disabled { opacity: 0.4; cursor: default; }
+
+/* shell */
+.shell { max-width: 1320px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 72px; display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 32px; align-items: start; }
+nav.pages { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 72px); display: grid; gap: 2px; }
+nav.pages button { all: unset; cursor: pointer; padding: 7px 10px; border-radius: 4px; font: 500 14.5px var(--font-body); color: var(--muted); border-left: 3px solid transparent; }
+nav.pages button:hover { color: var(--ink); background: var(--sunk); }
+nav.pages button[aria-current="page"] { color: var(--ink); font-weight: 600; border-left-color: var(--accent); background: var(--surface); }
+nav.pages button:focus-visible { outline: 2px solid var(--accent); }
+main { min-width: 0; }
+
+/* page prose */
+.page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; min-width: 0; }
+.widget { min-width: 0; }
+.page > h2 { font-size: clamp(28px, 4vw, 38px); margin-top: 14px; }
+.page > h2:first-child { margin-top: 0; }
+.page > p, .page > ul, .page > ol { max-width: 76ch; margin: 0; }
+.page ul, .page ol { padding-left: 22px; display: grid; gap: 6px; }
+.page li > p { margin: 0; }
+.page strong { font-weight: 600; }
+.xwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.page table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 14px; }
+.page th, .page td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.page th { font-size: 12px; color: var(--muted); font-weight: 600; background: var(--sunk); }
+.page tbody tr:last-child td { border-bottom: 0; }
+.page td { font-variant-numeric: tabular-nums; }
+pre.src { white-space: pre-wrap; font: 13px var(--font-mono); background: var(--surface); padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); }
+
+/* panels and widgets */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; }
+.panel h3 { font-size: 20px; }
+.lede { color: var(--muted); max-width: 72ch; margin: 0; }
+.small { font-size: 13px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 18px; }
+
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.kpi .n { font: 700 30px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.kpi .l { font-size: 13px; color: var(--muted); }
+.kpi.alert .n { color: var(--risk-ink); }
+
+/* status marks: shape and color both carry the state */
+.st { width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; flex: none; font: 600 12px/1 var(--font-mono); border: 2px solid transparent; }
+.st-Yes { background: var(--yes); border-color: var(--yes); }
+.st-Partial { border-color: var(--partial); background: linear-gradient(90deg, var(--partial) 50%, transparent 50%); }
+.st-Add-on { border-color: var(--addon); color: var(--addon); }
+.st-Add-on::after { content: "+"; }
+.st-No { border-color: var(--no); color: var(--no); }
+.st-No::after { content: "\00D7"; }
+.st-Unknown { border: 2px dashed var(--unknown); color: var(--unknown); }
+.st-Unknown::after { content: "?"; font-size: 11px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: 13px; color: var(--muted); }
+.legend .item { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
+
+.plan { display: inline-block; font: 500 11.5px/1 var(--font-mono); padding: 4px 7px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.plan[data-plan="P1"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.plan[data-plan="P1-stretch"] { background: var(--accent-tint); color: var(--accent); border-color: var(--accent); border-style: dashed; }
+.plan[data-plan="P2"] { color: var(--accent); border-color: var(--accent); }
+.plan[data-plan="P3"] { color: var(--ink); }
+.plan[data-plan="Decide"] { border-style: dashed; color: var(--risk-ink); border-color: var(--risk-ink); }
+.plan[data-plan="Not planned"] { background: var(--sunk); }
+.pos { font: 500 10.5px var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+
+/* filters and controls */
+.filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.filters label, .ctl label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.filters select, .filters input[type="search"], .ctl input[type="number"] { font: 14px var(--font-body); padding: 7px 9px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); min-width: 0; }
+.filters input[type="search"] { width: min(240px, 100%); }
+.ctl { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 14px 18px; }
+.ctl .out { font: 600 15px var(--font-mono); color: var(--ink); font-variant-numeric: tabular-nums; }
+.ctl input[type="range"] { width: 100%; accent-color: var(--accent); }
+.ctl input[type="number"] { width: 100%; }
+
+/* matrix */
+.matrix-wrap { overflow: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); max-height: 78vh; }
+table.matrix { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1060px; font-size: 13.5px; }
+table.matrix th, table.matrix td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: center; vertical-align: middle; background: var(--surface); }
+table.matrix thead th { position: sticky; top: 0; z-index: 2; font: 600 12px var(--font-body); color: var(--muted); background: var(--sunk); }
+table.matrix thead th .spec { display: block; font: 500 10px var(--font-mono); text-transform: uppercase; letter-spacing: 0.05em; color: var(--unknown); }
+table.matrix th.feat, table.matrix td.feat { position: sticky; left: 0; z-index: 1; text-align: left; min-width: 250px; max-width: 290px; box-shadow: 1px 0 0 var(--line); }
+table.matrix thead th.feat { z-index: 3; }
+table.matrix td.feat .id { display: block; color: var(--muted); font: 500 11.5px var(--font-mono); }
+table.matrix td.feat button { all: unset; cursor: pointer; font-weight: 500; }
+table.matrix td.feat button:hover { color: var(--accent); text-decoration: underline; }
+table.matrix td.bugsy, table.matrix th.bugsy { background: var(--accent-tint); }
+table.matrix tr.group td { background: var(--sunk); text-align: left; font: 700 14px var(--font-display); letter-spacing: 0.02em; }
+table.matrix td button.cell { all: unset; cursor: pointer; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 4px; }
+table.matrix td button.cell:hover { background: var(--sunk); }
+table.matrix td button.cell:focus-visible { outline: 2px solid var(--accent); }
+table.matrix td.count { font: 500 12px var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted); }
+.empty { padding: 24px; color: var(--muted); text-align: center; }
+
+.flist { display: grid; }
+.fitem { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.fitem:first-child { border-top: 0; }
+.fitem button.fname { all: unset; cursor: pointer; font-weight: 500; }
+.fitem button.fname:hover { color: var(--accent); text-decoration: underline; }
+.fitem .count { font: 500 12px var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+.mono { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.02em; color: var(--muted); }
+
+/* dossier */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { font: 500 13.5px var(--font-body); padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.chips button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+dl.facts { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 8px 14px; margin: 0; font-size: 14px; }
+dl.facts dt { color: var(--muted); }
+dl.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.plist { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; }
+.drow { display: grid; grid-template-columns: 62px minmax(0, 220px) 22px minmax(0, 1fr); gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); align-items: start; font-size: 14px; }
+.drow .note { color: var(--muted); overflow-wrap: anywhere; }
+.drow .note a { font-size: 12.5px; }
+.module-h { padding-top: 10px; font-size: 17px; }
+details summary { cursor: pointer; font-weight: 600; }
+.srclist { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; overflow-wrap: anywhere; }
+.covbar { display: flex; height: 14px; border-radius: 3px; overflow: hidden; background: var(--sunk); }
+.covbar span { display: block; height: 100%; }
+.b-Yes { background: var(--yes); } .b-Add-on { background: var(--addon); } .b-Partial { background: var(--partial); }
+.b-No { background: var(--no); } .b-Unknown { background: repeating-linear-gradient(45deg, var(--unknown) 0 3px, transparent 3px 6px); }
+
+/* horizontal bar charts (pricing, market) */
+.hbars { display: grid; gap: 6px; }
+.hrow { display: grid; grid-template-columns: minmax(0, 210px) minmax(0, 1fr) 84px; gap: 10px; align-items: center; font-size: 13.5px; }
+.hrow .nm { min-width: 0; }
+.hrow .nm small { display: block; color: var(--muted); font-size: 11.5px; }
+.hrow .track { height: 16px; background: var(--sunk); border-radius: 3px; position: relative; }
+.hrow .fill { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--unknown); }
+.hrow .fill.est { background: repeating-linear-gradient(45deg, var(--unknown) 0 4px, transparent 4px 7px); border: 1px solid var(--unknown); }
+.hrow.us .fill { background: var(--accent); }
+.hrow.us .nm { font-weight: 600; }
+.hrow .val { text-align: right; font: 600 13px var(--font-mono); font-variant-numeric: tabular-nums; }
+.big { font: 700 40px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+
+/* diagrams */
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; overflow-x: auto; }
+.diagram svg { display: block; width: 100%; height: auto; min-width: 560px; }
+.dg-title { font: 600 15px var(--font-body); fill: var(--ink); }
+.dg-name { font: 600 13px var(--font-body); fill: var(--ink); }
+.dg-sub { font: 400 11.5px var(--font-body); fill: var(--muted); }
+.dg-note { font: 400 12px var(--font-body); fill: var(--ink); }
+.dg-box { fill: none; stroke: var(--muted); stroke-width: 1.25; }
+.dg-box.main { fill: var(--accent-tint); stroke: var(--accent); stroke-width: 2; }
+.dg-lane { fill: var(--sunk); stroke: var(--line); }
+.dg-line { fill: none; stroke: var(--muted); stroke-width: 1.25; }
+.dg-lead { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 3; }
+.dg-head { fill: var(--muted); }
+
+/* detail sheet */
+#sheet { position: fixed; z-index: 20; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: min(480px, calc(100vw - 32px)); max-height: min(74vh, 660px); overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 18px 50px rgba(0,0,0,0.22); padding: 18px; display: grid; gap: 12px; }
+#sheet .close { justify-self: end; font: 600 13px var(--font-body); background: var(--sunk); color: var(--ink); border: 0; border-radius: 4px; padding: 6px 10px; cursor: pointer; }
+.srow { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; padding: 8px; border-radius: 6px; }
+.srow.hl { background: var(--sunk); }
+.srow .who { font-weight: 600; }
+.srow .note { color: var(--muted); font-size: 13.5px; overflow-wrap: anywhere; }
+
+@media (max-width: 900px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; padding-block: 12px 64px; }
+  nav.pages { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 56px); z-index: 8; display: flex; overflow-x: auto; gap: 4px; background: var(--bg); padding-block: 6px; border-bottom: 1px solid var(--line); }
+  nav.pages button { border-left: 0; border-bottom: 3px solid transparent; white-space: nowrap; border-radius: 0; }
+  nav.pages button[aria-current="page"] { border-bottom-color: var(--accent); background: none; }
+  .bar .pager { display: none; }
+}
+@media (max-width: 640px) {
+  .bar h1 { font-size: 22px; }
+  .fitem { grid-template-columns: minmax(0, 1fr) auto; }
+  .fitem .mono { display: none; }
+  dl.facts { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  dl.facts dd { margin-bottom: 8px; }
+  .drow { grid-template-columns: 22px minmax(0, 1fr); }
+  .drow .mono { display: none; }
+  .drow .fn { grid-column: 2; font-weight: 600; }
+  .drow .st { grid-row: 1; grid-column: 1; }
+  .drow .note { grid-column: 2; }
+  .hrow { grid-template-columns: minmax(0, 1fr) 76px; }
+  .hrow .track { grid-column: 1 / -1; grid-row: 2; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  #sheet:not([hidden]) { animation: rise 160ms ease-out; }
+  @keyframes rise { from { transform: translateY(8px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+  .hrow .fill { transition: width 180ms ease-out; }
+}
+</style>
+
+<header class="bar">
+  <div class="bar-in">
+    <h1>Bugsy PRD</h1>
+    <span class="meta" id="meta"></span>
+    <div class="pager"><button type="button" id="prev">Previous</button><button type="button" id="next">Next</button></div>
+  </div>
+</header>
+<div class="shell">
+  <nav class="pages" id="nav" aria-label="PRD pages"></nav>
+  <main id="pages"></main>
+</div>
+<div id="sheet" role="dialog" aria-modal="false" aria-labelledby="sheet-title" hidden>
+  <button class="close" id="sheet-close" type="button">Close</button>
+  <div id="sheet-body" style="display:grid;gap:10px"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script>
+const DATA = /*__DATA__*/null;
+const PAGES = /*__PAGES__*/null;
+
+const STATUSES = ["Yes", "Add-on", "Partial", "No", "Unknown"];
+const STATUS_LABEL = { "Yes": "Yes", "Add-on": "Add-on or higher tier", "Partial": "Partial", "No": "No", "Unknown": "Not confirmed" };
+const PLAN_ORDER = ["P1", "P1-stretch", "P2", "P3", "Decide", "Not planned"];
+const PLAN_SHORT = { "P1": "P1", "P1-stretch": "P1 stretch", "P2": "P2", "P3": "P3", "Decide": "Decide", "Not planned": "Not planned" };
+const COMPS = DATA.competitors;
+const FEATS = DATA.features;
+const FBYID = Object.fromEntries(FEATS.map(f => [f.id, f]));
+
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]); }
+function safeUrl(u) { return /^https?:\/\//i.test(u || "") ? u : ""; }
+function money(n) { return "$" + Math.round(n).toLocaleString("en-US"); }
+function moneyM(n) { if (n >= 1e6) return "$" + (n / 1e6).toFixed(n >= 1e7 ? 0 : 2) + "M"; return "$" + Math.round(n / 1000).toLocaleString("en-US") + "K"; }
+function mark(status) { return `<span class="st st-${esc(status)}" role="img" aria-label="${esc(STATUS_LABEL[status] || status)}"></span>`; }
+function planPill(p) { return `<span class="plan" data-plan="${esc(p)}">${esc(PLAN_SHORT[p] || p)}</span>`; }
+function yesCount(fid) { return COMPS.filter(c => (c.features[fid] || {}).status === "Yes").length; }
+function offeredCount(fid) { return COMPS.filter(c => ["Yes", "Add-on"].includes((c.features[fid] || {}).status)).length; }
+function el(html) { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstElementChild; }
+
+/* ---------- detail sheet ---------- */
+const sheet = document.getElementById("sheet"), sheetBody = document.getElementById("sheet-body");
+let lastFocus = null;
+function openSheet(html) { lastFocus = document.activeElement; sheetBody.innerHTML = html; sheet.hidden = false; document.getElementById("sheet-close").focus(); }
+function closeSheet() { sheet.hidden = true; if (lastFocus) lastFocus.focus(); }
+document.getElementById("sheet-close").addEventListener("click", closeSheet);
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !sheet.hidden) closeSheet(); });
+function featureSheet(fid, highlight) {
+  const f = FBYID[fid];
+  const specs = f.specs.length ? "Spec " + f.specs.join(", ") : "No spec yet";
+  let h = `<div class="eyebrow">${esc(f.id)} &middot; ${esc(f.module)}</div><h3 id="sheet-title">${esc(f.feature)}</h3><p class="lede small">${esc(f.definition)}</p>`;
+  h += `<div class="srow hl"><span></span><div><div class="who">Bugsy ${planPill(f.plan)} <span class="mono">${esc(specs)}</span></div>${f.note ? `<div class="note">${esc(f.note)}</div>` : ""}</div></div>`;
+  for (const c of COMPS) {
+    const s = c.features[fid] || { status: "Unknown", notes: "", source: "" };
+    const u = safeUrl(s.source);
+    h += `<div class="srow${c.slug === highlight ? " hl" : ""}">${mark(s.status)}<div><div class="who">${esc(c.competitor)} <span class="mono">${esc(STATUS_LABEL[s.status])}</span></div><div class="note">${esc(s.notes)}${u ? ` <a href="${esc(u)}" target="_blank" rel="noopener">Source</a>` : ""}</div></div></div>`;
+  }
+  openSheet(h);
+}
+
+/* ---------- widgets ---------- */
+const W = {};
+
+W.kpis = node => {
+  const wedge = FEATS.filter(f => f.positioning === "wedge");
+  const openWedge = wedge.filter(f => yesCount(f.id) === 0).length;
+  const p1 = FEATS.filter(f => f.plan === "P1").length;
+  const tiles = [
+    [String(COMPS.length), `competitors scored on ${FEATS.length} features`],
+    [`${openWedge} of ${wedge.length}`, "wedge features no competitor fully supports"],
+    [String(p1), "features Bugsy builds in Phase 1"],
+    ["146", "Wisconsin employer pest firms ($148.4M, 2022)"],
+    ["32 to 37", "firms in the 3 to 15 technician band"],
+    ["~$1M", "Wisconsin revenue ceiling a year at full share", true]
+  ];
+  node.innerHTML = `<div class="kpis">${tiles.map(([n, l, a]) => `<div class="kpi${a ? " alert" : ""}"><div class="n">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("")}</div>`;
+};
+
+W.market = node => {
+  const POOLS = [
+    { id: "band", name: "Wisconsin target band", note: "3 to 15 technicians, about 32 to 37 firms", techs: 230 },
+    { id: "wiind", name: "Wisconsin independents", note: "excludes national brands", techs: 570 },
+    { id: "wi", name: "All of Wisconsin", note: "about 940 technicians, 2025 estimate", techs: 940, us: true },
+    { id: "il", name: "Illinois", note: "scaled from receipts, 3.6 times Wisconsin", techs: 3340 },
+    { id: "nb", name: "Four neighboring states", note: "MN, IL, MI, IA, scaled from receipts", techs: 7050 },
+    { id: "usind", name: "US independents", note: "about 64% of US pest workers", techs: 57000 },
+    { id: "us", name: "All of the US", note: "89,070 pest control workers, BLS 2023", techs: 89070 }
+  ];
+  node.innerHTML = `<div class="panel">
+    <div><h3>Revenue ceiling calculator</h3><p class="lede small">Annual revenue if Bugsy reaches this share of each pool's technicians at this monthly price. Technician counts outside the BLS national figure are estimates.</p></div>
+    <div class="ctl">
+      <label for="mk-price">Price per technician per month <span class="out" id="mk-price-o"></span><input id="mk-price" type="range" min="39" max="149" step="1" value="89"></label>
+      <label for="mk-share">Share of technicians reached <span class="out" id="mk-share-o"></span><input id="mk-share" type="range" min="1" max="100" step="1" value="100"></label>
+    </div>
+    <div class="hbars" id="mk-bars"></div>
+  </div>`;
+  const price = node.querySelector("#mk-price"), share = node.querySelector("#mk-share");
+  function draw() {
+    const p = +price.value, s = +share.value / 100;
+    node.querySelector("#mk-price-o").textContent = money(p);
+    node.querySelector("#mk-share-o").textContent = Math.round(s * 100) + "%";
+    const rows = POOLS.map(x => ({ ...x, v: x.techs * p * 12 * s }));
+    const max = Math.max(...rows.map(r => r.v));
+    node.querySelector("#mk-bars").innerHTML = rows.map(r => {
+      const w = Math.max(0.4, Math.sqrt(r.v / max) * 100);
+      return `<div class="hrow${r.us ? " us" : ""}"><div class="nm">${esc(r.name)}<small>${esc(r.note)}</small></div><div class="track"><div class="fill${r.us ? "" : " est"}" style="width:${w}%"></div></div><div class="val">${moneyM(r.v)}</div></div>`;
+    }).join("") + `<p class="lede small">Bar lengths use a square-root scale so the Wisconsin pools stay visible next to the US; read the values for exact size.</p>`;
+  }
+  price.addEventListener("input", draw); share.addEventListener("input", draw); draw();
+};
+
+W.pricing = node => {
+  node.innerHTML = `<div class="panel">
+    <div><h3>Monthly price comparison</h3><p class="lede small">Published price rules applied to the company you describe below. Bugsy's proposed row uses the two price inputs. Striped bars are third-party estimates.</p></div>
+    <div class="ctl">
+      <label for="pr-n">Technicians <span class="out" id="pr-n-o"></span><input id="pr-n" type="range" min="1" max="30" step="1" value="8"></label>
+      <label for="pr-office">Office users <span class="out" id="pr-office-o"></span><input id="pr-office" type="range" min="0" max="10" step="1" value="2"></label>
+      <label for="pr-cpt">Recurring customers per technician <span class="out" id="pr-cpt-o"></span><input id="pr-cpt" type="range" min="50" max="600" step="10" value="200"></label>
+      <label for="pr-base">Bugsy base price<input id="pr-base" type="number" min="0" max="999" step="1" value="149"></label>
+      <label for="pr-per">Bugsy price per technician after the first<input id="pr-per" type="number" min="0" max="999" step="1" value="69"></label>
+    </div>
+    <div class="hbars" id="pr-bars"></div>
+    <p class="lede small">Jobber is left out because its user pricing varies by tier and term (10 users run $229 to $599 a month). Customers per technician only affect Pocomos and FieldRoutes, which charge by active customers.</p>
+  </div>`;
+  const q = id => node.querySelector(id);
+  function draw() {
+    const n = +q("#pr-n").value, office = +q("#pr-office").value, cpt = +q("#pr-cpt").value;
+    const base = Math.max(0, +q("#pr-base").value || 0), per = Math.max(0, +q("#pr-per").value || 0);
+    q("#pr-n-o").textContent = n; q("#pr-office-o").textContent = office; q("#pr-cpt-o").textContent = cpt;
+    const users = n + office, cust = n * cpt;
+    const fw = (b, i) => b + i * (n - 1);
+    const gdBasic = 49 + 50 * Math.min(Math.max(n - 1, 0), 2) + 30 * Math.max(n - 3, 0);
+    const gdPro = 99 + 50 * (n - 1);
+    const gdGrowth = 149 + (n >= 2 ? 100 : 0) + 50 * Math.max(n - 2, 0);
+    const poc = cust <= 20 ? 109 : cust <= 50 ? 159 : cust <= 300 ? 239 : cust <= 500 ? 275 : 275 + 0.16 * (cust - 500);
+    const rows = [
+      { name: "Bugsy, proposed", sub: `${money(base)} base + ${money(per)} per extra technician`, v: base + per * (n - 1), us: true },
+      { name: "Bugsy, original hypothesis", sub: "$79 per technician, 2 minimum", v: 79 * Math.max(n, 2), us: true },
+      { name: "Bugsy, original hypothesis", sub: "$99 per technician, 2 minimum", v: 99 * Math.max(n, 2), us: true },
+      { name: "Fieldwork Business", sub: "$79 + $39 per extra technician", v: fw(79, 39) },
+      { name: "Fieldwork Pro", sub: "$99 + $49; service agreements", v: fw(99, 49) },
+      { name: "Fieldwork Enterprise", sub: "$149 + $79; skills matching", v: fw(149, 79) },
+      { name: "GorillaDesk Basic", sub: "per route", v: gdBasic },
+      { name: "GorillaDesk Pro", sub: "per route", v: gdPro },
+      { name: "GorillaDesk Growth", sub: "per route", v: gdGrowth },
+      { name: "Pocomos", sub: `${cust.toLocaleString("en-US")} active customers`, v: poc },
+      { name: "Housecall Pro MAX", sub: `annual billing, ${users} users`, v: 299 + 35 * Math.max(0, users - 8) },
+      { name: "FieldRoutes", sub: "G2: $350 per 1,000 active customers", v: Math.max(350, 350 * cust / 1000), est: true },
+      { name: "PestPac", sub: `about $100 per user, ${users} users`, v: 100 * users, est: true }
+    ].sort((a, b) => a.v - b.v);
+    const max = Math.max(...rows.map(r => r.v));
+    q("#pr-bars").innerHTML = rows.map(r => `<div class="hrow${r.us ? " us" : ""}"><div class="nm">${esc(r.name)}<small>${esc(r.sub)}</small></div><div class="track"><div class="fill${r.est ? " est" : ""}" style="width:${Math.max(0.5, r.v / max * 100)}%"></div></div><div class="val">${money(r.v)}</div></div>`).join("");
+  }
+  node.querySelectorAll("input").forEach(i => i.addEventListener("input", draw)); draw();
+};
+
+W.dossiers = node => {
+  node.innerHTML = `<div style="display:grid;gap:18px"><div class="chips" role="group" aria-label="Choose a competitor">${COMPS.map((c, i) => `<button type="button" data-slug="${esc(c.slug)}" aria-pressed="${i === 0}">${esc(c.competitor)}</button>`).join("")}</div><div class="dossier" style="display:grid;gap:18px"></div></div>`;
+  const out = node.querySelector(".dossier");
+  function show(slug) {
+    const c = COMPS.find(x => x.slug === slug); const p = c.profile || {};
+    node.querySelectorAll(".chips button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.slug === slug)));
+    const counts = Object.fromEntries(STATUSES.map(s => [s, 0]));
+    FEATS.forEach(f => { const s = (c.features[f.id] || {}).status || "Unknown"; counts[s] = (counts[s] || 0) + 1; });
+    const web = safeUrl(p.website), psrc = safeUrl(p.pricing_source);
+    let h = `<div class="panel"><div><div class="eyebrow">Researched ${esc(c.researched_on)}${c.updated_on ? ` &middot; updated ${esc(c.updated_on)}` : ""}</div><h3 style="font-size:26px">${esc(c.competitor)}</h3></div>
+      <div class="covbar" role="img" aria-label="Feature coverage">${STATUSES.map(s => `<span class="b-${s}" style="width:${counts[s] / FEATS.length * 100}%" title="${esc(STATUS_LABEL[s])}: ${counts[s]}"></span>`).join("")}</div>
+      <div class="legend">${STATUSES.map(s => `<span class="item">${mark(s)}${esc(STATUS_LABEL[s])} ${counts[s]}</span>`).join("")}</div>
+      <dl class="facts">
+        <dt>Owner</dt><dd>${esc(p.owner)}</dd>
+        ${web ? `<dt>Website</dt><dd><a href="${esc(web)}" target="_blank" rel="noopener">${esc(web)}</a></dd>` : ""}
+        <dt>Customers</dt><dd>${esc(p.target_customers)}</dd>
+        <dt>Pricing</dt><dd>${esc(p.pricing)}${psrc ? ` <a href="${esc(psrc)}" target="_blank" rel="noopener">Source</a>` : ""}</dd>
+        <dt>Deployment</dt><dd>${esc(p.deployment)}</dd>
+        <dt>Mobile app</dt><dd>${esc(p.mobile_app)}</dd>
+        <dt>Wisconsin</dt><dd>${esc(p.wisconsin_notes)}</dd>
+      </dl></div>
+      <div class="grid2"><div class="panel"><h3>Strengths</h3><ul class="plist">${(p.strengths || []).map(s => `<li>${esc(s)}</li>`).join("")}</ul></div><div class="panel"><h3>Weaknesses</h3><ul class="plist">${(p.weaknesses || []).map(s => `<li>${esc(s)}</li>`).join("")}</ul></div></div>
+      <div class="panel"><h3>Every score</h3>`;
+    let mod = "";
+    for (const f of FEATS) {
+      if (f.module !== mod) { mod = f.module; h += `<h4 class="module-h" style="margin:0">${esc(mod)}</h4>`; }
+      const s = c.features[f.id] || { status: "Unknown", notes: "", source: "" }; const u = safeUrl(s.source);
+      h += `<div class="drow"><span class="mono">${esc(f.id)}</span><span class="fn">${esc(f.feature)}</span>${mark(s.status)}<span class="note">${esc(s.notes)}${u ? ` <a href="${esc(u)}" target="_blank" rel="noopener">Source</a>` : ""}</span></div>`;
+    }
+    h += `</div>`;
+    if ((c.extra_features || []).length) h += `<div class="panel"><details><summary>Features outside the checklist (${c.extra_features.length})</summary><ul class="srclist">${c.extra_features.map(x => { const u = safeUrl(x.source); return `<li><b>${esc(x.feature)}</b> (${esc(x.module)}): ${esc(x.notes)}${u ? ` <a href="${esc(u)}" target="_blank" rel="noopener">Source</a>` : ""}</li>`; }).join("")}</ul></details></div>`;
+    out.innerHTML = h;
+  }
+  node.querySelector(".chips").addEventListener("click", e => { const b = e.target.closest("button[data-slug]"); if (b) show(b.dataset.slug); });
+  show(COMPS[0].slug);
+};
+
+W.matrix = node => {
+  const modules = [...new Set(FEATS.map(f => f.module))];
+  const list = pos => FEATS.filter(f => f.positioning === pos).sort((a, b) => yesCount(b.id) - yesCount(a.id) || a.id.localeCompare(b.id));
+  const flist = arr => arr.map(f => `<div class="fitem"><span class="mono">${esc(f.id)}</span><button type="button" class="fname" data-fid="${esc(f.id)}">${esc(f.feature)}</button>${planPill(f.plan)}<span class="count">${yesCount(f.id)} of ${COMPS.length}</span></div>`).join("");
+  node.innerHTML = `<div style="display:grid;gap:18px">
+    <div class="grid2">
+      <div class="panel"><div><h3>Table stakes</h3><p class="lede small">Most competitors have these. Count is full support (Yes) out of ${COMPS.length}.</p></div><div class="flist">${flist(list("table-stakes"))}</div></div>
+      <div class="panel"><div><h3>The wedge</h3><p class="lede small">Few or none fully support these. This is the pitch, and where the pilot must prove demand.</p></div><div class="flist">${flist(list("wedge"))}</div></div>
+    </div>
+    <div class="panel">
+      <div><h3>All ${FEATS.length} features</h3><p class="lede small">The one feature list for the PRD and the crosswalk. Select a feature name or any mark to read the note and source.</p></div>
+      <div class="legend">${STATUSES.map(s => `<span class="item">${mark(s)}${esc(STATUS_LABEL[s])}</span>`).join("")}<span class="item">${PLAN_ORDER.map(planPill).join(" ")} Bugsy's plan</span></div>
+      <div class="filters">
+        <label for="mx-module">Module<select id="mx-module"><option value="">All modules</option>${modules.map(m => `<option>${esc(m)}</option>`).join("")}</select></label>
+        <label for="mx-plan">Bugsy plan<select id="mx-plan"><option value="">Any plan</option>${PLAN_ORDER.map(p => `<option value="${esc(p)}">${esc(DATA.plans[p])}</option>`).join("")}</select></label>
+        <label for="mx-pos">Group<select id="mx-pos"><option value="">All features</option><option value="table-stakes">Table stakes</option><option value="wedge">Wedge</option></select></label>
+        <label for="mx-q">Search<input id="mx-q" type="search" placeholder="Feature name or ID"></label>
+        <label for="mx-sort">Sort<select id="mx-sort"><option value="module">By module</option><option value="common">Most supported first</option><option value="rare">Least supported first</option></select></label>
+      </div>
+      <div class="matrix-wrap"><table class="matrix" aria-label="Feature coverage matrix"></table></div>
+    </div></div>`;
+  const table = node.querySelector("table.matrix");
+  const get = id => node.querySelector(id).value;
+  function draw() {
+    const mod = get("#mx-module"), plan = get("#mx-plan"), pos = get("#mx-pos"), q = get("#mx-q").trim().toLowerCase(), sort = get("#mx-sort");
+    let rows = FEATS.filter(f => (!mod || f.module === mod) && (!plan || f.plan === plan) && (!pos || f.positioning === pos) && (!q || f.feature.toLowerCase().includes(q) || f.id.toLowerCase().includes(q)));
+    if (sort === "common") rows = [...rows].sort((a, b) => yesCount(b.id) - yesCount(a.id) || offeredCount(b.id) - offeredCount(a.id));
+    if (sort === "rare") rows = [...rows].sort((a, b) => yesCount(a.id) - yesCount(b.id) || offeredCount(a.id) - offeredCount(b.id));
+    let h = `<thead><tr><th class="feat">Feature</th><th class="bugsy">Bugsy</th>${COMPS.map(c => `<th>${esc(c.competitor)}<span class="spec">${c.pest ? "pest" : "general"}</span></th>`).join("")}<th>Yes<span class="spec">of ${COMPS.length}</span></th></tr></thead><tbody>`;
+    if (!rows.length) h += `<tr><td colspan="${COMPS.length + 3}" class="empty">No features match these filters.</td></tr>`;
+    let cur = "";
+    for (const f of rows) {
+      if (sort === "module" && f.module !== cur) { cur = f.module; h += `<tr class="group"><td colspan="${COMPS.length + 3}">${esc(cur)}</td></tr>`; }
+      h += `<tr><td class="feat"><span class="id">${esc(f.id)}${f.positioning ? ` &middot; <span class="pos">${f.positioning === "wedge" ? "wedge" : "table stakes"}</span>` : ""}</span><button type="button" data-fid="${esc(f.id)}">${esc(f.feature)}</button></td><td class="bugsy">${planPill(f.plan)}</td>`;
+      for (const c of COMPS) { const s = (c.features[f.id] || {}).status || "Unknown"; h += `<td><button type="button" class="cell" data-fid="${esc(f.id)}" data-slug="${esc(c.slug)}" aria-label="${esc(c.competitor)}: ${esc(f.feature)}, ${esc(STATUS_LABEL[s])}">${mark(s)}</button></td>`; }
+      h += `<td class="count">${yesCount(f.id)}</td></tr>`;
+    }
+    table.innerHTML = h + "</tbody>";
+  }
+  node.querySelectorAll("select, input").forEach(i => i.addEventListener("input", draw));
+  node.addEventListener("click", e => { const b = e.target.closest("button[data-fid]"); if (b) featureSheet(b.dataset.fid, b.dataset.slug); });
+  draw();
+};
+
+function arrowDefs(id) { return `<defs><marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="dg-head" d="M0 0L10 5L0 10z"/></marker></defs>`; }
+function txt(x, y, cls, s, anchor) { return `<text x="${x}" y="${y}" class="${cls}"${anchor ? ` text-anchor="${anchor}"` : ""}>${esc(s)}</text>`; }
+
+W.journey = node => {
+  const sx = 24, sw = 248, bh = 56, cx = 148, nx = 296, by = i => 64 + i * 84, fx = i => 24 + i * 182, fw = 166, fy = 512, mx = 452, mw = 220, my = 616;
+  const spine = [["Lead and quote", "spec 02", ["Source is required on every lead"]], ["Signed agreement", "specs 02, 04", ["E-sign captures consent to electronic notices", "and delivers the pre-application offer (ATCP 29.55)"]], ["Visits generated", "spec 04", ["The whole term is planned, each visit in a due window"]], ["Dispatched", "spec 05", ["Blocked without a current license and category, inside", "the bat blackout, or before a registry notice is sent"]], ["The stop, offline", "spec 06", ["Arrival and departure are the legal start and end;", "missing record fields block completion"]]];
+  const outs = [["Record locked", "spec 07, same day"], ["Notice with proof", "specs 07, 11"], ["Invoice issued", "spec 08"], ["Revenue and cost", "spec 09"]];
+  let s = `<svg viewBox="0 0 760 696" role="img" aria-label="One completed stop feeds the record, the notice, the bill and the books">${arrowDefs("j-arrow")}`;
+  s += txt(24, 34, "dg-title", "One completed stop feeds the record, the notice, the bill and the books");
+  for (let i = 0; i < 4; i++) s += `<path class="dg-line" d="M${cx} ${by(i) + bh}V${by(i + 1)}" marker-end="url(#j-arrow)"/>`;
+  s += `<path class="dg-line" d="M${cx} ${by(4) + bh}V488"/><path class="dg-line" d="M${fx(0) + fw / 2} 488H${fx(3) + fw / 2}"/>`;
+  for (let i = 0; i < 4; i++) s += `<path class="dg-line" d="M${fx(i) + fw / 2} 488V${fy}" marker-end="url(#j-arrow)"/>`;
+  s += `<path class="dg-line" d="M${fx(2) + fw / 2} ${fy + bh}V${my}" marker-end="url(#j-arrow)"/><path class="dg-line" d="M${fx(3) + fw / 2} ${fy + bh}V${my}" marker-end="url(#j-arrow)"/>`;
+  s += txt(cx + 8, 481, "dg-sub", "at day end");
+  spine.forEach(([n, sp, notes], i) => {
+    s += `<rect x="${sx}" y="${by(i)}" width="${sw}" height="${bh}" rx="8" class="dg-box${i === 4 ? " main" : ""}"/>` + txt(cx, by(i) + 24, "dg-name", n, "middle") + txt(cx, by(i) + 42, "dg-sub", sp, "middle");
+    s += `<path class="dg-lead" d="M${sx + sw} ${by(i) + 28}H${nx - 8}"/>`;
+    notes.forEach((t, k) => { s += txt(nx, by(i) + (notes.length === 1 ? 32 : 24 + k * 16), "dg-note", t); });
+  });
+  outs.forEach(([n, sp], i) => { s += `<rect x="${fx(i)}" y="${fy}" width="${fw}" height="${bh}" rx="8" class="dg-box"/>` + txt(fx(i) + fw / 2, fy + 24, "dg-name", n, "middle") + txt(fx(i) + fw / 2, fy + 42, "dg-sub", sp, "middle"); });
+  s += `<rect x="${mx}" y="${my}" width="${mw}" height="${bh}" rx="8" class="dg-box"/>` + txt(mx + mw / 2, my + 24, "dg-name", "Month-end close", "middle") + txt(mx + mw / 2, my + 42, "dg-sub", "specs 09, 12", "middle");
+  node.innerHTML = `<div class="diagram">${s}</svg></div>`;
+};
+
+W.rollout = node => {
+  const cx = 380, ly = 404, lw = 222, lh = 248, lx = i => 24 + i * 245, bx = i => lx(i) + 16, bw = 190, lc = i => lx(i) + lw / 2, ry = j => ly + 36 + j * 52;
+  const box = (x, y, w, h, main) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" class="dg-box${main ? " main" : ""}"/>`;
+  const arrow = d => `<path class="dg-line" d="${d}" marker-end="url(#r-arrow)"/>`, line = d => `<path class="dg-line" d="${d}"/>`;
+  let s = `<svg viewBox="0 0 760 1056" role="img" aria-label="Prove the whole loop early, then cut over in winter">${arrowDefs("r-arrow")}`;
+  s += txt(24, 34, "dg-title", "Prove the whole loop early, then cut over in winter");
+  [0, 1, 2].forEach(i => { s += `<rect x="${lx(i)}" y="${ly}" width="${lw}" height="${lh}" rx="8" class="dg-lane"/>`; });
+  s += arrow(`M${cx} 104V128`) + arrow(`M${cx} 168V180H260V192`) + arrow(`M${cx} 180H500V192`) + arrow(`M260 232V244H${cx}V256`) + line(`M500 232V244H${cx}`) + arrow(`M${cx} 296V320`);
+  s += line(`M${cx} 372V388`) + line(`M${lc(0)} 388H${lc(2)}`);
+  [0, 1, 2].forEach(i => { s += arrow(`M${lc(i)} 388V${ly}`); });
+  [0, 1, 2].forEach(j => { s += arrow(`M${lc(0)} ${ry(j) + 40}V${ry(j + 1)}`); });
+  s += arrow(`M${lc(1)} ${ry(0) + 40}V${ry(1)}`);
+  [0, 1, 2].forEach(i => { s += line(`M${lc(i)} ${ly + lh}V668`); });
+  s += line(`M${lc(0)} 668H${lc(2)}`) + arrow(`M${cx} 668V684`) + arrow(`M${cx} 724V748`) + arrow(`M${cx} 788V812`) + arrow(`M${cx} 864V888`) + arrow(`M${cx} 968V992`);
+  s += box(180, 52, 400, 52) + txt(cx, 74, "dg-name", "Now: recruit the pilot", "middle") + txt(cx, 92, "dg-sub", "interviews, outside questions, pricing before PestCon", "middle");
+  s += box(260, 128, 240, 40) + txt(cx, 152, "dg-name", "01 Foundation", "middle");
+  s += box(160, 192, 200, 40) + txt(260, 216, "dg-name", "02 Customers", "middle");
+  s += box(400, 192, 200, 40) + txt(500, 216, "dg-name", "03 Catalog", "middle");
+  s += box(260, 256, 240, 40) + txt(cx, 280, "dg-name", "04 Agreements", "middle");
+  s += box(180, 320, 400, 52, true) + txt(cx, 342, "dg-name", "Walking skeleton", "middle") + txt(cx, 360, "dg-note", "one visit through record, notice, invoice and ledger", "middle");
+  s += txt(lx(0) + 16, ly + 22, "dg-name", "Field track") + txt(lx(1) + 16, ly + 22, "dg-name", "Money track") + txt(lx(2) + 16, ly + 22, "dg-name", "Platform");
+  [["11 Messaging", 0, 0], ["05 Dispatch", 0, 1], ["06 Technician app", 0, 2], ["07 Compliance", 0, 3], ["08 Billing", 1, 0], ["09 Ledger", 1, 1], ["13 Platform operations", 2, 0]].forEach(([n, i, j]) => { s += box(bx(i), ry(j), bw, 40) + txt(lc(i), ry(j) + 24, "dg-name", n, "middle"); });
+  s += box(220, 684, 320, 40) + txt(cx, 708, "dg-name", "10 Import and 12 Reporting", "middle");
+  s += box(220, 748, 320, 40) + txt(cx, 772, "dg-name", "Dress rehearsal on pilot data", "middle");
+  s += box(180, 812, 400, 52, true) + txt(cx, 834, "dg-name", "Winter cutover on a month boundary", "middle") + txt(cx, 852, "dg-note", "one week in parallel for scheduling only", "middle");
+  s += `<polygon points="${cx - 110},928 ${cx},888 ${cx + 110},928 ${cx},968" class="dg-box"/>` + txt(cx, 932, "dg-name", "Pilot gate", "middle");
+  s += txt(508, 924, "dg-sub", "30 business days on Bugsy,") + txt(508, 940, "dg-sub", "then the first month-end");
+  s += box(260, 992, 240, 40) + txt(cx, 1016, "dg-name", "Phase 2 and the second state", "middle");
+  node.innerHTML = `<div class="diagram">${s}</svg></div>`;
+};
+
+/* ---------- pages and routing ---------- */
+const nav = document.getElementById("nav"), main = document.getElementById("pages");
+document.getElementById("meta").textContent = `Version 2 · ${DATA.generated_on} · ${PAGES.length} pages`;
+function render(md) {
+  const prepared = md.replace(/```mermaid[\s\S]*?```/g, "").replace(/<!--\s*widget:\s*([\w-]+)\s*-->/g, (m, w) => `\n<div class="widget" data-widget="${w}"></div>\n`);
+  if (window.marked) return marked.parse(prepared, { gfm: true });
+  return `<pre class="src">${esc(prepared.replace(/<div class="widget"[^>]*><\/div>/g, ""))}</pre>`;
+}
+for (const p of PAGES) {
+  const sec = document.createElement("section");
+  sec.className = "page"; sec.id = "page-" + p.id; sec.hidden = true; sec.setAttribute("aria-label", p.label);
+  sec.innerHTML = render(p.markdown);
+  sec.querySelectorAll("table").forEach(t => { const w = document.createElement("div"); w.className = "xwrap"; t.replaceWith(w); w.appendChild(t); });
+  sec.querySelectorAll("a[href^='http']").forEach(a => { a.target = "_blank"; a.rel = "noopener"; });
+  main.appendChild(sec);
+  const b = document.createElement("button"); b.type = "button"; b.textContent = p.label; b.dataset.page = p.id; nav.appendChild(b);
+}
+main.querySelectorAll(".widget").forEach(n => { const f = W[n.dataset.widget]; if (f) { try { f(n); } catch (err) { n.innerHTML = `<p class="lede">This view failed to load: ${esc(err.message)}</p>`; } } });
+nav.addEventListener("click", e => { const b = e.target.closest("button[data-page]"); if (b) location.hash = b.dataset.page; });
+function route() {
+  const ids = PAGES.map(p => p.id);
+  const id = ids.includes(location.hash.slice(1)) ? location.hash.slice(1) : ids[0];
+  main.querySelectorAll(".page").forEach(s => { s.hidden = s.id !== "page-" + id; });
+  nav.querySelectorAll("button").forEach(b => { if (b.dataset.page === id) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+  const i = ids.indexOf(id);
+  const prev = document.getElementById("prev"), next = document.getElementById("next");
+  prev.disabled = i === 0; next.disabled = i === ids.length - 1;
+  prev.onclick = () => { location.hash = ids[i - 1]; }; next.onclick = () => { location.hash = ids[i + 1]; };
+  const cur = nav.querySelector('[aria-current="page"]'); if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: "nearest", inline: "nearest" });
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route);
+route();
+</script>
