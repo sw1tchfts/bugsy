@@ -394,44 +394,44 @@ Fifteen calls shape Phase 1. The first three should be made before spec 01 start
 Generated from `docs/competitors/bugsy-plan.json` and the competitor profiles by `docs/prd-site/build.py`. Do not edit by hand.
 
 <!-- BEGIN feature-plan -->
-| ID | Feature | Module | Bugsy plan | Specs | Group | Full support (of 8) |
+| ID | Feature | Module | Bugsy plan | Specs | Group | Full support (of 9) |
 | --- | --- | --- | --- | --- | --- | --- |
-| CRM-01 | Lead capture and sales pipeline | CRM and sales | Phase 1: needed for the pilot | 02 |  | 2 |
-| CRM-02 | Lead source and marketing attribution | CRM and sales | Phase 1: needed for the pilot | 02, 12 |  | 3 |
-| CRM-03 | Estimates and quotes | CRM and sales | Phase 1: needed for the pilot | 02 | Table stakes | 7 |
+| CRM-01 | Lead capture and sales pipeline | CRM and sales | Phase 1: needed for the pilot | 02 |  | 3 |
+| CRM-02 | Lead source and marketing attribution | CRM and sales | Phase 1: needed for the pilot | 02, 12 |  | 4 |
+| CRM-03 | Estimates and quotes | CRM and sales | Phase 1: needed for the pilot | 02 | Table stakes | 8 |
 | CRM-04 | E-signature on agreements | CRM and sales | Phase 1: needed for the pilot | 02, 04 |  | 5 |
 | CRM-05 | Door-to-door sales app | CRM and sales | Phase 2 |  |  | 4 |
 | CRM-06 | Sales commissions | CRM and sales | Phase 2 |  |  | 1 |
-| CRM-07 | Automated marketing campaigns | CRM and sales | Phase 2 |  |  | 0 |
+| CRM-07 | Automated marketing campaigns | CRM and sales | Phase 2 |  |  | 1 |
 | CRM-08 | Cancellation reasons and retention workflows | CRM and sales | Phase 1: needed for the pilot | 04, 12 |  | 0 |
-| CRM-09 | Multi-property accounts | CRM and sales | Phase 1: needed for the pilot | 02 | Table stakes | 7 |
+| CRM-09 | Multi-property accounts | CRM and sales | Phase 1: needed for the pilot | 02 | Table stakes | 8 |
 | CRM-10 | Phone and call center integration | CRM and sales | Not planned |  |  | 0 |
-| AGR-01 | Recurring service agreements | Agreements and pricing | Phase 1: needed for the pilot | 04 |  | 6 |
+| AGR-01 | Recurring service agreements | Agreements and pricing | Phase 1: needed for the pilot | 04 |  | 7 |
 | AGR-02 | Seasonal programs and rounds | Agreements and pricing | Phase 1: needed for the pilot | 04 | Wedge | 1 |
 | AGR-03 | Price book with tiers and add-ons | Agreements and pricing | Phase 1: needed for the pilot | 03 | Wedge | 0 |
 | AGR-04 | Bulk price increases | Agreements and pricing | Phase 1 if time allows | 04 |  | 3 |
 | AGR-05 | Contract terms and auto-renewal | Agreements and pricing | Phase 1: needed for the pilot | 04 |  | 0 |
 | AGR-06 | Warranty and renewal tracking | Agreements and pricing | Phase 2 |  |  | 2 |
 | AGR-07 | Re-service and callback tracking | Agreements and pricing | Phase 1: needed for the pilot | 04 | Wedge | 0 |
-| SCH-01 | Auto-generated recurring visits | Scheduling and dispatch | Phase 1: needed for the pilot | 04 | Table stakes | 7 |
+| SCH-01 | Auto-generated recurring visits | Scheduling and dispatch | Phase 1: needed for the pilot | 04 | Table stakes | 8 |
 | SCH-02 | Dispatch board with map | Scheduling and dispatch | Phase 1: needed for the pilot | 05 | Table stakes | 8 |
 | SCH-03 | Route optimization | Scheduling and dispatch | Phase 2 |  | Table stakes | 5 |
 | SCH-04 | Skill or license-based assignment | Scheduling and dispatch | Phase 1: needed for the pilot | 05 | Wedge | 2 |
 | SCH-05 | Customer online booking | Scheduling and dispatch | Phase 3 |  |  | 3 |
 | SCH-06 | GPS and vehicle tracking | Scheduling and dispatch | Not planned |  |  | 3 |
 | SCH-07 | Bulk rescheduling | Scheduling and dispatch | Phase 1: needed for the pilot | 05 |  | 5 |
-| MOB-01 | Native mobile app | Technician app | Phase 1: needed for the pilot | 06 | Table stakes | 8 |
-| MOB-02 | Offline mode | Technician app | Phase 1: needed for the pilot | 06 |  | 4 |
-| MOB-03 | Product usage capture at the visit | Technician app | Phase 1: needed for the pilot | 06 |  | 6 |
+| MOB-01 | Native mobile app | Technician app | Phase 1: needed for the pilot | 06 | Table stakes | 9 |
+| MOB-02 | Offline mode | Technician app | Phase 1: needed for the pilot | 06 |  | 5 |
+| MOB-03 | Product usage capture at the visit | Technician app | Phase 1: needed for the pilot | 06 |  | 7 |
 | MOB-04 | Photos, notes and signature | Technician app | Phase 1: needed for the pilot | 06 | Table stakes | 7 |
 | MOB-05 | Barcode scanning | Technician app | Phase 2 |  |  | 4 |
-| MOB-06 | Take payment in the field | Technician app | Phase 1: needed for the pilot | 06, 08 | Table stakes | 8 |
+| MOB-06 | Take payment in the field | Technician app | Phase 1: needed for the pilot | 06, 08 | Table stakes | 9 |
 | MOB-07 | Time clock | Technician app | Phase 2 |  |  | 3 |
 | MOB-08 | Truck inventory on device | Technician app | Phase 2 |  |  | 0 |
-| CMP-01 | Pesticide application records | Compliance | Phase 1: needed for the pilot | 07 |  | 3 |
-| CMP-02 | Product catalog with EPA numbers, labels and SDS | Compliance | Phase 1: needed for the pilot | 03 | Wedge | 0 |
+| CMP-01 | Pesticide application records | Compliance | Phase 1: needed for the pilot | 07 |  | 4 |
+| CMP-02 | Product catalog with EPA numbers, labels and SDS | Compliance | Phase 1: needed for the pilot | 03 | Wedge | 1 |
 | CMP-03 | Applicator license tracking | Compliance | Phase 1: needed for the pilot | 07 | Wedge | 0 |
-| CMP-04 | State regulatory reports | Compliance | Phase 1: needed for the pilot | 07 |  | 2 |
+| CMP-04 | State regulatory reports | Compliance | Phase 1: needed for the pilot | 07 |  | 3 |
 | CMP-05 | Automatic customer pesticide notices | Compliance | Phase 1: needed for the pilot | 07, 11 | Wedge | 0 |
 | CMP-06 | Restricted-use pesticide controls | Compliance | Phase 1: needed for the pilot | 05, 06 | Wedge | 0 |
 | CMP-07 | Inventory management | Compliance | Phase 1: needed for the pilot | 09 |  | 3 |
@@ -440,19 +440,19 @@ Generated from `docs/competitors/bugsy-plan.json` and the competitor profiles by
 | COM-02 | Facility device maps | Commercial | Phase 2 |  |  | 1 |
 | COM-03 | Pest activity trending | Commercial | Phase 2 |  |  | 1 |
 | COM-04 | Food safety audit reporting | Commercial | Phase 2 |  |  | 0 |
-| COM-05 | Commercial customer document portal | Commercial | Phase 2 |  |  | 1 |
+| COM-05 | Commercial customer document portal | Commercial | Phase 2 |  |  | 2 |
 | COM-06 | Sighting logs and corrective actions | Commercial | Phase 2 |  |  | 0 |
-| COM-07 | Commercial billing (PO, net terms, consolidated) | Commercial | Phase 1 if time allows | 08 |  | 0 |
+| COM-07 | Commercial billing (PO, net terms, consolidated) | Commercial | Phase 1 if time allows | 08 |  | 1 |
 | SPC-01 | Termite (graphs, bait monitoring, WDI reports) | Specialty services | Phase 2 |  |  | 3 |
 | SPC-02 | Wildlife jobs | Specialty services | Phase 2 |  |  | 0 |
 | SPC-03 | Bed bug jobs | Specialty services | Phase 2 |  |  | 0 |
 | SPC-05 | Mosquito programs | Specialty services | Phase 1: needed for the pilot | 04 |  | 1 |
 | BIL-01 | Integrated payment processing | Billing and payments | Phase 1: needed for the pilot | 08 | Table stakes | 7 |
-| BIL-02 | Autopay and card on file | Billing and payments | Phase 1: needed for the pilot | 08 | Table stakes | 8 |
-| BIL-03 | Flexible billing modes | Billing and payments | Phase 1: needed for the pilot | 04, 08 |  | 4 |
+| BIL-02 | Autopay and card on file | Billing and payments | Phase 1: needed for the pilot | 08 | Table stakes | 9 |
+| BIL-03 | Flexible billing modes | Billing and payments | Phase 1: needed for the pilot | 04, 08 |  | 5 |
 | BIL-04 | Sales tax by jurisdiction | Billing and payments | Phase 1: needed for the pilot | 08 |  | 1 |
-| BIL-05 | Collections workflows | Billing and payments | Phase 1: needed for the pilot | 08 |  | 2 |
-| BIL-06 | Statements and consolidated invoices | Billing and payments | Phase 1: needed for the pilot | 08 |  | 4 |
+| BIL-05 | Collections workflows | Billing and payments | Phase 1: needed for the pilot | 08 |  | 3 |
+| BIL-06 | Statements and consolidated invoices | Billing and payments | Phase 1: needed for the pilot | 08 |  | 5 |
 | BIL-07 | Prorated refunds and cancellation billing | Billing and payments | Phase 1: needed for the pilot | 08, 09 | Wedge | 0 |
 | ACC-01 | Built-in general ledger | Accounting | Phase 1: needed for the pilot | 09 | Wedge | 0 |
 | ACC-02 | QuickBooks integration | Accounting | Phase 1: needed for the pilot | 09 |  | 4 |
@@ -460,20 +460,20 @@ Generated from `docs/competitors/bugsy-plan.json` and the competitor profiles by
 | ACC-04 | Deferred revenue handling | Accounting | Phase 1: needed for the pilot | 09 | Wedge | 0 |
 | ACC-05 | Job costing | Accounting | Phase 2 |  |  | 2 |
 | ACC-06 | Payroll and production pay | Accounting | Phase 2 |  |  | 0 |
-| CX-01 | Customer portal | Customer experience | Phase 2 |  | Table stakes | 5 |
-| CX-02 | Reminders and on-the-way texts | Customer experience | Phase 1: needed for the pilot | 11 | Table stakes | 5 |
-| CX-03 | Two-way SMS | Customer experience | Open decision | 11 |  | 3 |
-| CX-04 | Review requests | Customer experience | Not planned |  |  | 3 |
-| CX-05 | Post-service reports | Customer experience | Phase 1: needed for the pilot | 06, 11 |  | 3 |
-| RPT-01 | Standard financial and operational reports | Reporting | Phase 1: needed for the pilot | 12 | Table stakes | 8 |
+| CX-01 | Customer portal | Customer experience | Phase 2 |  | Table stakes | 6 |
+| CX-02 | Reminders and on-the-way texts | Customer experience | Phase 1: needed for the pilot | 11 | Table stakes | 3 |
+| CX-03 | Two-way SMS | Customer experience | Open decision | 11 |  | 2 |
+| CX-04 | Review requests | Customer experience | Not planned |  |  | 4 |
+| CX-05 | Post-service reports | Customer experience | Phase 1: needed for the pilot | 06, 11 |  | 4 |
+| RPT-01 | Standard financial and operational reports | Reporting | Phase 1: needed for the pilot | 12 | Table stakes | 9 |
 | RPT-02 | Retention and churn analytics | Reporting | Phase 1: needed for the pilot | 12 | Wedge | 0 |
-| RPT-03 | Technician productivity | Reporting | Phase 1 if time allows | 12 |  | 4 |
+| RPT-03 | Technician productivity | Reporting | Phase 1 if time allows | 12 |  | 5 |
 | RPT-04 | Custom report builder or BI | Reporting | Phase 3 |  |  | 2 |
 | PLT-01 | Multi-branch support | Platform | Phase 1: needed for the pilot | 01 |  | 5 |
-| PLT-02 | Role-based permissions | Platform | Phase 1: needed for the pilot | 01 |  | 5 |
+| PLT-02 | Role-based permissions | Platform | Phase 1: needed for the pilot | 01 |  | 6 |
 | PLT-03 | Open API or webhooks | Platform | Phase 2 |  |  | 3 |
-| PLT-04 | Data migration services | Platform | Phase 1: needed for the pilot | 10 |  | 4 |
-| PLT-05 | AI features | Platform | Phase 3 |  |  | 3 |
+| PLT-04 | Data migration services | Platform | Phase 1: needed for the pilot | 10 |  | 5 |
+| PLT-05 | AI features | Platform | Phase 3 |  |  | 4 |
 | PLT-06 | Website and lead forms | Platform | Phase 3 |  |  | 3 |
 | PLT-07 | Marketing tools (direct mail, call tracking, SEO) | Platform | Not planned |  |  | 0 |
 <!-- END feature-plan -->

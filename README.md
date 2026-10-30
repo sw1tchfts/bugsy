@@ -16,7 +16,7 @@ This repository starts empty of app code on purpose. It holds the reference mate
 | `.claude/agents/spec-reviewer.md` | Fresh-context reviewer that checks a diff against its spec | Called by `/implement-spec` |
 | `.claude/settings.json` and `.claude/hooks/` | Hooks: block edits to committed migrations, reject tables without RLS or tenant_id, re-check migrations and typecheck before Claude stops | Always, automatically |
 | `fixtures/` | Expected numbers and rule outcomes that tests must load | When tests are written |
-| `docs/` | PRD, data model, links to the discovery doc and competitor research | When a spec points there |
+| `docs/` | PRD (source of truth, plus the interactive site built from it), the shared feature list and competitor profiles, data model, discovery doc | When a spec points there |
 
 ## How to use it
 

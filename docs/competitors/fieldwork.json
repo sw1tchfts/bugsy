@@ -1,0 +1,965 @@
+{
+  "competitor": "Fieldwork",
+  "slug": "fieldwork",
+  "researched_on": "2026-10-30",
+  "updated_on": "2026-10-30",
+  "profile": {
+    "owner": "Fieldwork Software, LLC of Niles, Illinois, privately held and family-run (most help articles are by Beau and Erin O'Hara). It shares its street address and support email with Anstar Products, a pest control products maker listed as App Store developer; no outside funding found. Founding year unclear (Craft says 2012, ZoomInfo 2020).",
+    "website": "https://fieldworkhq.com",
+    "target_customers": "Small and mid-size residential and commercial pest control companies, from owner-operators (Solo plan) to multi-branch firms (Pro and Enterprise). Marketing also names lawn, pool and general field service, but the help center and add-ons (termite, Sentricon, devices, state pesticide reports) are built around pest control.",
+    "pricing": "Base price plus a price per additional technician, monthly: Solo $39 + $19, Startup $59 + $29, Business $79 + $39, Pro $99 + $49, Enterprise $149 + $79. Office users are free; only technicians with a route are billed. The public pricing page shows only Startup $59, Business $79 and Pro $99 for one field user. Texting costs $0.03 per segment plus $5 a month per number. AI Agents, Branch 3 Termite and other add-on prices are not published, and importing schedules and invoices costs extra. Month to month, no sign-up or training fee, free trial (14 days in the help center, two weeks on the pricing page).",
+    "pricing_source": "https://intercom.help/fieldwork/en/articles/1351253-settings-billing-subscription",
+    "deployment": "Cloud web app (app.fieldworkhq.com) plus native iOS, iPadOS and Android apps; customer portal on per-company serviceworkportal.com subdomains. No on-premise install.",
+    "mobile_app": "Fieldwork Office (iOS, iPadOS and Android; one app for technicians and office staff, with offline mode). App Store 4.0 from 25 ratings; Google Play 4.1 from 46 reviews, 5K+ downloads. The older Fieldwork Mobile app is retired.",
+    "integrations": [
+      "Stripe (cards and ACH, autopay, in-app payments)",
+      "PayPal (portal payments)",
+      "QuickBooks Online (one-way sync, Startup plan and up)",
+      "Zapier (Pro plan)",
+      "Fieldwork open API and webhooks (Pro plan)",
+      "Fieldwork MCP connector (Claude, ChatGPT and other MCP assistants)",
+      "Google Maps (Business plan and up)",
+      "Sentricon and Corteva sync (Enterprise plan)",
+      "LabelSDS (label and SDS updates)",
+      "Voice for Pest (phone system)",
+      "Outlook, Apple and Google Calendar sync"
+    ],
+    "strengths": [
+      "Transparent base-plus-per-technician pricing with free office users, month-to-month terms, no setup or training fees and free support; cheap for small teams.",
+      "Strong pest compliance basics: material list with EPA number, active ingredient, label and SDS (LabelSDS sync), plus California and New York state pesticide reports.",
+      "Deep commercial tools: barcode and QR device scanning, trap and trend reports, device diagrams with heatmaps, pest sightings and a portal with labels, SDS and licenses.",
+      "Offline technician app that completes work orders with no signal.",
+      "Small-vendor support reputation (Capterra 4.9 from 26 reviews) and fast 2026 releases: sales pipeline, phone system, AI receptionist, webhooks and an MCP connector."
+    ],
+    "weaknesses": [
+      "Many core features sit on upper tiers: map and devices on Business; agreements, e-signature, routing, multi-branch, API and time sheets on Pro; skills matching, inventory, online booking and Sentricon on Enterprise.",
+      "No built-in accounting: one-way sync to QuickBooks Online only, with no general ledger, deferred revenue or proration on cancellation.",
+      "No license expiry tracking, restricted-use controls, pre-application notices or Wisconsin support; state reports cover only California and New York.",
+      "Texting is metered ($0.03 per segment plus $5 a month), and AI, Branch 3 Termite and import fees are not published.",
+      "Small review base, many help articles date from 2021 to 2022, and reviewers mention a steep learning curve and map pins hiding nearby jobs."
+    ],
+    "wisconsin_notes": "No Wisconsin-specific compliance: Wisconsin is not named on the site or in any help article, and state reports cover only California and New York. Two Wisconsin customers confirmed through Fieldwork-hosted portals: 1st Choice Pest Solutions (Eau Claire) and On Target Pest and Wildlife Control (La Crosse). Fieldwork Software was the only software vendor exhibiting at WPCA's 2026 Midwest PestCon (exhibitor, not sponsor) and is based nearby in Niles, Illinois. Chemical records stay online 3 years with PDF export."
+  },
+  "features": [
+    {
+      "id": "CRM-01",
+      "status": "Yes",
+      "notes": "Sales Pipeline (2026) moves leads through New, Contacted, Proposal Sent and Follow-up Needed to Converted or Lost, with activity logging and scheduled follow-ups; converting creates the customer.",
+      "source": "https://intercom.help/fieldwork/en/articles/15860030-sales-pipeline"
+    },
+    {
+      "id": "CRM-02",
+      "status": "Yes",
+      "notes": "A marketing campaign is recorded on each new customer, estimate and agreement, and campaign cost can be compared with revenue in Customer Value reports. Close rate by source not documented.",
+      "source": "https://intercom.help/fieldwork/en/articles/751037-marketing-campaigns-getting-started"
+    },
+    {
+      "id": "CRM-03",
+      "status": "Yes",
+      "notes": "Estimates with line items, discounts, tax and PO number; accepted estimates become work orders, and Automated Messages follow up on pending ones. No tiered options documented.",
+      "source": "https://intercom.help/fieldwork/en/articles/741031-getting-started-estimates"
+    },
+    {
+      "id": "CRM-04",
+      "status": "Add-on",
+      "notes": "Service Agreements (Pro plan) are signed electronically in the customer portal or in person on a touch screen, with eSignatures, contract dates and statuses.",
+      "source": "https://intercom.help/fieldwork/en/articles/1471916-service-agreements-part-1"
+    },
+    {
+      "id": "CRM-05",
+      "status": "Unknown",
+      "notes": "No door-to-door app, territory maps or knock tracking found; the Fieldwork Office app can create customers, estimates and agreements in the field.",
+      "source": "https://apps.apple.com/us/app/fieldwork-office/id1456789608"
+    },
+    {
+      "id": "CRM-06",
+      "status": "Partial",
+      "notes": "Sales and service commissions per user, as a percent or flat amount on each work order with an expiry date, plus three commission reports; no holds or chargebacks on early cancellation documented.",
+      "source": "https://intercom.help/fieldwork/en/articles/904808-commissions-getting-started"
+    },
+    {
+      "id": "CRM-07",
+      "status": "Yes",
+      "notes": "Automated Messages send email or text follow-ups on pending estimates and unsigned agreements after a set delay. Email campaigns target active, inactive or tagged customers; SMS campaigns need Pro.",
+      "source": "https://intercom.help/fieldwork/en/articles/15209682-settings-automated-messages"
+    },
+    {
+      "id": "CRM-08",
+      "status": "Partial",
+      "notes": "Cancellation reason codes are recorded when a customer's service is cancelled, to spot patterns by service or route; no save attempts or retention workflow documented.",
+      "source": "https://intercom.help/fieldwork/en/articles/1348741-settings-cancellation-reasons"
+    },
+    {
+      "id": "CRM-09",
+      "status": "Yes",
+      "notes": "One account can hold many service locations billed to the same address, with consolidated invoices and statements; multi-unit buildings need the Pro plan.",
+      "source": "https://intercom.help/fieldwork/en/articles/759614-service-locations-how-to-set-up-different-locations-in-one-account-manage-the-service-location-status"
+    },
+    {
+      "id": "CRM-10",
+      "status": "Add-on",
+      "notes": "Fieldwork Voice (Sep 2026) adds click to call, call recording, transcripts and calls logged on the customer record, using numbers bought in Fieldwork (prices not published). Voice for Pest integration adds screen pop.",
+      "source": "https://intercom.help/fieldwork/en/articles/16961129-fieldwork-voice"
+    },
+    {
+      "id": "AGR-01",
+      "status": "Yes",
+      "notes": "Work order series repeat daily, weekly, monthly, bi-monthly, quarterly, tri-annual, semi-annual, seasonal, yearly or every N days, ending after N visits or a date; contract-based Service Agreements need Pro.",
+      "source": "https://intercom.help/fieldwork/en/articles/747249-getting-started-work-orders"
+    },
+    {
+      "id": "AGR-02",
+      "status": "Partial",
+      "notes": "A Seasonal frequency picks service months (such as April to October) and can end after a fixed number of visits; no round or due-window model and no season-level billing.",
+      "source": "https://intercom.help/fieldwork/en/articles/3412332-how-to-create-a-seasonal-work-order-series"
+    },
+    {
+      "id": "AGR-03",
+      "status": "Partial",
+      "notes": "Services carry default prices and categories, and work order templates preset services, materials and prices per property type; no size-based tiers or add-on price matrix documented.",
+      "source": "https://intercom.help/fieldwork/en/articles/1347048-settings-work-order-templates"
+    },
+    {
+      "id": "AGR-04",
+      "status": "Partial",
+      "notes": "Mass price update on Sales > Work Orders raises future prices by service type, but only for series billed per work order and one page at a time; other billing frequencies are edited one by one.",
+      "source": "https://intercom.help/fieldwork/en/articles/1621788-price-increase"
+    },
+    {
+      "id": "AGR-05",
+      "status": "Add-on",
+      "notes": "Pro plan agreements set renewal period (1 month to 3 years), auto-renew, renewal fee, hold on missed renewal and expiry of unsigned agreements; early cancellation fees not documented.",
+      "source": "https://intercom.help/fieldwork/en/articles/16923973-default-service-agreement-templates"
+    },
+    {
+      "id": "AGR-06",
+      "status": "Add-on",
+      "notes": "Pro plan agreements handle termite-style warranties with renewal date, renewal fee and up to four automated renewal notices, plus a Renewals List report; Sentricon renewals need Enterprise.",
+      "source": "https://intercom.help/fieldwork/en/articles/1471916-service-agreements-part-1"
+    },
+    {
+      "id": "AGR-07",
+      "status": "Partial",
+      "notes": "Work orders and templates can be flagged No Charge (Callback), marked CB on the calendar and filtered in reports with the first-service tech; no agreement link or callback cost capture.",
+      "source": "https://intercom.help/fieldwork/en/articles/1347048-settings-work-order-templates"
+    },
+    {
+      "id": "SCH-01",
+      "status": "Yes",
+      "notes": "Series generate a rolling 12 months of visits and add more as visits are completed; unscheduled visits wait in the Work Pool for dispatch. No due windows.",
+      "source": "https://fieldworkhq.com/features/scheduling/"
+    },
+    {
+      "id": "SCH-02",
+      "status": "Add-on",
+      "notes": "Drag and drop calendar with a Work Pool on all plans; the side-by-side Google Map with live traffic needs the Business plan or higher.",
+      "source": "https://intercom.help/fieldwork/en/articles/1351253-settings-billing-subscription"
+    },
+    {
+      "id": "SCH-03",
+      "status": "Add-on",
+      "notes": "Single-route, single-day optimization needs Business; multi-day Auto Routing (up to a month, keeping locked jobs and arrival windows) is listed under Pro in the billing article.",
+      "source": "https://intercom.help/fieldwork/en/articles/768777-calendar-automatically-optimize-a-single-route-for-a-single-day"
+    },
+    {
+      "id": "SCH-04",
+      "status": "Add-on",
+      "notes": "Best Fit and Skillsets (Enterprise only) suggest the best tech by location, skills and schedule; licenses are not inputs, and blocking unqualified techs is not documented.",
+      "source": "https://intercom.help/fieldwork/en/articles/1351253-settings-billing-subscription"
+    },
+    {
+      "id": "SCH-05",
+      "status": "Add-on",
+      "notes": "Online Booking forms let new and existing customers request service from the website or portal, Enterprise only; Pro plan contact forms capture requests as leads.",
+      "source": "https://intercom.help/fieldwork/en/articles/1351253-settings-billing-subscription"
+    },
+    {
+      "id": "SCH-06",
+      "status": "Add-on",
+      "notes": "Live tech locations on the calendar map need Business or higher (the pricing page lists Technician Tracking under Pro), and tracking history with 15-minute pings needs Pro.",
+      "source": "https://intercom.help/fieldwork/en/articles/759632-technicians-where-are-they"
+    },
+    {
+      "id": "SCH-07",
+      "status": "Add-on",
+      "notes": "Bulk Move selects jobs on the calendar map and moves them to another day or route, once or for the whole series; the map needs Business. Lower plans can bulk move jobs to and from the Work Pool.",
+      "source": "https://intercom.help/fieldwork/en/articles/2809509-bulk-move-work-orders"
+    },
+    {
+      "id": "MOB-01",
+      "status": "Yes",
+      "notes": "Fieldwork Office app for iOS, iPadOS and Android, used by techs and office staff (App Store 4.0 from 25 ratings, Google Play 4.1 from 46 reviews, 5K+ downloads).",
+      "source": "https://play.google.com/store/apps/details?id=com.anstar.fieldworkhq"
+    },
+    {
+      "id": "MOB-02",
+      "status": "Yes",
+      "notes": "Techs complete work orders in offline mode and sync later; rescheduling, new cards, forms, diagrams and work order history need a connection. 2026 releases kept fixing offline sync.",
+      "source": "https://intercom.help/fieldwork/en/articles/5318270-fieldwork-office-completing-a-work-order"
+    },
+    {
+      "id": "MOB-03",
+      "status": "Yes",
+      "notes": "Techs add materials with quantity, lot number, dilution, method, device, target pests and areas treated; material and template presets fill label data automatically.",
+      "source": "https://intercom.help/fieldwork/en/articles/1335503-mobile-app-material-use"
+    },
+    {
+      "id": "MOB-04",
+      "status": "Add-on",
+      "notes": "Notes, recommendations and customer and tech signatures are on all plans, but photos on work orders (up to 10) need the Startup plan or higher.",
+      "source": "https://intercom.help/fieldwork/en/articles/1351253-settings-billing-subscription"
+    },
+    {
+      "id": "MOB-05",
+      "status": "Add-on",
+      "notes": "Phone or tablet camera scans device barcodes and QR codes on site, including adding or replacing codes; device management needs the Business plan or higher.",
+      "source": "https://intercom.help/fieldwork/en/articles/1335509-fieldwork-office-app-devices"
+    },
+    {
+      "id": "MOB-06",
+      "status": "Yes",
+      "notes": "Pay Now in the app charges a card through the company's Stripe account or records a check with a reference number; Stripe card payments are on all plans.",
+      "source": "https://intercom.help/fieldwork/en/articles/5318270-fieldwork-office-completing-a-work-order"
+    },
+    {
+      "id": "MOB-07",
+      "status": "Add-on",
+      "notes": "Time Sheets (Pro and Enterprise) record clock in, clock out and breaks in the app, with admin corrections; there is no timesheet report or export yet.",
+      "source": "https://intercom.help/fieldwork/en/articles/10301837-settings-time-sheet"
+    },
+    {
+      "id": "MOB-08",
+      "status": "Unknown",
+      "notes": "Enterprise inventory distributes stock to technicians, but distributed stock counts as used and no on-device truck stock view is documented.",
+      "source": "https://intercom.help/fieldwork/en/articles/9997483-inventory"
+    },
+    {
+      "id": "CMP-01",
+      "status": "Yes",
+      "notes": "Each visit records material, EPA number, quantity, unit, dilution, method, device, target pests and areas, with wind and temperature fields; California and New York logs are generated from it.",
+      "source": "https://fieldworkhq.com/features/chemical-tracking-and-reporting/"
+    },
+    {
+      "id": "CMP-02",
+      "status": "Yes",
+      "notes": "Material list stores EPA number (or Exempt), active ingredient and percent, default dilution, method and target pests, plus uploaded label and SDS; an optional LabelSDS link keeps them current.",
+      "source": "https://intercom.help/fieldwork/en/articles/15400971-settings-materials"
+    },
+    {
+      "id": "CMP-03",
+      "status": "Partial",
+      "notes": "Each technician has one free-text License # field shown on service reports, and company and branch license numbers fill forms; no categories, expiry dates or renewal alerts found.",
+      "source": "https://intercom.help/fieldwork/en/articles/744225-getting-started-users-routes"
+    },
+    {
+      "id": "CMP-04",
+      "status": "Yes",
+      "notes": "Produces California Monthly Summary Use Report data and the New York NYSDEC annual pesticide report as CSV; no other state formats are named.",
+      "source": "https://intercom.help/fieldwork/en/articles/1454205-preparing-for-your-nysdec-report-submission"
+    },
+    {
+      "id": "CMP-05",
+      "status": "Partial",
+      "notes": "Completed work orders are emailed automatically with optional SDS and label links, and Notice of Pesticide Use PDF forms can be attached; no pre-application, registry or posting notices documented.",
+      "source": "https://intercom.help/fieldwork/en/articles/1345058-settings-work-orders"
+    },
+    {
+      "id": "CMP-06",
+      "status": "Unknown",
+      "notes": "Material fields include no restricted-use flag or signal word, and no limits on who may apply restricted-use products were found.",
+      "source": "https://intercom.help/fieldwork/en/articles/15400971-settings-materials"
+    },
+    {
+      "id": "CMP-07",
+      "status": "Add-on",
+      "notes": "Enterprise inventory groups products into variants with reorder alerts, receives stock with unit cost and PO number, and distributes it to technicians; warehouse transfers not documented.",
+      "source": "https://intercom.help/fieldwork/en/articles/9997483-inventory"
+    },
+    {
+      "id": "CMP-08",
+      "status": "Unknown",
+      "notes": "Wisconsin is not named on the site or in any help article; state report support covers California and New York only.",
+      "source": "https://fieldworkhq.com/features/chemical-tracking-and-reporting/"
+    },
+    {
+      "id": "COM-01",
+      "status": "Add-on",
+      "notes": "Device management (Business plan and up) tracks traps, bait stations and ILTs per location with barcode or QR IDs, trap and bait condition, captures and evidence.",
+      "source": "https://intercom.help/fieldwork/en/articles/1351253-settings-billing-subscription"
+    },
+    {
+      "id": "COM-02",
+      "status": "Add-on",
+      "notes": "Diagram editor places devices on site drawings or imported floor plans, and portal heatmaps color devices by activity; the Blueprint Editor is listed for Business and Pro.",
+      "source": "https://intercom.help/fieldwork/en/articles/2741112-blueprint-editor"
+    },
+    {
+      "id": "COM-03",
+      "status": "Add-on",
+      "notes": "Trap and Trend report charts captures and evidence per device over any date range and is shown in the customer portal; it depends on Business plan device management.",
+      "source": "https://intercom.help/fieldwork/en/articles/859156-trap-trend-report"
+    },
+    {
+      "id": "COM-04",
+      "status": "Partial",
+      "notes": "Business plan Digital Log Book and the portal give clients and auditors service reports, device history and licenses; no AIB, SQF or BRC formats are named.",
+      "source": "https://fieldworkhq.com/features/"
+    },
+    {
+      "id": "COM-05",
+      "status": "Yes",
+      "notes": "Portal lets customers download service reports, labels, SDS and licenses and view trend reports, devices and diagrams with activity heatmaps; device and diagram views need Business.",
+      "source": "https://intercom.help/fieldwork/en/articles/8054601-settings-customer-portal-1-of-2"
+    },
+    {
+      "id": "COM-06",
+      "status": "Add-on",
+      "notes": "Customers log pest sightings in the portal, the office is alerted, and sightings are closed with the action taken shown back to the customer; Business plan and up.",
+      "source": "https://intercom.help/fieldwork/en/articles/1827670-settings-customer-portal-2-of-2"
+    },
+    {
+      "id": "COM-07",
+      "status": "Yes",
+      "notes": "PO numbers on estimates, work orders, invoices and statements, Net 15 or Net 30 billing terms, and consolidated invoices across a customer's locations.",
+      "source": "https://intercom.help/fieldwork/en/articles/5070947-consolidated-invoices"
+    },
+    {
+      "id": "SPC-01",
+      "status": "Add-on",
+      "notes": "Sentricon station tracking with Corteva sync needs Enterprise, termite finding and recommendation codes come with the Branch 3 Termite add-on, and WDIR PDF forms need Startup.",
+      "source": "https://intercom.help/fieldwork/en/articles/6891792-sentricon-integration-and-installation"
+    },
+    {
+      "id": "SPC-02",
+      "status": "Unknown",
+      "notes": "Wildlife control appears only as a pipeline opportunity type and a one-time work order example; no multi-visit trapping, exclusion or repair workflow documented.",
+      "source": "https://intercom.help/fieldwork/en/articles/747249-getting-started-work-orders"
+    },
+    {
+      "id": "SPC-03",
+      "status": "Partial",
+      "notes": "Help examples set up bed bug inspection, treatment and follow-up as separate services, with encasement recommendations; no bed bug workflow or customer prep checklist documented.",
+      "source": "https://intercom.help/fieldwork/en/articles/903979-service-filter-does-not-drop-down-in-reports"
+    },
+    {
+      "id": "SPC-05",
+      "status": "Partial",
+      "notes": "Seasonal series are documented for mosquito customers (for example April to October every 21 days); no mosquito or tick specific program features.",
+      "source": "https://intercom.help/fieldwork/en/articles/3412332-how-to-create-a-seasonal-work-order-series"
+    },
+    {
+      "id": "BIL-01",
+      "status": "Add-on",
+      "notes": "No native processor: cards and ACH run through the company's own Stripe account (all plans) and PayPal in the portal, with fees paid to Stripe or PayPal.",
+      "source": "https://intercom.help/fieldwork/en/articles/1351206-settings-cc-payments-stripe-unified"
+    },
+    {
+      "id": "BIL-02",
+      "status": "Yes",
+      "notes": "Cards stored through Stripe are charged automatically as invoices are created, on monthly, quarterly or annual billing, with Exclude from Autopay per work order.",
+      "source": "https://intercom.help/fieldwork/en/articles/865287-auto-pay-invoices-with-a-credit-card-on-file"
+    },
+    {
+      "id": "BIL-03",
+      "status": "Yes",
+      "notes": "Billing frequency is set apart from service frequency: per work order, monthly, quarterly, yearly or one-time, including annual prepay for monthly service.",
+      "source": "https://intercom.help/fieldwork/en/articles/747249-getting-started-work-orders"
+    },
+    {
+      "id": "BIL-04",
+      "status": "Partial",
+      "notes": "Tax rates are looked up by ZIP code with state, county, district and city parts and assigned to locations; taxability is one service switch per rate plus a line item checkbox, not set per service type.",
+      "source": "https://intercom.help/fieldwork/en/articles/1348249-settings-tax-rates"
+    },
+    {
+      "id": "BIL-05",
+      "status": "Yes",
+      "notes": "Up to four automated late payment reminders by email or text, automatic late fees, and Financial Hold and Sent to Collections statuses that pull visits off the calendar; payment retries not documented.",
+      "source": "https://intercom.help/fieldwork/en/articles/1347878-settings-late-payment-reminders"
+    },
+    {
+      "id": "BIL-06",
+      "status": "Yes",
+      "notes": "Statements gather a customer's unpaid invoices across locations, can be generated in bulk or sent automatically each month, and invoices can also be consolidated.",
+      "source": "https://intercom.help/fieldwork/en/articles/15383059-settings-statements"
+    },
+    {
+      "id": "BIL-07",
+      "status": "Unknown",
+      "notes": "Cancelling service records a reason only; no proration, refund calculation or cancellation fee is documented, and credit memos are entered by hand.",
+      "source": "https://intercom.help/fieldwork/en/articles/1348741-settings-cancellation-reasons"
+    },
+    {
+      "id": "ACC-01",
+      "status": "No",
+      "notes": "No general ledger: estimates, invoices and payments sync one way to QuickBooks Online, which holds the books.",
+      "source": "https://intercom.help/fieldwork/en/articles/15326708-settings-quickbooks"
+    },
+    {
+      "id": "ACC-02",
+      "status": "Add-on",
+      "notes": "One-way sync of customers, estimates, invoices and payments to QuickBooks Online on the Startup plan and up; QuickBooks Desktop is not supported.",
+      "source": "https://intercom.help/fieldwork/en/articles/1351253-settings-billing-subscription"
+    },
+    {
+      "id": "ACC-03",
+      "status": "No",
+      "notes": "Vendor says QuickBooks Online is the only accounting system it syncs with directly; Xero only through Zapier on the Pro plan.",
+      "source": "https://intercom.help/fieldwork/en/articles/771524-does-fieldwork-integrate-with-xero-accounting-software"
+    },
+    {
+      "id": "ACC-04",
+      "status": "Unknown",
+      "notes": "Agreements can take prepayment in the portal and prepayments sit as customer credit, but no deferred revenue handling is documented; the books live in QuickBooks Online.",
+      "source": "https://intercom.help/fieldwork/en/articles/15704309-setting-up-service-agreements"
+    },
+    {
+      "id": "ACC-05",
+      "status": "Add-on",
+      "notes": "Work Order Profitability report shows material cost, hours worked and profit per work order, fed by Enterprise inventory costs; labor cost rates not documented.",
+      "source": "https://intercom.help/fieldwork/en/articles/9997483-inventory"
+    },
+    {
+      "id": "ACC-06",
+      "status": "Partial",
+      "notes": "Production value drives sales and service commission reports that export to CSV, and Pro time sheets track hours; no payroll export or payroll provider integration documented.",
+      "source": "https://intercom.help/fieldwork/en/articles/904808-commissions-getting-started"
+    },
+    {
+      "id": "CX-01",
+      "status": "Yes",
+      "notes": "Branded portal on all plans: pay invoices by card, ACH or PayPal, manage cards, view service history and confirm visits; service request forms and agreement signing need Pro.",
+      "source": "https://intercom.help/fieldwork/en/articles/1827670-settings-customer-portal-2-of-2"
+    },
+    {
+      "id": "CX-02",
+      "status": "Add-on",
+      "notes": "Automated email reminders are included; text reminders and the same-day en route texts (when the tech starts the day or finishes the prior job) need paid texting at $0.03 per segment plus $5 a month, scored Add-on like Pocomos.",
+      "source": "https://intercom.help/fieldwork/en/articles/3566376-settings-appointment-reminders"
+    },
+    {
+      "id": "CX-03",
+      "status": "Add-on",
+      "notes": "Two-way email and SMS inbox (Messenger) needs the Pro plan, and texts cost $0.03 per segment plus $5 a month for the number.",
+      "source": "https://intercom.help/fieldwork/en/articles/8043726-messenger-see-every-email-and-text-between-you-and-your-customers"
+    },
+    {
+      "id": "CX-04",
+      "status": "Yes",
+      "notes": "Online Reviews adds a 1 to 5 star rating to the completed work order email; 4 or 5 stars are directed to Google, Yelp or Facebook, and low ratings go privately to the office.",
+      "source": "https://intercom.help/fieldwork/en/articles/1348262-settings-online-reviews"
+    },
+    {
+      "id": "CX-05",
+      "status": "Yes",
+      "notes": "Completed work orders are emailed automatically with materials (EPA number, quantity, dilution, method), findings, devices and photos, optionally with SDS and label links and the invoice.",
+      "source": "https://intercom.help/fieldwork/en/articles/1347668-settings-document-templates"
+    },
+    {
+      "id": "RPT-01",
+      "status": "Yes",
+      "notes": "Report library covers AR with aging, income, gross sales, service and customer profitability, route production, material usage and sales tax on accrual or cash basis, plus a dashboard.",
+      "source": "https://intercom.help/fieldwork/en/articles/989927-which-report-do-i-use-to-see"
+    },
+    {
+      "id": "RPT-02",
+      "status": "Partial",
+      "notes": "Cancellation reasons and filtered call and customer lists show cancellations by route; no retention or churn rates, and an Operations Summary with cancellation rate is still listed as coming soon.",
+      "source": "https://intercom.help/fieldwork/en/articles/989927-which-report-do-i-use-to-see"
+    },
+    {
+      "id": "RPT-03",
+      "status": "Yes",
+      "notes": "Reports show production and revenue by route, actual start and end times, services per tech, average service time per tech and callbacks with the first-service tech.",
+      "source": "https://intercom.help/fieldwork/en/articles/989927-which-report-do-i-use-to-see"
+    },
+    {
+      "id": "RPT-04",
+      "status": "Partial",
+      "notes": "No user-built report designer found; reports offer column choices, filters and CSV export, and the MCP connector lets AI assistants query report data.",
+      "source": "https://intercom.help/fieldwork/en/articles/16795867-using-the-fieldwork-mcp-connector"
+    },
+    {
+      "id": "PLT-01",
+      "status": "Add-on",
+      "notes": "Multiple branches with their own name, address, logo and license numbers need the Pro plan, and reports filter by branch; QuickBooks sync and Stripe processing cannot be split by branch.",
+      "source": "https://intercom.help/fieldwork/en/articles/1351253-settings-billing-subscription"
+    },
+    {
+      "id": "PLT-02",
+      "status": "Yes",
+      "notes": "Admin, Technician and Read Only roles, or individual grants across 11 permission areas such as schedule, invoices, reporting and settings.",
+      "source": "https://intercom.help/fieldwork/en/articles/744225-getting-started-users-routes"
+    },
+    {
+      "id": "PLT-03",
+      "status": "Add-on",
+      "notes": "Open API, Zapier and webhooks (up to 5 endpoints) are Pro plan features; a remote MCP server also connects AI assistants.",
+      "source": "https://fieldworkhq.com/pricing/"
+    },
+    {
+      "id": "PLT-04",
+      "status": "Yes",
+      "notes": "Free import of the customer list (a Fieldwork developer imports it from QuickBooks Online, or customers load a CSV); schedules and invoices can be imported for an added fee.",
+      "source": "https://intercom.help/fieldwork/en/articles/15326708-settings-quickbooks"
+    },
+    {
+      "id": "PLT-05",
+      "status": "Yes",
+      "notes": "AI Voice Receptionist and AI inbox replies through the AI Agents add-on (price not published), an MCP connector for outside AI assistants, and AI note rewriting in the iOS app.",
+      "source": "https://intercom.help/fieldwork/en/articles/16962637-ai-voice-receptionist"
+    },
+    {
+      "id": "PLT-06",
+      "status": "Add-on",
+      "notes": "Pro plan contact forms embed on the company website or portal and create leads; Online Booking forms are Enterprise only, and no hosted website was found.",
+      "source": "https://intercom.help/fieldwork/en/articles/3505749-settings-contact-forms"
+    },
+    {
+      "id": "PLT-07",
+      "status": "Unknown",
+      "notes": "No direct mail, call tracking or SEO service found; marketing tools are email and SMS campaigns plus cost tracking for offline ads such as radio or flyers.",
+      "source": "https://fieldworkhq.com/features/"
+    }
+  ],
+  "extra_features": [
+    {
+      "feature": "Multi-unit building management",
+      "module": "Commercial",
+      "notes": "Pro plan units for apartments, hotels and housing with per-unit status, conditions, pest activity and materials, plus unit reports in the portal.",
+      "source": "https://intercom.help/fieldwork/en/articles/918947-multi-units-for-apartments-condos-hotels"
+    },
+    {
+      "feature": "On-site verification map",
+      "module": "Customer experience",
+      "notes": "The tech's location is recorded when a work order is completed in the app and shown to the customer on a portal map.",
+      "source": "https://intercom.help/fieldwork/en/articles/1827670-settings-customer-portal-2-of-2"
+    },
+    {
+      "feature": "Card and ACH surcharges",
+      "module": "Billing and payments",
+      "notes": "Automatic credit card and ACH percentage fees and late fees as invoice line items (May 2026), with a warning to check state surcharge rules.",
+      "source": "https://intercom.help/fieldwork/en/articles/6752916-settings-payment-fees"
+    },
+    {
+      "feature": "California Branch 3 termite reports",
+      "module": "Specialty services",
+      "notes": "Branch 3 Termite add-on with finding and recommendation codes and default report text for termite and WDO inspection reports.",
+      "source": "https://intercom.help/fieldwork/en/articles/15423200-settings-termite-findings"
+    },
+    {
+      "feature": "Sentricon and Corteva sync",
+      "module": "Specialty services",
+      "notes": "Enterprise plan logs Sentricon installs, stations and renewals and syncs them for monthly Corteva billing.",
+      "source": "https://intercom.help/fieldwork/en/articles/6891792-sentricon-integration-and-installation"
+    },
+    {
+      "feature": "Fillable PDF forms with merge fields",
+      "module": "Compliance",
+      "notes": "Startup plan turns state or company PDFs (WDIR, Notice of Pesticide Use, contracts) into fillable forms prefilled with company, customer and license data and signed in the app; vendor converts forms for $100 to $250 per page.",
+      "source": "https://intercom.help/fieldwork/en/articles/1350827-settings-pdf-forms"
+    },
+    {
+      "feature": "Arrival time windows",
+      "module": "Scheduling and dispatch",
+      "notes": "Fixed or relative arrival windows per work order appear in reminders and constrain route optimization.",
+      "source": "https://intercom.help/fieldwork/en/articles/3472212-settings-arrival-time-windows"
+    },
+    {
+      "feature": "Nearest-tech rainbow bar",
+      "module": "Scheduling and dispatch",
+      "notes": "When scheduling, techs are ranked by how close their routes come to the location over the next five days.",
+      "source": "https://intercom.help/fieldwork/en/articles/747249-getting-started-work-orders"
+    },
+    {
+      "feature": "Audit trail and change history",
+      "module": "Platform",
+      "notes": "Audit Trail report and Show All Changes list who created, changed or deleted customers, work orders, invoices and payments.",
+      "source": "https://intercom.help/fieldwork/en/articles/3008427-show-all-changes-auditing"
+    },
+    {
+      "feature": "Calendar sync",
+      "module": "Scheduling and dispatch",
+      "notes": "One-way iCal sync of a tech's Fieldwork calendar to Outlook, Apple or Google Calendar.",
+      "source": "https://intercom.help/fieldwork/en/articles/1148704-sync-fieldwork-calendar-with-outlook-apple-or-google-calendar"
+    },
+    {
+      "feature": "Task management",
+      "module": "Platform",
+      "notes": "Tasks with types and due times attach to customers, work orders, estimates or invoices and show on the calendar and mobile app.",
+      "source": "https://intercom.help/fieldwork/en/articles/1464254-tasks"
+    },
+    {
+      "feature": "Invoices by text message",
+      "module": "Billing and payments",
+      "notes": "Invoices can be sent by SMS (Nov 2025) at $0.03 per text plus the $5 monthly texting fee.",
+      "source": "https://intercom.help/fieldwork/en/articles/12921966-sms-text-delivery-of-invoices"
+    }
+  ],
+  "sources": [
+    {
+      "title": "Fieldwork home page",
+      "url": "https://fieldworkhq.com/"
+    },
+    {
+      "title": "Fieldwork pricing",
+      "url": "https://fieldworkhq.com/pricing/"
+    },
+    {
+      "title": "Fieldwork features list by plan",
+      "url": "https://fieldworkhq.com/features/"
+    },
+    {
+      "title": "Pest control software industry page",
+      "url": "https://fieldworkhq.com/industries/pest-control-software/"
+    },
+    {
+      "title": "Scheduling and dispatch feature page",
+      "url": "https://fieldworkhq.com/features/scheduling/"
+    },
+    {
+      "title": "Billing and invoicing feature page",
+      "url": "https://fieldworkhq.com/features/billing-and-invoicing/"
+    },
+    {
+      "title": "Chemical tracking and reporting feature page",
+      "url": "https://fieldworkhq.com/features/chemical-tracking-and-reporting/"
+    },
+    {
+      "title": "Device scanning and trend reporting feature page",
+      "url": "https://fieldworkhq.com/features/scanning-and-trend-reporting/"
+    },
+    {
+      "title": "Work order management feature page",
+      "url": "https://fieldworkhq.com/features/work-order-management/"
+    },
+    {
+      "title": "Help center home",
+      "url": "https://intercom.help/fieldwork/en/"
+    },
+    {
+      "title": "Settings: Billing and Subscription (plans and feature gates)",
+      "url": "https://intercom.help/fieldwork/en/articles/1351253-settings-billing-subscription"
+    },
+    {
+      "title": "Settings: Add-ons",
+      "url": "https://intercom.help/fieldwork/en/articles/15192112-settings-add-ons"
+    },
+    {
+      "title": "Why Fieldwork?",
+      "url": "https://intercom.help/fieldwork/en/articles/2233733-why-fieldwork"
+    },
+    {
+      "title": "Coming soon (roadmap)",
+      "url": "https://intercom.help/fieldwork/en/articles/14741024-coming-soon"
+    },
+    {
+      "title": "Sales Pipeline",
+      "url": "https://intercom.help/fieldwork/en/articles/15860030-sales-pipeline"
+    },
+    {
+      "title": "Marketing campaigns, getting started",
+      "url": "https://intercom.help/fieldwork/en/articles/751037-marketing-campaigns-getting-started"
+    },
+    {
+      "title": "Getting started: Estimates",
+      "url": "https://intercom.help/fieldwork/en/articles/741031-getting-started-estimates"
+    },
+    {
+      "title": "Service Agreements, part 1",
+      "url": "https://intercom.help/fieldwork/en/articles/1471916-service-agreements-part-1"
+    },
+    {
+      "title": "Default service agreement templates",
+      "url": "https://intercom.help/fieldwork/en/articles/16923973-default-service-agreement-templates"
+    },
+    {
+      "title": "Setting up service agreements",
+      "url": "https://intercom.help/fieldwork/en/articles/15704309-setting-up-service-agreements"
+    },
+    {
+      "title": "Commissions, getting started",
+      "url": "https://intercom.help/fieldwork/en/articles/904808-commissions-getting-started"
+    },
+    {
+      "title": "Settings: Automated Messages",
+      "url": "https://intercom.help/fieldwork/en/articles/15209682-settings-automated-messages"
+    },
+    {
+      "title": "Settings: Cancellation Reasons",
+      "url": "https://intercom.help/fieldwork/en/articles/1348741-settings-cancellation-reasons"
+    },
+    {
+      "title": "Service locations in one account",
+      "url": "https://intercom.help/fieldwork/en/articles/759614-service-locations-how-to-set-up-different-locations-in-one-account-manage-the-service-location-status"
+    },
+    {
+      "title": "Fieldwork Voice phone system",
+      "url": "https://intercom.help/fieldwork/en/articles/16961129-fieldwork-voice"
+    },
+    {
+      "title": "Getting started: Work Orders",
+      "url": "https://intercom.help/fieldwork/en/articles/747249-getting-started-work-orders"
+    },
+    {
+      "title": "Seasonal work order series",
+      "url": "https://intercom.help/fieldwork/en/articles/3412332-how-to-create-a-seasonal-work-order-series"
+    },
+    {
+      "title": "Settings: Work Order Templates",
+      "url": "https://intercom.help/fieldwork/en/articles/1347048-settings-work-order-templates"
+    },
+    {
+      "title": "Price increase",
+      "url": "https://intercom.help/fieldwork/en/articles/1621788-price-increase"
+    },
+    {
+      "title": "Optimize a single route for a single day",
+      "url": "https://intercom.help/fieldwork/en/articles/768777-calendar-automatically-optimize-a-single-route-for-a-single-day"
+    },
+    {
+      "title": "Route optimization and Best Fit scheduling",
+      "url": "https://intercom.help/fieldwork/en/articles/16004551-route-optimization-best-fit-scheduling"
+    },
+    {
+      "title": "Technicians, where are they? (live tracking)",
+      "url": "https://intercom.help/fieldwork/en/articles/759632-technicians-where-are-they"
+    },
+    {
+      "title": "Tech tracking history",
+      "url": "https://intercom.help/fieldwork/en/articles/3669435-tech-tracking-history"
+    },
+    {
+      "title": "Bulk move work orders",
+      "url": "https://intercom.help/fieldwork/en/articles/2809509-bulk-move-work-orders"
+    },
+    {
+      "title": "Fieldwork Office: completing a work order",
+      "url": "https://intercom.help/fieldwork/en/articles/5318270-fieldwork-office-completing-a-work-order"
+    },
+    {
+      "title": "Mobile app: material use",
+      "url": "https://intercom.help/fieldwork/en/articles/1335503-mobile-app-material-use"
+    },
+    {
+      "title": "Fieldwork Office app: devices",
+      "url": "https://intercom.help/fieldwork/en/articles/1335509-fieldwork-office-app-devices"
+    },
+    {
+      "title": "Settings: Time Sheet",
+      "url": "https://intercom.help/fieldwork/en/articles/10301837-settings-time-sheet"
+    },
+    {
+      "title": "Inventory",
+      "url": "https://intercom.help/fieldwork/en/articles/9997483-inventory"
+    },
+    {
+      "title": "Settings: Materials",
+      "url": "https://intercom.help/fieldwork/en/articles/15400971-settings-materials"
+    },
+    {
+      "title": "Getting started: Users and Routes",
+      "url": "https://intercom.help/fieldwork/en/articles/744225-getting-started-users-routes"
+    },
+    {
+      "title": "Preparing for your NYSDEC report submission",
+      "url": "https://intercom.help/fieldwork/en/articles/1454205-preparing-for-your-nysdec-report-submission"
+    },
+    {
+      "title": "California Monthly Summary Use Report codes and rules",
+      "url": "https://intercom.help/fieldwork/en/articles/1086359-california-monthly-summary-use-report-codes-and-rules"
+    },
+    {
+      "title": "Settings: Work Orders",
+      "url": "https://intercom.help/fieldwork/en/articles/1345058-settings-work-orders"
+    },
+    {
+      "title": "Blueprint Editor",
+      "url": "https://intercom.help/fieldwork/en/articles/2741112-blueprint-editor"
+    },
+    {
+      "title": "Diagramming in Fieldwork (Diagram Editor V2)",
+      "url": "https://intercom.help/fieldwork/en/articles/16820070-diagramming-in-fieldwork"
+    },
+    {
+      "title": "Trap and Trend report",
+      "url": "https://intercom.help/fieldwork/en/articles/859156-trap-trend-report"
+    },
+    {
+      "title": "Settings: Customer Portal (1 of 2)",
+      "url": "https://intercom.help/fieldwork/en/articles/8054601-settings-customer-portal-1-of-2"
+    },
+    {
+      "title": "Settings: Customer Portal (2 of 2)",
+      "url": "https://intercom.help/fieldwork/en/articles/1827670-settings-customer-portal-2-of-2"
+    },
+    {
+      "title": "Consolidated invoices",
+      "url": "https://intercom.help/fieldwork/en/articles/5070947-consolidated-invoices"
+    },
+    {
+      "title": "Sentricon integration and installation",
+      "url": "https://intercom.help/fieldwork/en/articles/6891792-sentricon-integration-and-installation"
+    },
+    {
+      "title": "Service categories in reports (bed bug example)",
+      "url": "https://intercom.help/fieldwork/en/articles/903979-service-filter-does-not-drop-down-in-reports"
+    },
+    {
+      "title": "Settings: CC Payments (Stripe Unified)",
+      "url": "https://intercom.help/fieldwork/en/articles/1351206-settings-cc-payments-stripe-unified"
+    },
+    {
+      "title": "Auto pay invoices with a card on file",
+      "url": "https://intercom.help/fieldwork/en/articles/865287-auto-pay-invoices-with-a-credit-card-on-file"
+    },
+    {
+      "title": "Settings: Tax Rates",
+      "url": "https://intercom.help/fieldwork/en/articles/1348249-settings-tax-rates"
+    },
+    {
+      "title": "Settings: Late Payment Reminders",
+      "url": "https://intercom.help/fieldwork/en/articles/1347878-settings-late-payment-reminders"
+    },
+    {
+      "title": "Financial hold",
+      "url": "https://intercom.help/fieldwork/en/articles/768526-financial-hold-what-does-it-do"
+    },
+    {
+      "title": "Settings: Statements",
+      "url": "https://intercom.help/fieldwork/en/articles/15383059-settings-statements"
+    },
+    {
+      "title": "Settings: QuickBooks",
+      "url": "https://intercom.help/fieldwork/en/articles/15326708-settings-quickbooks"
+    },
+    {
+      "title": "Does Fieldwork integrate with Xero?",
+      "url": "https://intercom.help/fieldwork/en/articles/771524-does-fieldwork-integrate-with-xero-accounting-software"
+    },
+    {
+      "title": "Settings: Appointment Reminders",
+      "url": "https://intercom.help/fieldwork/en/articles/3566376-settings-appointment-reminders"
+    },
+    {
+      "title": "Messenger (two-way email and SMS)",
+      "url": "https://intercom.help/fieldwork/en/articles/8043726-messenger-see-every-email-and-text-between-you-and-your-customers"
+    },
+    {
+      "title": "Settings: Online Reviews",
+      "url": "https://intercom.help/fieldwork/en/articles/1348262-settings-online-reviews"
+    },
+    {
+      "title": "Settings: Document Templates",
+      "url": "https://intercom.help/fieldwork/en/articles/1347668-settings-document-templates"
+    },
+    {
+      "title": "Which report do I use to see...",
+      "url": "https://intercom.help/fieldwork/en/articles/989927-which-report-do-i-use-to-see"
+    },
+    {
+      "title": "Using the Fieldwork MCP connector",
+      "url": "https://intercom.help/fieldwork/en/articles/16795867-using-the-fieldwork-mcp-connector"
+    },
+    {
+      "title": "Settings: Branches",
+      "url": "https://intercom.help/fieldwork/en/articles/1347904-settings-branches"
+    },
+    {
+      "title": "Webhooks, general usage",
+      "url": "https://intercom.help/fieldwork/en/articles/16699734-webhooks-general-usage"
+    },
+    {
+      "title": "Fieldwork APIs",
+      "url": "https://intercom.help/fieldwork/en/articles/2406552-fieldwork-apis"
+    },
+    {
+      "title": "AI Voice Receptionist",
+      "url": "https://intercom.help/fieldwork/en/articles/16962637-ai-voice-receptionist"
+    },
+    {
+      "title": "Settings: Contact Forms",
+      "url": "https://intercom.help/fieldwork/en/articles/3505749-settings-contact-forms"
+    },
+    {
+      "title": "Settings: Online Booking Forms",
+      "url": "https://intercom.help/fieldwork/en/articles/15280946-settings-online-booking-forms"
+    },
+    {
+      "title": "Multi-units for apartments, condos and hotels",
+      "url": "https://intercom.help/fieldwork/en/articles/918947-multi-units-for-apartments-condos-hotels"
+    },
+    {
+      "title": "Settings: Payment Fees",
+      "url": "https://intercom.help/fieldwork/en/articles/6752916-settings-payment-fees"
+    },
+    {
+      "title": "Settings: Termite Findings",
+      "url": "https://intercom.help/fieldwork/en/articles/15423200-settings-termite-findings"
+    },
+    {
+      "title": "Settings: PDF Forms",
+      "url": "https://intercom.help/fieldwork/en/articles/1350827-settings-pdf-forms"
+    },
+    {
+      "title": "Settings: Arrival Time Windows",
+      "url": "https://intercom.help/fieldwork/en/articles/3472212-settings-arrival-time-windows"
+    },
+    {
+      "title": "Show All Changes auditing",
+      "url": "https://intercom.help/fieldwork/en/articles/3008427-show-all-changes-auditing"
+    },
+    {
+      "title": "Calendar sync with Outlook, Apple or Google",
+      "url": "https://intercom.help/fieldwork/en/articles/1148704-sync-fieldwork-calendar-with-outlook-apple-or-google-calendar"
+    },
+    {
+      "title": "Tasks",
+      "url": "https://intercom.help/fieldwork/en/articles/1464254-tasks"
+    },
+    {
+      "title": "SMS delivery of invoices",
+      "url": "https://intercom.help/fieldwork/en/articles/12921966-sms-text-delivery-of-invoices"
+    },
+    {
+      "title": "Fieldwork Office on the Apple App Store",
+      "url": "https://apps.apple.com/us/app/fieldwork-office/id1456789608"
+    },
+    {
+      "title": "Fieldwork Office on Google Play",
+      "url": "https://play.google.com/store/apps/details?id=com.anstar.fieldworkhq"
+    },
+    {
+      "title": "Fieldwork reviews on Capterra",
+      "url": "https://www.capterra.com/p/142656/Fieldwork/reviews/"
+    },
+    {
+      "title": "Fieldwork on GetApp",
+      "url": "https://www.getapp.com/industries-software/a/fieldwork/"
+    },
+    {
+      "title": "Fieldwork on G2",
+      "url": "https://www.g2.com/products/fieldwork-fieldwork/reviews"
+    },
+    {
+      "title": "Craft Fieldwork company profile",
+      "url": "https://craft.co/fieldwork"
+    },
+    {
+      "title": "Anstar Products (shared Niles, Illinois address)",
+      "url": "https://anstarproducts.com/"
+    },
+    {
+      "title": "WPCA 2026 Midwest PestCon sponsors and exhibitors",
+      "url": "https://wpca27.wildapricot.org/Sponsors"
+    },
+    {
+      "title": "1st Choice Pest Solutions customer portal (Eau Claire, WI)",
+      "url": "https://pestsolutions1stchoice.serviceworkportal.com/sessions/new"
+    },
+    {
+      "title": "On Target Pest and Wildlife Control customer portal (La Crosse, WI)",
+      "url": "https://ontargetpestcontrol.serviceworkportal.com/sessions/new"
+    }
+  ]
+}
