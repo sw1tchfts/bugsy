@@ -118,6 +118,11 @@ def main():
     html = (SITE / "template.html").read_text()
     assert "/*__DATA__*/null" in html and "/*__PAGES__*/null" in html
     html = html.replace("/*__DATA__*/null", script_json(data)).replace("/*__PAGES__*/null", script_json(page_list))
+    head, sep, body = html.partition('<header class="bar">')
+    assert sep, "template needs the title bar"
+    html = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
+            '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
+            + head.strip() + "\n</head>\n<body>\n" + sep + body.rstrip() + "\n</body>\n</html>\n")
     for bad in FORBIDDEN:
         assert bad not in html, "forbidden character in the built page"
     (SITE / "index.html").write_text(html)

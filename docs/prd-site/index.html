@@ -1,3 +1,8 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Bugsy PRD</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -41,7 +46,9 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
+html { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+img { max-width: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
 a { color: var(--accent); text-underline-offset: 2px; }
 h1, h2, h3 { font-family: var(--font-display); line-height: 1.12; margin: 0; text-wrap: balance; }
@@ -234,7 +241,8 @@ details summary { cursor: pointer; font-weight: 600; }
   .hrow .fill { transition: width 180ms ease-out; }
 }
 </style>
-
+</head>
+<body>
 <header class="bar">
   <div class="bar-in">
     <h1>Bugsy PRD</h1>
@@ -562,3 +570,5 @@ function route() {
 window.addEventListener("hashchange", route);
 route();
 </script>
+</body>
+</html>
