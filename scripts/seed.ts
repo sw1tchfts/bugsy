@@ -7,6 +7,8 @@
 
 import { config as loadEnv } from "dotenv";
 import postgres from "postgres";
+import { PG_TYPES } from "../lib/pg-types";
+import { seedAgreements } from "./seed-agreements";
 import { seedCatalog, seedMasterProducts } from "./seed-catalog";
 import { seedCustomers } from "./seed-customers";
 import {
@@ -25,7 +27,7 @@ loadEnv();
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is not set");
 
-const sql = postgres(databaseUrl, { max: 1, prepare: false, onnotice: () => {} });
+const sql = postgres(databaseUrl, { max: 1, prepare: false, onnotice: () => {}, types: PG_TYPES });
 
 /** Master product ids by EPA registration number, filled once before the tenants are seeded. */
 let masterProductIds = new Map<string, string>();
@@ -120,6 +122,7 @@ async function seedTenant(tenant: SeedTenant, useAuthServer: boolean) {
   const [ownerUser] = await sql<{ id: string }[]>`select id from auth.users where email = ${seedUserEmail(tenant, "owner")}`;
   await seedCustomers(sql, tenant, tenantId, ownerUser.id);
   await seedCatalog(sql, tenant, tenantId, masterProductIds);
+  await seedAgreements(sql, tenant, tenantId, ownerUser.id);
 
   console.log(`seeded ${tenant.name} (${tenantId})`);
 }

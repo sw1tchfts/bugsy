@@ -1,27 +1,110 @@
 # Spec 04: Agreements and visit generation
 
-Status: stub (run /write-spec on this file)
+Status: done
 Depends on: 02, 03
 Skills to load: pest-domain, pest-accounting
 
 ## Goal
-Office staff can sign a customer to a service agreement and the system generates the visits it promises, each with a due window.
+Office staff sign a customer to a service agreement and the system generates every visit the agreement promises for the whole term, each in a due window, priced from the agreement. The agreement is the central object: account, property, service type, cadence, initial and recurring price, billing mode, term, auto-renew and cancellation fee. From here dispatch (05) turns windows into dated stops, billing (08) invoices by the agreement's billing mode, and the ledger (09) carries one contract balance per agreement. Re-services are $0 visits on the agreement; cancellations settle what was delivered; prices go up in bulk once a year; terms renew.
 
-## Already decided (from the discovery doc)
-- The agreement is the central object: account, property, service type, cadence, initial and recurring price, billing mode, term, auto-renew, cancellation fee.
-- Cadence: monthly, every other month, quarterly, custom, and seasonal rounds inside a date window.
-- The initial visit is a separate, higher-priced visit.
-- Re-services are $0 visits tied to the agreement, with labor and product cost captured.
-- Billing mode is per visit, flat monthly or annual prepay, chosen per agreement.
-- Winter: skipped months and interior-only visits allowed.
+## Users and stories
+- As office staff, I can turn an accepted quote option into an agreement, or write one directly from the price book, and have the customer sign it on the spot.
+- As office staff, I can see every visit the agreement will produce before it is signed, with its due window and price, and the billing schedule the billing mode implies.
+- As a dispatcher (05), I can rely on every active agreement having planned visits with due windows for the whole term, including seasonal rounds and winter skips.
+- As office staff, I can book a free re-service on an agreement when the customer calls, and the visit shows up for dispatch with a $0 price.
+- As an owner, I can raise recurring prices across many agreements at once with an effective date, and only visits from that date on change.
+- As office staff, I can cancel an agreement with a reason code, record whether a save offer was made, and see what the customer still owes or is owed.
+- As an owner, I can see which agreements end in the next 30 days and renew them, and auto-renewing agreements renew themselves in time for dispatch to schedule the next term.
+- As a bookkeeper (08, 09), I can rely on the agreement's contract total, installment schedule and visit prices matching the ledger fixtures to the cent.
 
-## Questions for the spec interview
-- How far ahead are visits generated (rolling 90 days, full term)?
-- What happens to generated visits when an agreement's cadence or price changes mid-term?
-- Bulk yearly price increase: Phase 1 or later?
-- Renewal flow at term end: automatic, or a renewal task for the office?
+## Scope
+### In scope
+- Tables: agreements, visits, visit_crew, cancel_reasons, price_increases, agreement_price_changes; `agreement_terms` on tenants; counters key `agreement`.
+- Cadences: monthly, bimonthly, quarterly, custom (every N weeks or months), seasonal rounds (N rounds inside a season window). A separate, higher-priced initial visit on every plan. Winter handling: skipped months and interior-only months.
+- Visit generation for the whole term at signing, as planned rows with due windows and prices; regeneration of future planned visits when cadence, prices, skips or season change; nothing already scheduled or completed moves.
+- Billing modes per agreement (per visit, flat monthly, annual prepay) with the contract total and installment schedule computed here as pure functions, checked against the ledger fixtures; invoices themselves are spec 08.
+- Signing inside the product: typed-name signature with agreement to the tenant's terms and consent to electronic notices, captured with timestamp, signer contact and address; signing activates the agreement and generates its visits. Consent lands on the signer contact (spec 02 rule 7).
+- Re-services: $0 visits on the agreement with a reason, planned for dispatch.
+- Bulk price increases: percent or fixed amount, effective date, filters by service type, branch and billing mode; preview, apply, per-agreement change rows for customer notices (sent by spec 11).
+- Terms and renewal: term length, auto-renew flag, cancellation fee; a renewals list of agreements ending within 30 days; renewing extends the term and generates the next term's visits; auto-renewing agreements renew when they come within 30 days of their end.
+- Cancellation: reason code from a tenant-managed list with defaults, note, save offer made and outcome, effective date; future planned and scheduled visits cancel; the settlement preview (delivered but unbilled, or prepaid but undelivered, plus any cancellation fee) is computed here and billed by spec 08.
+- Visit crews: the table and roles (lead, applicator, supervisor, helper); assignment happens in spec 05.
+- Office pages: agreements list with filters and the renewals and re-service views, new agreement (from a quote option or blank), agreement detail (visits, sign, re-service, price change, renew, cancel), bulk price increase page; agreements card on the account page; "Create agreement" on an accepted quote; home page tiles; tenant agreement terms under settings.
+- Seed: an active quarterly agreement with generated visits for each demo tenant (one flat monthly, one per visit), a seasonal mosquito program, and a cancelled agreement.
+- Audit triggers on agreements, visits, price_increases, agreement_price_changes.
+### Out of scope
+- Dispatching visits to technicians, routes and the compliance checks on assignment (05); arrival and departure capture, product use and records (06, 07).
+- Invoices, autopay, the actual settlement invoice or refund, and late fees (08); journal entries and the contract balance subledger (09).
+- Customer notices about price increases and renewals (11); the customer-facing signing and renewal flow in the portal (16).
+- Termite warranties and specialty multi-visit jobs (15); they will reuse agreements with their own kinds.
+- Door-to-door sales and commissions (17).
 
-## Verification will use
-- fixtures/accounting/agreement-ledger.json scenarios define the visit schedules and prices the generator must produce.
+## Data
+As in `docs/data-model.md` under Agreements and visits, with these details and deviations:
+- `agreements`: `number integer` (per tenant, from `counters`), `account_id`, `property_id` (same tenant, composite FKs), `service_type_id`, `branch_id null`, `quote_id null`, `quote_option_id null`, `status [draft, active, on_hold, cancelled, ended]`, `cadence [monthly, bimonthly, quarterly, custom, seasonal_rounds]`, `cadence_rule jsonb` (custom: `{ "every": 6, "unit": "weeks" }`; seasonal: `{ "rounds": 6 }`), `season_start date null`, `season_end date null`, `skip_months smallint[] default '{}'` (1 to 12), `interior_only_months smallint[] default '{}'`, `initial_price_cents bigint`, `recurring_price_cents bigint`, `billing_mode [per_visit, flat_monthly, annual_prepay]`, `term_months integer` (1 to 60), `auto_renew boolean default true`, `cancel_fee_cents bigint default 0`, `starts_on date`, `ends_on date` (generated as `starts_on + term_months` minus one day, maintained by trigger), `first_visit_on date` (start of the initial visit's due window; defaults to `starts_on`), `window_days integer default 30`, `terms_text`, `signed_at`, `signed_name`, `signed_by_contact_id null`, `signed_ip`, `cancelled_on date null`, `cancel_reason_id null`, `cancel_note`, `save_offer_made boolean default false`, `save_outcome [saved, lost] null`, `renewed_from_id null` (the previous term's agreement when a renewal creates a new row: it does not; renewal extends `ends_on` and records a change row), `notes`, `archived_at`. Unique `(tenant_id, number)`. Checks: seasonal needs season dates and rounds; custom needs a rule; prices non-negative.
+- `visits`: `agreement_id null` (null for one-time work later), `account_id`, `property_id`, `service_type_id`, `branch_id null`, `kind [initial, recurring, reservice, one_time, inspection]`, `sequence integer` (position in the agreement's plan; re-services get the next number too), `due_start date`, `due_end date` (inclusive), `scheduled_for date null`, `technician_id null`, `status [planned, scheduled, en_route, in_progress, completed, skipped, cancelled] default 'planned'`, `price_cents bigint` (0 for re-services), `interior_only boolean default false`, `reservice_reason text null`, `arrived_at`, `departed_at`, `completed_at`, `cancelled_at`, `notes`. Composite FKs to agreements, properties and accounts on `(tenant_id, id)`. Check: `due_end >= due_start`; re-services have `price_cents = 0`.
+- `visit_crew`: `visit_id`, `user_id`, `role [lead, applicator, supervisor, helper]`; unique `(visit_id, user_id)`. One `lead` per visit, enforced by a partial unique index.
+- `cancel_reasons`: `key`, `name`, `active`; unique `(tenant_id, key)`; a trigger on tenant insert seeds the defaults (price, moved, service_quality, competitor, no_longer_needed, seasonal, financial, other). A reason in use cannot be deleted.
+- `price_increases`: `kind [percent, amount]`, `percent numeric null`, `amount_cents bigint null`, `effective_on date`, `service_type_id null`, `branch_id null`, `billing_mode null`, `rounding [cent, dollar]`, `applied_at`, `agreements_changed integer`, `notes`.
+- `agreement_price_changes`: `agreement_id`, `price_increase_id null`, `old_recurring_price_cents`, `new_recurring_price_cents`, `effective_on`, `reason [bulk_increase, manual, renewal]`, `notified_at null`.
+- `tenants.agreement_terms text` (new migration column): the default terms copied onto each new agreement as `terms_text`.
+- Every tenant table: `tenant_id uuid not null references tenants(id)`, RLS, `created_at`, `updated_at`, `created_by`.
 
-The interview fills in the remaining template sections: users and stories, scope, data, interfaces, business rules, edge cases, decisions, open questions and verification.
+## Interfaces
+- `supabase/migrations/<timestamp>_agreements.sql`: tables, checks, `app.assign_agreement_number`, `app.check_agreement_status` (status machine), `app.check_visit_status` (visit machine and re-service price), `app.seed_cancel_reasons` trigger, `app.protect_used_cancel_reason`, updated_at and audit triggers, RLS policies.
+- `lib/agreements/cadence.ts`: `CADENCES`, labels, `cadenceSteps(agreement)` returning the ordered due windows for the term (pure), handling monthly, bimonthly, quarterly, custom weeks or months, seasonal rounds, skip months and interior-only months.
+- `lib/agreements/visits.ts`: `planVisits(agreement, options?) -> PlannedVisit[]` (kind, sequence, due_start, due_end, price_cents, interior_only), `contractTotalCents(planned)`, `regenerationPlan(existing, planned)` deciding which rows to delete, keep and insert so that completed and scheduled visits never move.
+- `lib/agreements/billing.ts`: `installments(totalCents, count)` (floor, remainder on the last), `billingSchedule(agreement, planned) -> { date, amount_cents }[]` for the three modes, `settlementPreview({ billedCents, recognizedCents, cancelFeeCents }) -> { finalInvoiceCents, refundCents, feeCents }`.
+- `lib/agreements/quotes.ts`: `agreementFromOption(option, lines)` mapping an accepted option to initial and recurring prices (initial lines sum to the initial price; recurring and add-on lines sum to the recurring price; one-time lines are reported back for a separate one-time visit).
+- `lib/agreements/db.ts` (server): `generateVisits(tx, agreementId)`, `regenerateFutureVisits(tx, agreementId, fromDate?)`, `renewAgreement(tx, agreementId)`, `applyPriceIncrease(tx, increaseId)`.
+- Pages and actions under `app/(office)/agreements/`: `page.tsx` (list with status filter, tabs for renewals due within 30 days and open re-services), `new/page.tsx` (from `?quote_option=` or from an account: pick the property, then service type, price book pick fills prices, cadence, season, skips, billing mode, term, auto-renew, cancel fee, start and first visit dates; saving makes a draft whose detail page shows the planned visits and billing schedule before it is signed), `[agreementId]/page.tsx` (summary, visits table with status and windows, sign card, re-service card, price change card, renew card, cancel card with settlement preview), `price-increases/page.tsx` (filters, preview count and total change, apply, history). `app/(office)/settings/terms/page.tsx` for the tenant's agreement terms. Account page gains an Agreements card; the accepted quote shows "Create agreement from the accepted option".
+- Server actions: `createAgreement`, `updateAgreement`, `signAgreement`, `bookReservice`, `changeAgreementPrice`, `renewAgreement`, `runAutoRenewals`, `cancelAgreement`, `reopenAgreement` (draft only), `createCancelReason`, `toggleCancelReason`, `previewPriceIncrease`, `applyPriceIncrease`, `updateAgreementTerms`.
+- Nav: Agreements link in the office layout. Home page tiles: active agreements, visits due this month, renewals due in 30 days, open re-services.
+- Events: audit rows; no journal entries (spec 09) and no invoices (spec 08). Agreement price changes carry `notified_at` for spec 11.
+
+## Business rules
+1. Every agreement has one account, one property of that account, one service type, a cadence, prices in integer cents, a billing mode, a term in months, a start date, and terms text. `ends_on` is the last day of the term (`starts_on + term_months - 1 day`); the trigger maintains it. Agreement numbers come from `app.next_number(tenant, 'agreement')` through a trigger, like quotes.
+2. Status machine: draft to active (by signing), active to on_hold and back (spec 08 uses it for past-due pauses), active or on_hold to cancelled, active to ended (when `ends_on` has passed and the agreement did not renew), draft to cancelled (a draft is simply dropped; it keeps its number). Nothing leaves cancelled or ended. The database trigger enforces it.
+3. Signing requires the signer's typed name, agreement to the terms and the consent checkbox; it stores `signed_at`, `signed_name`, `signed_by_contact_id`, `signed_ip`, sets status active, generates the visits if none exist, and sets `e_notice_consent_at` with a note "e-signed agreement #N" on the signer contact when consent was given. An agreement cannot be signed twice.
+4. Visit plan (pure, `planVisits`): the first visit is `initial` at `initial_price_cents` with a due window starting on `first_visit_on`. Later visits are `recurring` at `recurring_price_cents` at each cadence step from the first window's start, while the step date is on or before `ends_on`. Windows: for monthly, bimonthly, quarterly and custom months, the window is the calendar month containing the step date, clipped to the term; for custom weeks, `window_days` days starting on the step date (default 7 for weekly cadences); seasonal rounds split the season into equal spans and each round is due within its span, the first round being the initial visit. A step whose month is in `skip_months` produces no visit; a step in `interior_only_months` sets `interior_only = true`. Sequence numbers count every generated visit from 1.
+5. Contract total equals the sum of planned visit prices. Flat monthly billing splits it into `term_months` installments due monthly from `starts_on` (the same day of each month, clamped to shorter months), rounded down to the cent with the remainder on the final installment; annual prepay bills the total on `starts_on`; per visit bills each visit's price when it completes. These functions reproduce the ledger fixture scenarios A to D exactly.
+6. Regeneration: when cadence, prices, season, skips, first visit or term change on an agreement with generated visits, only visits with status `planned` are replaced; `scheduled`, `en_route`, `in_progress`, `completed`, `skipped` and `cancelled` visits stay as they are, and new planned visits never duplicate a window that a kept visit already covers. Re-services are never touched by regeneration.
+7. Re-services are visits of kind `reservice` with `price_cents = 0` (the database refuses any other price), a reason, and a due window of the next 7 days by default; they need an active agreement. Their labor and product cost post in specs 06 and 09.
+8. A bulk price increase applies to active agreements matching its filters: each gets an `agreement_price_changes` row (old, new, effective date), its `recurring_price_cents` becomes the new price, and recurring visits still planned or scheduled with `due_start >= effective_on` are repriced (a dispatch date never locks in an old price once the customer has been told the new one). Percent increases round half up to the cent (or to the dollar when `rounding = 'dollar'`). The initial price never changes. Applying is one transaction and records `applied_at` and the count; an increase cannot be applied twice. Flat monthly installments for the rest of the term follow from the new contract total (spec 08 reads the current plan).
+9. Renewal: `renewAgreement` extends `ends_on` by `term_months`, generates the next term's visits from the step after the last planned step at the current prices, and records a change row with reason `renewal` when the price differs from the previous term. `runAutoRenewals` renews every active agreement with `auto_renew` whose `ends_on` is within 30 days and has not been renewed past it. The renewals view lists active agreements ending within 30 days, auto-renew or not, so the office can confirm or call.
+10. Cancellation needs a reason from `cancel_reasons`, an effective date (default today, never before the last completed visit), and records the save attempt. It sets status cancelled and `cancelled_on`, cancels every planned and scheduled visit whose due window ends on or after the effective date (status cancelled, `cancelled_at`), and leaves completed visits alone. The settlement preview compares recognized (sum of completed visit prices) with billed to date per the billing schedule up to the effective date: delivered but unbilled service is a final invoice, prepaid but undelivered service is a refund, and the cancellation fee is a separate line. Scenario E of the ledger fixture is the test.
+11. Reads need `agreements.read` (visits also allow `dispatch.read` and `visits.read`); writes need `agreements.write` (visit status changes beyond planned and cancelled belong to dispatch and the technician app and need `dispatch.write` or `visits.write`). Cancel reasons follow agreements permissions; agreement terms need `settings.write`.
+12. An agreement's property must belong to its account and both must belong to the tenant (composite foreign keys); a draft can change property or service type, an active agreement cannot.
+13. Money columns are `bigint` cents; percentages are `numeric`; dates are business dates in the tenant's time zone and never go through a JavaScript Date in UTC.
+14. Visit status machine (database): planned to scheduled or cancelled or skipped; scheduled to planned (unschedule), en_route, in_progress, completed, skipped or cancelled; en_route to in_progress or scheduled; in_progress to completed; completed is final; cancelled and skipped are final. Completing a visit sets `completed_at`; specs 06 and 07 add the record requirements before completion.
+
+## Edge cases
+- Signed in January, first visit in March (fixture B): `first_visit_on` is in March, so the plan is March, June, September, December, still four visits in a 12-month term; billing starts in January.
+- A quarterly plan with `skip_months = {1, 2}` on a January start: the January initial visit would be skipped, so the form refuses a first visit in a skipped month; the office moves the first visit to March.
+- Interior-only winter visits: visits in `interior_only_months` carry the flag so dispatch and the technician app show "interior only"; the price is unchanged.
+- A custom cadence of every 6 weeks over 12 months yields 9 visits with 7-day windows; the last step past `ends_on` is dropped.
+- Seasonal program of 6 rounds from May 1 to October 31: six 31-ish-day spans, round 1 is the initial visit; `term_months` still bounds billing, and auto-renew produces next year's season on the same dates one year later.
+- A price increase effective mid-term on an annual prepay agreement: future visits are repriced and the contract total rises, but nothing is billed until renewal; spec 08 decides whether to invoice the difference. The change row exists either way.
+- Cancelling the day after a visit (fixture E): recognized 30000, billed 22500, final invoice 7500; with a 5000 cancel fee the fee is its own line and the position still settles to zero.
+- Cancelling a draft: no visits exist, no settlement; status cancelled.
+- Renewing an agreement whose last term had a price increase: the new term uses the current recurring price; no change row because the price did not change at renewal.
+- The office edits cadence after two visits were scheduled by dispatch: those two stay; the rest of the plan regenerates around them.
+- An accepted quote option with initial, recurring and add-on lines: the agreement form opens with initial 225.00 and recurring 89.00 + add-ons, editable before saving; one-time lines are listed as "book separately".
+
+## Decisions
+- The whole term is generated at signing (PRD build plan). Visits are cheap rows, dispatch needs them months ahead, and regeneration handles change.
+- Due windows are calendar months for monthly-style cadences and day spans for weekly and seasonal ones, matching how the office talks ("any day in April", "round 3 by mid-July").
+- Renewal extends the same agreement row rather than creating a new one, so the contract balance (09), the customer's history and the agreement number stay continuous. The change rows carry the history.
+- Signing is a typed name plus checkboxes recorded with time and address. It is enough for a service agreement, keeps the flow usable on a technician's phone, and the portal (16) reuses the same action.
+- Billing schedule functions live here, not in spec 08, because the agreement owns its contract total and installments and three specs must agree on them; spec 08 turns the schedule into invoices.
+- Cancel reasons are tenant data with defaults, like lead sources, so retention reporting (12) groups by stable keys.
+
+## Open questions
+- Should a mid-term price increase on an annual prepay agreement invoice the difference immediately or at renewal? Default here: at renewal; spec 08 may add a tenant setting.
+- Should auto-renew notify the customer a fixed number of days ahead where state consumer law requires it? Spec 11 owns notices; the change rows and the 30-day list give it what it needs.
+
+## Verification
+1. `npm test`: `tests/unit/cadence.test.ts` (every cadence, skips, interior-only, seasonal rounds, term clipping), `tests/unit/visit-plan.test.ts` (loads `fixtures/accounting/agreement-ledger.json`: for scenarios A to E the plan has `visits_in_term` visits, kinds and prices match, every fixture visit date falls inside its generated window, and the contract total matches), `tests/unit/billing-schedule.test.ts` (the fixture's installment rounding cases and the billing arrays of A to D, and the settlement of E), `tests/unit/agreement-from-quote.test.ts`, `tests/unit/regeneration.test.ts` (kept, deleted and inserted rows around scheduled and completed visits).
+2. `npm run test:rls` passes with the new tables discovered automatically; the seed gives Lakeshore rows in agreements, visits, visit_crew, cancel_reasons, price_increases and agreement_price_changes. Database rule tests: agreement and visit status machines, re-service price, cancel reason defaults and in-use protection, agreement numbering.
+3. `npm run typecheck && npm run lint && npm test && npx next build` pass.
+4. `npm run test:e2e` runs `tests/e2e/agreements.spec.ts`: as the Northwind office user, open Maria Lopez, create a quarterly agreement from the price book starting next month on flat monthly billing, see 4 planned visits and 12 installments in the preview, sign it as the customer, see the visits and that the contact gained electronic consent; book a re-service and see the $0 visit; run a bulk price increase of 5% effective in two months and see later visits repriced while the next one is unchanged; cancel the agreement with a reason and see the settlement preview; as the Lakeshore owner, none of it is visible. Screenshots go to `test-results/`.

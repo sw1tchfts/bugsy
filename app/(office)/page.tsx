@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, Empty, Notice, Table, errorMessage } from "@/components/ui";
 import { dbAs } from "@/lib/auth/session";
+import { addDays, endOfMonth, startOfMonth, todayInZone } from "@/lib/dates";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 
 type SourceRow = { source: string; leads: number; won: number; lost: number };
@@ -10,8 +11,12 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const { error } = await searchParams;
   const tenantId = active.tenantId;
 
+  const today = todayInZone(active.tenantTimezone);
   const [counts, bySource] = await dbAs(session, async (tx) => {
-    const [counts] = await tx<{ accounts: number; properties: number; open_leads: number; inspections: number; sent_quotes: number; branches: number; members: number }[]>`
+    const [counts] = await tx<{
+      accounts: number; properties: number; open_leads: number; inspections: number; sent_quotes: number; branches: number; members: number;
+      agreements: number; visits_this_month: number; renewals_due: number; reservices: number;
+    }[]>`
       select
         (select count(*)::int from public.accounts where tenant_id = ${tenantId} and archived_at is null and status = 'active') as accounts,
         (select count(*)::int from public.properties where tenant_id = ${tenantId} and archived_at is null) as properties,
@@ -19,7 +24,12 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         (select count(*)::int from public.leads where tenant_id = ${tenantId} and stage = 'inspection_booked' and inspection_at >= now()) as inspections,
         (select count(*)::int from public.quotes where tenant_id = ${tenantId} and status = 'sent') as sent_quotes,
         (select count(*)::int from public.branches where tenant_id = ${tenantId} and archived_at is null) as branches,
-        (select count(*)::int from public.memberships where tenant_id = ${tenantId}) as members`;
+        (select count(*)::int from public.memberships where tenant_id = ${tenantId}) as members,
+        (select count(*)::int from public.agreements where tenant_id = ${tenantId} and status = 'active') as agreements,
+        (select count(*)::int from public.visits where tenant_id = ${tenantId} and status in ('planned', 'scheduled')
+           and due_start <= ${endOfMonth(today)} and due_end >= ${startOfMonth(today)}) as visits_this_month,
+        (select count(*)::int from public.agreements where tenant_id = ${tenantId} and status = 'active' and ends_on <= ${addDays(today, 30)}) as renewals_due,
+        (select count(*)::int from public.visits where tenant_id = ${tenantId} and kind = 'reservice' and status in ('planned', 'scheduled')) as reservices`;
     const bySource = await tx<SourceRow[]>`
       select s.name as source, count(l.id)::int as leads,
              count(l.id) filter (where l.stage = 'won')::int as won, count(l.id) filter (where l.stage = 'lost')::int as lost
@@ -45,6 +55,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         <Stat label="Open leads" value={counts.open_leads} href="/leads" />
         <Stat label="Upcoming inspections" value={counts.inspections} href="/leads" />
         <Stat label="Quotes awaiting answer" value={counts.sent_quotes} href="/leads" />
+        <Stat label="Active agreements" value={counts.agreements} href="/agreements" />
+        <Stat label="Visits due this month" value={counts.visits_this_month} href="/agreements" />
+        <Stat label="Renewals in 30 days" value={counts.renewals_due} href="/agreements?view=renewals" />
+        <Stat label="Open re-services" value={counts.reservices} href="/agreements?view=reservices" />
       </div>
 
       <Card title="Close rate by lead source" description="Leads created in the last 90 days.">

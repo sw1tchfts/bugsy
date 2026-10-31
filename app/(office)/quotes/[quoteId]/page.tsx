@@ -151,7 +151,18 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
               </>
             ) : null}
             {quote.status === "draft" ? <p className="self-center text-sm text-stone-500">Sending marks the quote sent; emailing it to the customer arrives with messaging (spec 11).</p> : null}
-            {quote.status === "accepted" ? <p className="self-center text-sm text-stone-600">Accepted option: {options.find((o) => o.id === quote.accepted_option_id)?.name}. Turning it into an agreement arrives with spec 04.</p> : null}
+            {quote.status === "accepted" ? (
+              <p className="self-center text-sm text-stone-600">
+                Accepted option: {options.find((o) => o.id === quote.accepted_option_id)?.name}.{" "}
+                {quote.account_id ? (
+                  <Link href={`/agreements/new?quote_option=${quote.accepted_option_id}`} className="font-medium text-emerald-800 underline">
+                    Create the agreement
+                  </Link>
+                ) : (
+                  "Convert the lead to an account to create the agreement."
+                )}
+              </p>
+            ) : null}
           </div>
         </Card>
       ) : null}

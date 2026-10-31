@@ -6,12 +6,13 @@
 
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { PG_TYPES } from "../../lib/pg-types";
 import { CROSS_TENANT_USER, PLATFORM_ADMIN_EMAIL, ROLE_KEYS, SEED_TENANTS, seedUserEmail } from "../../scripts/seed-data";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is not set; see docs/dev-setup.md");
 
-const admin = postgres(databaseUrl, { max: 2, prepare: false, onnotice: () => {} });
+const admin = postgres(databaseUrl, { max: 2, prepare: false, onnotice: () => {}, types: PG_TYPES });
 
 type Table = { name: string; hasTenantId: boolean; rls: boolean };
 type Tx = postgres.TransactionSql;
@@ -137,8 +138,10 @@ describe("as a Northwind owner", () => {
       // Copy real Lakeshore rows without their generated columns, so the only thing wrong with the insert is the
       // tenant. Some rows are rejected by business-rule triggers before the policy runs (a won lead, for example),
       // so several samples are tried: none may succeed, and at least one must fail on row level security itself.
+      // Oldest rows first: the seed's first rows are the plain ones (a planned visit, an open lead), later rows carry
+      // states that insert triggers refuse.
       const samples = await admin<{ row: Record<string, unknown> }[]>`
-        select to_jsonb(x) as row from public.${admin(t.name)} x where tenant_id = ${lakeshoreId} limit 8`;
+        select to_jsonb(x) as row from public.${admin(t.name)} x where tenant_id = ${lakeshoreId} order by created_at limit 12`;
       const generated = await admin<{ column_name: string }[]>`
         select column_name from information_schema.columns
         where table_schema = 'public' and table_name = ${t.name} and (is_generated = 'ALWAYS' or is_identity = 'YES')`;
@@ -465,6 +468,24 @@ describe("spec 02 rules enforced in the database", () => {
     await expect(
       asUser(...owner(), (tx) => tx`insert into public.products (tenant_id, name, epa_reg_no) values (${lakeshoreId}, 'Duplicate of master', ${master[0].epa_reg_no})`),
     ).rejects.toThrow(/already in the master list/);
+    const [adminRow] = await asAdmin((tx) => tx<{ id: string }[]>`insert into public.products (tenant_id, name, epa_reg_no, verified_at) values (null, 'Rule test master', '99997-1', now()) returning id`);
+    await admin`delete from public.products where id = ${adminRow.id}`;
+
+    // Two companies add the same unknown product: the first approval wins, the second is refused.
+    const [first] = await asUser(...owner(), (tx) => tx<{ id: string }[]>`insert into public.products (tenant_id, name, epa_reg_no) values (${lakeshoreId}, 'Race test', '99996-1') returning id`);
+    const [second] = await asUser(northwindOwner, seedUserEmail(northwind, "owner"), (tx) => tx<{ id: string }[]>`insert into public.products (tenant_id, name, epa_reg_no) values (${northwindId}, 'Race test', '99996-1') returning id`);
+    try {
+      await asAdmin((tx) => tx`update public.products set tenant_id = null, verified_at = now() where id = ${first.id}`);
+      await expect(asAdmin((tx) => tx`update public.products set tenant_id = null, verified_at = now() where id = ${second.id}`)).rejects.toThrow(/reached the master list first/);
+    } finally {
+      await admin`delete from public.products where id in (${first.id}, ${second.id})`;
+    }
+
+    // Minimum-risk products have no number, so name and manufacturer carry the same rule.
+    await expect(
+      asUser(...owner(), (tx) => tx`insert into public.products (tenant_id, name, manufacturer, epa_reg_no) values (${lakeshoreId}, 'Essentria IC3', 'Zoecon', '25b-exempt')`),
+    ).rejects.toThrow(/duplicate key/);
+
     const [mine] = await asUser(...owner(), (tx) => tx<{ id: string }[]>`insert into public.products (tenant_id, name, epa_reg_no) values (${lakeshoreId}, 'Rule test private', '99998-1') returning id`);
     try {
       const seenByOther = await asUser(northwindOwner, seedUserEmail(northwind, "owner"), (tx) => tx`select id from public.products where id = ${mine.id}`);
@@ -528,5 +549,110 @@ describe("spec 02 rules enforced in the database", () => {
     } finally {
       await admin`delete from public.quotes where id = ${quoteId}`;
     }
+  });
+});
+
+describe("spec 04 rules enforced in the database", () => {
+  const owner = () => [lakeshoreOwner, seedUserEmail(lakeshore, "owner")] as const;
+
+  async function target() {
+    const [row] = await admin<{ account_id: string; property_id: string; service_type_id: string; other_property_id: string }[]>`
+      select a.id as account_id, p.id as property_id,
+             (select id from public.service_types where tenant_id = ${lakeshoreId} and name = 'General pest plan' and archived_at is null) as service_type_id,
+             (select id from public.properties where tenant_id = ${lakeshoreId} and account_id <> a.id limit 1) as other_property_id
+      from public.accounts a join public.properties p on p.account_id = a.id
+      where a.tenant_id = ${lakeshoreId} and a.name = 'Maria Lopez' order by p.created_at limit 1`;
+    return row;
+  }
+
+  async function newAgreement(): Promise<string> {
+    const t = await target();
+    const [row] = await asUser(
+      ...owner(),
+      (tx) => tx<{ id: string }[]>`
+        insert into public.agreements (tenant_id, account_id, property_id, service_type_id, cadence, billing_mode, term_months, starts_on, initial_price_cents, recurring_price_cents)
+        values (${lakeshoreId}, ${t.account_id}, ${t.property_id}, ${t.service_type_id}, 'quarterly', 'flat_monthly', 12, '2027-01-01', 18000, 12000) returning id`,
+    );
+    return row.id;
+  }
+
+  const sign = (id: string) => asUser(...owner(), (tx) => tx`update public.agreements set status = 'active', signed_at = now(), signed_name = 'Maria Lopez' where id = ${id}`);
+
+  it("numbers agreements, derives the term end, and keeps a property with its account (rules 1 and 12)", async () => {
+    const t = await target();
+    await expect(
+      asUser(
+        ...owner(),
+        (tx) => tx`insert into public.agreements (tenant_id, account_id, property_id, service_type_id, cadence, billing_mode, term_months, starts_on)
+                   values (${lakeshoreId}, ${t.account_id}, ${t.other_property_id}, ${t.service_type_id}, 'quarterly', 'per_visit', 12, '2027-01-01')`,
+      ),
+    ).rejects.toThrow(/does not belong/);
+    const id = await newAgreement();
+    try {
+      const [row] = await admin<{ number: number; ends_on: string; first_visit_on: string }[]>`select number, ends_on, first_visit_on from public.agreements where id = ${id}`;
+      expect(row.number).toBeGreaterThan(0);
+      expect(row.ends_on).toBe("2027-12-31");
+      expect(row.first_visit_on).toBe("2027-01-01");
+      await asUser(...owner(), (tx) => tx`update public.agreements set term_months = 24 where id = ${id}`);
+      const [after] = await admin<{ ends_on: string }[]>`select ends_on from public.agreements where id = ${id}`;
+      expect(after.ends_on).toBe("2028-12-31");
+    } finally {
+      await admin`delete from public.agreements where id = ${id}`;
+    }
+  });
+
+  it("activates only by signing, then locks what it is for and follows the status machine (rules 2, 3, 10, 12)", async () => {
+    const id = await newAgreement();
+    try {
+      await expect(asUser(...owner(), (tx) => tx`update public.agreements set status = 'active' where id = ${id}`)).rejects.toThrow(/activated by signing/);
+      await sign(id);
+      const [other] = await admin<{ id: string }[]>`select id from public.service_types where tenant_id = ${lakeshoreId} and name = 'Rodent control program'`;
+      await expect(asUser(...owner(), (tx) => tx`update public.agreements set service_type_id = ${other.id} where id = ${id}`)).rejects.toThrow(/keeps its account, property and service type/);
+      await expect(asUser(...owner(), (tx) => tx`update public.agreements set status = 'draft' where id = ${id}`)).rejects.toThrow(/cannot move/);
+      await expect(asUser(...owner(), (tx) => tx`update public.agreements set status = 'cancelled' where id = ${id}`)).rejects.toThrow(/needs a reason/);
+      const [reason] = await admin<{ id: string }[]>`select id from public.cancel_reasons where tenant_id = ${lakeshoreId} and key = 'moved'`;
+      await asUser(...owner(), (tx) => tx`update public.agreements set status = 'on_hold' where id = ${id}`);
+      await asUser(...owner(), (tx) => tx`update public.agreements set status = 'cancelled', cancel_reason_id = ${reason.id} where id = ${id}`);
+      const [row] = await admin<{ status: string; cancelled_on: string | null }[]>`select status, cancelled_on from public.agreements where id = ${id}`;
+      expect(row.status).toBe("cancelled");
+      expect(row.cancelled_on).not.toBeNull();
+      await expect(asUser(...owner(), (tx) => tx`update public.agreements set status = 'active' where id = ${id}`)).rejects.toThrow(/cannot move/);
+    } finally {
+      await admin`delete from public.agreements where id = ${id}`;
+    }
+  });
+
+  it("keeps re-services free and visits inside their machine (rules 7 and 14)", async () => {
+    const id = await newAgreement();
+    await sign(id);
+    const t = await target();
+    const insertVisit = (kind: string, status: string, price: number) =>
+      asUser(
+        ...owner(),
+        (tx) => tx<{ id: string }[]>`insert into public.visits (tenant_id, agreement_id, account_id, property_id, service_type_id, kind, due_start, due_end, status, price_cents)
+                                     values (${lakeshoreId}, ${id}, ${t.account_id}, ${t.property_id}, ${t.service_type_id}, ${kind}, '2027-02-01', '2027-02-07', ${status}, ${price}) returning id`,
+      );
+    try {
+      await expect(insertVisit("reservice", "planned", 100)).rejects.toThrow(/visits_reservice_is_free/);
+      await expect(insertVisit("recurring", "en_route", 12000)).rejects.toThrow(/starts planned or scheduled/);
+      const [visit] = await insertVisit("recurring", "planned", 12000);
+      await expect(asUser(...owner(), (tx) => tx`update public.visits set status = 'completed' where id = ${visit.id}`)).rejects.toThrow(/cannot move/);
+      await asUser(...owner(), (tx) => tx`update public.visits set status = 'scheduled', scheduled_for = '2027-02-03' where id = ${visit.id}`);
+      await asUser(...owner(), (tx) => tx`update public.visits set status = 'completed' where id = ${visit.id}`);
+      const [done] = await admin<{ completed_at: string | null }[]>`select completed_at from public.visits where id = ${visit.id}`;
+      expect(done.completed_at).not.toBeNull();
+      await expect(asUser(...owner(), (tx) => tx`update public.visits set status = 'planned' where id = ${visit.id}`)).rejects.toThrow(/cannot move/);
+      const [free] = await insertVisit("reservice", "planned", 0);
+      expect(free.id).toBeTruthy();
+    } finally {
+      await admin`delete from public.agreements where id = ${id}`;
+    }
+  });
+
+  it("seeds cancel reasons for every tenant and protects ones in use (rule 10)", async () => {
+    const reasons = await asUser(...owner(), (tx) => tx<{ key: string }[]>`select key from public.cancel_reasons where tenant_id = ${lakeshoreId}`);
+    expect(reasons.map((r) => r.key)).toEqual(expect.arrayContaining(["price", "moved", "competitor", "other"]));
+    const [used] = await admin<{ cancel_reason_id: string }[]>`select cancel_reason_id from public.agreements where tenant_id = ${lakeshoreId} and status = 'cancelled' and cancel_reason_id is not null limit 1`;
+    await expect(asUser(...owner(), (tx) => tx`delete from public.cancel_reasons where id = ${used.cancel_reason_id}`)).rejects.toThrow(/in use/);
   });
 });

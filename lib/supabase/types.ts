@@ -39,6 +39,9 @@ export type Database = {
 "phone_digits":
 { Args: { "phone": string }; Returns: string
                            },
+"product_enabled_by":
+{ Args: { "product": string }; Returns: number
+                           },
 "role_is_owner":
 { Args: { "role": string }; Returns: boolean
                            },
@@ -74,6 +77,106 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"agreement_price_changes": {
+                  Row: {
+                    "agreement_id": string,"created_at": string,"created_by": string | null,"effective_on": string,"id": string,"new_recurring_price_cents": number,"notified_at": string | null,"old_recurring_price_cents": number,"price_increase_id": string | null,"reason": string,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "agreement_id": string,"created_at"?: string,"created_by"?: string | null,"effective_on": string,"id"?: string,"new_recurring_price_cents": number,"notified_at"?: string | null,"old_recurring_price_cents": number,"price_increase_id"?: string | null,"reason": string,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "agreement_id"?: string,"created_at"?: string,"created_by"?: string | null,"effective_on"?: string,"id"?: string,"new_recurring_price_cents"?: number,"notified_at"?: string | null,"old_recurring_price_cents"?: number,"price_increase_id"?: string | null,"reason"?: string,"tenant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "agreement_price_changes_tenant_id_agreement_id_fkey"
+      columns: ["tenant_id","agreement_id"]
+isOneToOne: false
+      referencedRelation: "agreements"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "agreement_price_changes_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "agreement_price_changes_tenant_id_price_increase_id_fkey"
+      columns: ["tenant_id","price_increase_id"]
+isOneToOne: false
+      referencedRelation: "price_increases"
+      referencedColumns: ["tenant_id","id"]
+    }
+                  ]
+                },"agreements": {
+                  Row: {
+                    "account_id": string,"archived_at": string | null,"auto_renew": boolean,"billing_mode": string,"branch_id": string | null,"cadence": string,"cadence_rule": NonNullable<Json>,"cancel_fee_cents": number,"cancel_note": string | null,"cancel_reason_id": string | null,"cancelled_on": string | null,"created_at": string,"created_by": string | null,"ends_on": string,"first_visit_on": string,"id": string,"initial_price_cents": number,"interior_only_months": (number)[],"notes": string | null,"number": number,"property_id": string,"quote_id": string | null,"quote_option_id": string | null,"recurring_price_cents": number,"renewals": number,"save_offer_made": boolean,"save_outcome": string | null,"season_end": string | null,"season_start": string | null,"service_type_id": string,"signed_at": string | null,"signed_by_contact_id": string | null,"signed_ip": string | null,"signed_name": string | null,"skip_months": (number)[],"starts_on": string,"status": string,"tenant_id": string,"term_months": number,"terms_text": string | null,"updated_at": string,"window_days": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"archived_at"?: string | null,"auto_renew"?: boolean,"billing_mode": string,"branch_id"?: string | null,"cadence": string,"cadence_rule"?: NonNullable<Json>,"cancel_fee_cents"?: number,"cancel_note"?: string | null,"cancel_reason_id"?: string | null,"cancelled_on"?: string | null,"created_at"?: string,"created_by"?: string | null,"ends_on": string,"first_visit_on": string,"id"?: string,"initial_price_cents"?: number,"interior_only_months"?: (number)[],"notes"?: string | null,"number": number,"property_id": string,"quote_id"?: string | null,"quote_option_id"?: string | null,"recurring_price_cents"?: number,"renewals"?: number,"save_offer_made"?: boolean,"save_outcome"?: string | null,"season_end"?: string | null,"season_start"?: string | null,"service_type_id": string,"signed_at"?: string | null,"signed_by_contact_id"?: string | null,"signed_ip"?: string | null,"signed_name"?: string | null,"skip_months"?: (number)[],"starts_on": string,"status"?: string,"tenant_id": string,"term_months": number,"terms_text"?: string | null,"updated_at"?: string,"window_days"?: number
+                  }
+                  Update: {
+                    "account_id"?: string,"archived_at"?: string | null,"auto_renew"?: boolean,"billing_mode"?: string,"branch_id"?: string | null,"cadence"?: string,"cadence_rule"?: NonNullable<Json>,"cancel_fee_cents"?: number,"cancel_note"?: string | null,"cancel_reason_id"?: string | null,"cancelled_on"?: string | null,"created_at"?: string,"created_by"?: string | null,"ends_on"?: string,"first_visit_on"?: string,"id"?: string,"initial_price_cents"?: number,"interior_only_months"?: (number)[],"notes"?: string | null,"number"?: number,"property_id"?: string,"quote_id"?: string | null,"quote_option_id"?: string | null,"recurring_price_cents"?: number,"renewals"?: number,"save_offer_made"?: boolean,"save_outcome"?: string | null,"season_end"?: string | null,"season_start"?: string | null,"service_type_id"?: string,"signed_at"?: string | null,"signed_by_contact_id"?: string | null,"signed_ip"?: string | null,"signed_name"?: string | null,"skip_months"?: (number)[],"starts_on"?: string,"status"?: string,"tenant_id"?: string,"term_months"?: number,"terms_text"?: string | null,"updated_at"?: string,"window_days"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "agreements_branch_id_fkey"
+      columns: ["branch_id"]
+isOneToOne: false
+      referencedRelation: "branches"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "agreements_quote_id_fkey"
+      columns: ["quote_id"]
+isOneToOne: false
+      referencedRelation: "quotes"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "agreements_quote_option_id_fkey"
+      columns: ["quote_option_id"]
+isOneToOne: false
+      referencedRelation: "quote_options"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "agreements_signed_by_contact_id_fkey"
+      columns: ["signed_by_contact_id"]
+isOneToOne: false
+      referencedRelation: "contacts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "agreements_tenant_id_account_id_fkey"
+      columns: ["tenant_id","account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "agreements_tenant_id_cancel_reason_id_fkey"
+      columns: ["tenant_id","cancel_reason_id"]
+isOneToOne: false
+      referencedRelation: "cancel_reasons"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "agreements_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "agreements_tenant_id_property_id_fkey"
+      columns: ["tenant_id","property_id"]
+isOneToOne: false
+      referencedRelation: "properties"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "agreements_tenant_id_service_type_id_fkey"
+      columns: ["tenant_id","service_type_id"]
+isOneToOne: false
+      referencedRelation: "service_types"
+      referencedColumns: ["tenant_id","id"]
+    }
+                  ]
                 },"audit_log": {
                   Row: {
                     "action": string,"actor_id": string | null,"after": Json | null,"before": Json | null,"created_at": string,"id": number,"row_id": string | null,"table_name": string,"tenant_id": string | null
@@ -102,6 +205,26 @@ isOneToOne: false
                   Relationships: [
                     {
       foreignKeyName: "branches_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"cancel_reasons": {
+                  Row: {
+                    "active": boolean,"created_at": string,"created_by": string | null,"id": string,"key": string,"name": string,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"created_at"?: string,"created_by"?: string | null,"id"?: string,"key": string,"name": string,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "active"?: boolean,"created_at"?: string,"created_by"?: string | null,"id"?: string,"key"?: string,"name"?: string,"tenant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "cancel_reasons_tenant_id_fkey"
       columns: ["tenant_id"]
 isOneToOne: false
       referencedRelation: "tenants"
@@ -310,6 +433,38 @@ isOneToOne: false
       referencedColumns: ["id"]
     },{
       foreignKeyName: "price_book_items_tenant_id_service_type_id_fkey"
+      columns: ["tenant_id","service_type_id"]
+isOneToOne: false
+      referencedRelation: "service_types"
+      referencedColumns: ["tenant_id","id"]
+    }
+                  ]
+                },"price_increases": {
+                  Row: {
+                    "agreements_changed": number | null,"amount_cents": number | null,"applied_at": string | null,"billing_mode": string | null,"branch_id": string | null,"created_at": string,"created_by": string | null,"effective_on": string,"id": string,"kind": string,"notes": string | null,"percent": number | null,"rounding": string,"service_type_id": string | null,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "agreements_changed"?: number | null,"amount_cents"?: number | null,"applied_at"?: string | null,"billing_mode"?: string | null,"branch_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"effective_on": string,"id"?: string,"kind": string,"notes"?: string | null,"percent"?: number | null,"rounding"?: string,"service_type_id"?: string | null,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "agreements_changed"?: number | null,"amount_cents"?: number | null,"applied_at"?: string | null,"billing_mode"?: string | null,"branch_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"effective_on"?: string,"id"?: string,"kind"?: string,"notes"?: string | null,"percent"?: number | null,"rounding"?: string,"service_type_id"?: string | null,"tenant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "price_increases_branch_id_fkey"
+      columns: ["branch_id"]
+isOneToOne: false
+      referencedRelation: "branches"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "price_increases_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "price_increases_tenant_id_service_type_id_fkey"
       columns: ["tenant_id","service_type_id"]
 isOneToOne: false
       referencedRelation: "service_types"
@@ -558,14 +713,14 @@ isOneToOne: false
                   ]
                 },"tenants": {
                   Row: {
-                    "created_at": string,"created_by": string | null,"id": string,"legal_name": string | null,"name": string,"status": string,"stripe_account_id": string | null,"timezone": string,"updated_at": string
+                    "agreement_terms": string | null,"created_at": string,"created_by": string | null,"id": string,"legal_name": string | null,"name": string,"status": string,"stripe_account_id": string | null,"timezone": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"legal_name"?: string | null,"name": string,"status"?: string,"stripe_account_id"?: string | null,"timezone": string,"updated_at"?: string
+                    "agreement_terms"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"legal_name"?: string | null,"name": string,"status"?: string,"stripe_account_id"?: string | null,"timezone": string,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"legal_name"?: string | null,"name"?: string,"status"?: string,"stripe_account_id"?: string | null,"timezone"?: string,"updated_at"?: string
+                    "agreement_terms"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"legal_name"?: string | null,"name"?: string,"status"?: string,"stripe_account_id"?: string | null,"timezone"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     
@@ -593,6 +748,82 @@ isOneToOne: false
       columns: ["tenant_id","property_id"]
 isOneToOne: false
       referencedRelation: "properties"
+      referencedColumns: ["tenant_id","id"]
+    }
+                  ]
+                },"visit_crew": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"id": string,"role": string,"tenant_id": string,"updated_at": string,"user_id": string,"visit_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"role": string,"tenant_id": string,"updated_at"?: string,"user_id": string,"visit_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"role"?: string,"tenant_id"?: string,"updated_at"?: string,"user_id"?: string,"visit_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "visit_crew_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "visit_crew_tenant_id_visit_id_fkey"
+      columns: ["tenant_id","visit_id"]
+isOneToOne: false
+      referencedRelation: "visits"
+      referencedColumns: ["tenant_id","id"]
+    }
+                  ]
+                },"visits": {
+                  Row: {
+                    "account_id": string,"agreement_id": string | null,"arrived_at": string | null,"branch_id": string | null,"cancelled_at": string | null,"completed_at": string | null,"created_at": string,"created_by": string | null,"departed_at": string | null,"due_end": string,"due_start": string,"id": string,"interior_only": boolean,"kind": string,"notes": string | null,"price_cents": number,"property_id": string,"reservice_reason": string | null,"scheduled_for": string | null,"sequence": number,"service_type_id": string,"status": string,"technician_id": string | null,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"agreement_id"?: string | null,"arrived_at"?: string | null,"branch_id"?: string | null,"cancelled_at"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"departed_at"?: string | null,"due_end": string,"due_start": string,"id"?: string,"interior_only"?: boolean,"kind": string,"notes"?: string | null,"price_cents"?: number,"property_id": string,"reservice_reason"?: string | null,"scheduled_for"?: string | null,"sequence"?: number,"service_type_id": string,"status"?: string,"technician_id"?: string | null,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "account_id"?: string,"agreement_id"?: string | null,"arrived_at"?: string | null,"branch_id"?: string | null,"cancelled_at"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"departed_at"?: string | null,"due_end"?: string,"due_start"?: string,"id"?: string,"interior_only"?: boolean,"kind"?: string,"notes"?: string | null,"price_cents"?: number,"property_id"?: string,"reservice_reason"?: string | null,"scheduled_for"?: string | null,"sequence"?: number,"service_type_id"?: string,"status"?: string,"technician_id"?: string | null,"tenant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "visits_branch_id_fkey"
+      columns: ["branch_id"]
+isOneToOne: false
+      referencedRelation: "branches"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "visits_tenant_id_account_id_fkey"
+      columns: ["tenant_id","account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "visits_tenant_id_agreement_id_fkey"
+      columns: ["tenant_id","agreement_id"]
+isOneToOne: false
+      referencedRelation: "agreements"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "visits_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "visits_tenant_id_property_id_fkey"
+      columns: ["tenant_id","property_id"]
+isOneToOne: false
+      referencedRelation: "properties"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "visits_tenant_id_service_type_id_fkey"
+      columns: ["tenant_id","service_type_id"]
+isOneToOne: false
+      referencedRelation: "service_types"
       referencedColumns: ["tenant_id","id"]
     }
                   ]

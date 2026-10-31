@@ -8,6 +8,9 @@ import { can } from "@/lib/auth/permissions";
 import { dbAs } from "@/lib/auth/session";
 import { formatCents } from "@/lib/money";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
+import { BILLING_MODE_LABELS, type BillingMode, CADENCE_LABELS, type Cadence } from "@/lib/agreements/cadence";
+import { AGREEMENT_STATUS_LABELS } from "@/lib/agreements/forms";
+import { formatBusinessDate } from "@/lib/dates";
 import { createQuote } from "@/app/(office)/quotes/actions";
 import { archiveAccount, archiveContact, setContactConsent, updateAccount } from "../actions";
 
@@ -21,6 +24,11 @@ type Account = {
 type Property = { id: string; name: string | null; normalized_address: string; property_type: string; geocode_status: string; unit_count: number | null; archived_at: string | null };
 type Contact = { id: string; name: string; role: string; email: string | null; phone: string | null; property_id: string | null; unit_label: string | null; e_notice_consent_at: string | null; sms_opt_in: boolean };
 type Quote = { id: string; number: number; status: string; created_at: string; best_total: number | null; options: number };
+type AgreementSummary = {
+  id: string; number: number; status: keyof typeof AGREEMENT_STATUS_LABELS; cadence: Cadence; billing_mode: BillingMode; recurring_price_cents: string;
+  starts_on: string; ends_on: string; service_type_name: string; property_name: string | null; open_visits: number;
+};
+const AGREEMENT_TONE: Record<AgreementSummary["status"], "neutral" | "good" | "warn" | "bad"> = { draft: "neutral", active: "good", on_hold: "warn", cancelled: "bad", ended: "neutral" };
 
 const STATUS_TONE: Record<string, "neutral" | "good" | "warn" | "bad"> = { draft: "neutral", sent: "warn", accepted: "good", declined: "bad", expired: "neutral" };
 
@@ -50,10 +58,16 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
              (select count(*)::int from public.quote_options o where o.quote_id = q.id) as options
       from public.quotes q where q.tenant_id = ${tenantId} and (q.account_id = ${accountId} or q.lead_id in (select id from public.leads where account_id = ${accountId}))
       order by q.created_at desc`;
-    return { account, properties, contacts, quotes };
+    const agreements = await tx<AgreementSummary[]>`
+      select a.id, a.number, a.status, a.cadence, a.billing_mode, a.recurring_price_cents, a.starts_on, a.ends_on, st.name as service_type_name, p.name as property_name,
+             (select count(*)::int from public.visits v where v.agreement_id = a.id and v.status in ('planned', 'scheduled')) as open_visits
+      from public.agreements a join public.service_types st on st.id = a.service_type_id join public.properties p on p.id = a.property_id
+      where a.tenant_id = ${tenantId} and a.account_id = ${accountId} and a.archived_at is null
+      order by case a.status when 'active' then 0 when 'draft' then 1 else 2 end, a.created_at desc`;
+    return { account, properties, contacts, quotes, agreements };
   });
   if (!data) notFound();
-  const { account, properties, contacts, quotes } = data;
+  const { account, properties, contacts, quotes, agreements } = data;
   const here = `/customers/${accountId}`;
 
   return (
@@ -168,6 +182,46 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
             </div>
           </details>
         ) : null}
+      </Card>
+
+      <Card
+        title="Agreements"
+        description="The customer's recurring commitments. Every visit comes from one."
+        actions={
+          canQuote && !account.archived_at ? (
+            <Link href={`/agreements/new?account_id=${accountId}`} className="rounded border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50">
+              New agreement
+            </Link>
+          ) : undefined
+        }
+      >
+        {agreements.length === 0 ? (
+          <Empty>No agreements yet.</Empty>
+        ) : (
+          <Table headers={["#", "Service", "Property", "Cadence", "Billing", "Recurring", "Term", "Open visits", "Status"]}>
+            {agreements.map((a) => (
+              <tr key={a.id}>
+                <td className="py-2 pr-4">
+                  <Link href={`/agreements/${a.id}`} className="font-medium hover:underline">
+                    #{a.number}
+                  </Link>
+                </td>
+                <td className="py-2 pr-4">{a.service_type_name}</td>
+                <td className="py-2 pr-4">{a.property_name ?? ""}</td>
+                <td className="py-2 pr-4">{CADENCE_LABELS[a.cadence]}</td>
+                <td className="py-2 pr-4">{BILLING_MODE_LABELS[a.billing_mode]}</td>
+                <td className="py-2 pr-4 tabular-nums">{formatCents(a.recurring_price_cents)}</td>
+                <td className="py-2 pr-4 whitespace-nowrap">
+                  {formatBusinessDate(a.starts_on)} to {formatBusinessDate(a.ends_on)}
+                </td>
+                <td className="py-2 pr-4 tabular-nums">{a.open_visits}</td>
+                <td className="py-2 pr-4">
+                  <Badge tone={AGREEMENT_TONE[a.status]}>{AGREEMENT_STATUS_LABELS[a.status]}</Badge>
+                </td>
+              </tr>
+            ))}
+          </Table>
+        )}
       </Card>
 
       <Card title="Quotes">

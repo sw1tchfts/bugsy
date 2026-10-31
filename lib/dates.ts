@@ -44,6 +44,66 @@ export function todayInZone(timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
 
+// Civil-date arithmetic on "yyyy-mm-dd" strings. Business dates never become JavaScript Dates in local time;
+// the UTC calendar is used only as a calculator and the result is a string again.
+
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+export function isIsoDate(value: string): boolean {
+  return ISO_DATE.test(value) && !Number.isNaN(Date.UTC(Number(value.slice(0, 4)), Number(value.slice(5, 7)) - 1, Number(value.slice(8, 10))));
+}
+
+function toUtc(iso: string): number {
+  const match = ISO_DATE.exec(iso);
+  if (!match) throw new Error(`not a business date: ${iso}`);
+  return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+}
+
+function fromUtc(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+export function addDays(iso: string, days: number): string {
+  return fromUtc(toUtc(iso) + days * 86_400_000);
+}
+
+/** Adds calendar months, clamping the day to the end of a shorter month (Jan 31 plus 1 month is Feb 28 or 29). */
+export function addMonths(iso: string, months: number): string {
+  const d = new Date(toUtc(iso));
+  const day = d.getUTCDate();
+  const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + months, 1));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(day, lastDay));
+  return fromUtc(target.getTime());
+}
+
+export function startOfMonth(iso: string): string {
+  return `${iso.slice(0, 7)}-01`;
+}
+
+export function endOfMonth(iso: string): string {
+  const d = new Date(toUtc(iso));
+  return fromUtc(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
+}
+
+/** Calendar month number, 1 to 12. */
+export function monthOf(iso: string): number {
+  return Number(iso.slice(5, 7));
+}
+
+/** Whole days from a to b; negative when b is earlier. */
+export function daysBetween(a: string, b: string): number {
+  return Math.round((toUtc(b) - toUtc(a)) / 86_400_000);
+}
+
+export function minIso(a: string, b: string): string {
+  return a <= b ? a : b;
+}
+
+export function maxIso(a: string, b: string): string {
+  return a >= b ? a : b;
+}
+
 /** Formats an instant (timestamptz) as a short US date in the given time zone. */
 export function formatInstantDate(value: string | Date, timeZone: string): string {
   return new Date(value).toLocaleDateString("en-US", { timeZone });
