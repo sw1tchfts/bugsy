@@ -57,9 +57,11 @@ export type CheckInput = {
   /** The technician's other stops that day, with the visit itself at its intended position, for the order warning. */
   dayStops?: readonly DayStop[];
   visitId?: string;
+  /** For the link in a state-rules refusal. */
+  serviceTypeId?: string;
 };
 
-export type Issue = { code: string; message: string };
+export type Issue = { code: string; message: string; href?: string };
 export type CheckResult = { ok: boolean; blockers: Issue[]; warnings: Issue[] };
 
 function inMonthDayRange(iso: string, range: { from: string; to: string }): boolean {
@@ -74,8 +76,9 @@ function hasRegistryMatches(value: unknown): boolean {
   return false;
 }
 
-function isTrainee(c: Credential): boolean {
-  return c.trainee_registered_on !== null && !c.cert_number;
+/** A registered trainee or technician-in-training is not a certified applicator, whatever else the row carries. */
+export function isTrainee(c: Pick<Credential, "trainee_registered_on">): boolean {
+  return c.trainee_registered_on !== null;
 }
 
 /** A certified, current applicator with every required category on the given date. */
@@ -98,13 +101,16 @@ export function checkAssignment(input: CheckInput): CheckResult {
 
   if (crew.length === 0) blockers.push({ code: "no_crew", message: "Assign a technician." });
 
+  // Rule 3 applies to every assignment in the state, pesticide or not: without a pack or a confirmation, nothing is dispatched there.
+  const rulesHref = input.serviceTypeId ? `/catalog/service-types/${input.serviceTypeId}` : undefined;
+  if (!stateRule) {
+    blockers.push({ code: "no_state_rules", message: `This service type has no state rules for ${state} yet. Refresh its state rules in the catalog.`, href: rulesHref });
+  } else if (!stateRule.pack_version && !stateRule.confirmed_at) {
+    blockers.push({ code: "state_rules_unconfirmed", message: `No rule pack is researched for ${state}, and a licensed manager has not confirmed this service type's ${state} rules. Confirm them in the catalog to dispatch there.`, href: rulesHref });
+  }
+
   const pesticide = PESTICIDE_JOB_KINDS.includes(visit.job_kind);
   if (pesticide) {
-    if (!stateRule) {
-      blockers.push({ code: "no_state_rules", message: `This service type has no state rules for ${state} yet. Refresh its state rules in the catalog.` });
-    } else if (!stateRule.pack_version && !stateRule.confirmed_at) {
-      blockers.push({ code: "state_rules_unconfirmed", message: `No rule pack is researched for ${state}, and a licensed manager has not confirmed this service type's ${state} rules. Confirm them in the catalog to dispatch there.` });
-    }
     const required = stateRule?.required_cert_categories ?? [];
     const applicators = crew.filter((m) => m.role === "lead" || m.role === "applicator");
     const qualifiedSupervisors = crew.filter((m) => (m.role === "supervisor" || m.role === "lead") && qualifies(m.credential, required, date).ok);

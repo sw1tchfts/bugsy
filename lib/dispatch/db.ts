@@ -110,8 +110,11 @@ export async function runCheck(tx: Sql, tenantId: string, visit: DispatchVisit, 
     today,
     dayStops: [...others, { id: visit.id, arrival_window: visit.arrival_window, route_position: myPosition }],
     visitId: visit.id,
+    serviceTypeId: visit.service_type_id,
   });
 }
+
+const CLEAR: CheckResult = { ok: true, blockers: [], warnings: [] };
 
 function withLead(spec: readonly CrewSpec[], technicianId: string): CrewSpec[] {
   return [{ user_id: technicianId, role: "lead" as const }, ...spec.filter((s) => s.user_id !== technicianId && s.role !== "lead")];
@@ -151,10 +154,11 @@ export async function scheduleVisit(tx: Sql, tenantId: string, visitId: string, 
   return result;
 }
 
-/** Back to the due panel. */
+/** Back to the due panel. Only a scheduled visit comes back; started and finished ones are read only here (rule 9). */
 export async function unscheduleVisit(tx: Sql, tenantId: string, visitId: string): Promise<void> {
   const visit = await loadVisit(tx, tenantId, visitId);
   if (!visit) throw new Error("visit not found");
+  if (visit.status !== "scheduled") throw Object.assign(new Error(`a ${visit.status.replace("_", " ")} visit cannot be unscheduled`), { code: "23514" });
   await tx`update public.visits set status = 'planned' where id = ${visitId} and tenant_id = ${tenantId} and status = 'scheduled'`;
   await tx`delete from public.visit_crew where tenant_id = ${tenantId} and visit_id = ${visitId} and role = 'lead'`;
   if (visit.scheduled_for && visit.technician_id) await compactDay(tx, tenantId, visit.technician_id, visit.scheduled_for);
@@ -170,21 +174,27 @@ export async function compactDay(tx: Sql, tenantId: string, technicianId: string
   }
 }
 
-/** Moves a stop one place up or down within its day. */
-export async function reorderVisit(tx: Sql, tenantId: string, visitId: string, direction: "up" | "down"): Promise<void> {
+/** Moves a stop one place up or down within its day, then re-runs the check in the new order (rule 1); a blocker undoes the swap. */
+export async function reorderVisit(tx: Sql, tenantId: string, visitId: string, direction: "up" | "down", today: string): Promise<CheckResult> {
   const visit = await loadVisit(tx, tenantId, visitId);
-  if (!visit?.scheduled_for || !visit.technician_id) return;
+  if (!visit?.scheduled_for || !visit.technician_id) return CLEAR;
   await compactDay(tx, tenantId, visit.technician_id, visit.scheduled_for);
   const stops = await tx<{ id: string; route_position: number }[]>`
     select id, route_position from public.visits where tenant_id = ${tenantId} and technician_id = ${visit.technician_id} and scheduled_for = ${visit.scheduled_for}
       and status in ('scheduled', 'en_route', 'in_progress') order by route_position`;
   const index = stops.findIndex((s) => s.id === visitId);
   const swapWith = direction === "up" ? index - 1 : index + 1;
-  if (index < 0 || swapWith < 0 || swapWith >= stops.length) return;
+  if (index < 0 || swapWith < 0 || swapWith >= stops.length) return CLEAR;
   const a = stops[index];
   const b = stops[swapWith];
   await tx`update public.visits set route_position = ${b.route_position} where id = ${a.id} and tenant_id = ${tenantId}`;
   await tx`update public.visits set route_position = ${a.route_position} where id = ${b.id} and tenant_id = ${tenantId}`;
+  const result = await runCheck(tx, tenantId, visit, visit.scheduled_for, await loadCrew(tx, tenantId, visitId), today, b.route_position);
+  if (!result.ok) {
+    await tx`update public.visits set route_position = ${a.route_position} where id = ${a.id} and tenant_id = ${tenantId}`;
+    await tx`update public.visits set route_position = ${b.route_position} where id = ${b.id} and tenant_id = ${tenantId}`;
+  }
+  return result;
 }
 
 export type DayMove = { moved: string[]; refused: { visitId: string; issues: string[] }[] };
@@ -224,11 +234,16 @@ export async function setCrew(tx: Sql, tenantId: string, visitId: string, spec: 
   if (leads.length !== 1) return { ok: false, blockers: [{ code: "one_lead", message: "A crew has exactly one lead." }], warnings: [] };
   const unique = new Set(spec.map((s) => s.user_id));
   if (unique.size !== spec.length) return { ok: false, blockers: [{ code: "duplicate_member", message: "A person appears once on a crew." }], warnings: [] };
-  let result: CheckResult = { ok: true, blockers: [], warnings: [] };
+  let result: CheckResult = CLEAR;
   if (visit.scheduled_for && visit.status !== "planned") {
-    result = await runCheck(tx, tenantId, visit, visit.scheduled_for, spec, today, visit.route_position);
+    // A new lead takes the next slot on their own day; the old lead's day closes the gap (rule 1).
+    const newLead = leads[0].user_id;
+    const leadChanged = newLead !== visit.technician_id;
+    const position = leadChanged ? await nextPosition(tx, tenantId, newLead, visit.scheduled_for) : visit.route_position;
+    result = await runCheck(tx, tenantId, visit, visit.scheduled_for, spec, today, position);
     if (!result.ok) return result;
-    await tx`update public.visits set technician_id = ${leads[0].user_id} where id = ${visitId} and tenant_id = ${tenantId}`;
+    await tx`update public.visits set technician_id = ${newLead}, route_position = ${position} where id = ${visitId} and tenant_id = ${tenantId}`;
+    if (leadChanged && visit.technician_id) await compactDay(tx, tenantId, visit.technician_id, visit.scheduled_for);
   }
   await writeCrew(tx, tenantId, visitId, spec);
   return result;

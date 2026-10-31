@@ -3,7 +3,7 @@ import Link from "next/link";
 import { type BoardVisit, DispatchBoard } from "@/components/dispatch/board";
 import { Notice, errorMessage } from "@/components/ui";
 import { can } from "@/lib/auth/permissions";
-import { dbAs } from "@/lib/auth/session";
+import { dbAs, requirePermission } from "@/lib/auth/session";
 import { addDays, isIsoDate, todayInZone } from "@/lib/dates";
 import { listTechnicians } from "@/lib/dispatch/db";
 import { dayLabel, weekDays, weekOf } from "@/lib/dispatch/week";
@@ -15,6 +15,7 @@ type Search = { error?: string; warn?: string; week?: string; day?: string; bran
 
 export default async function DispatchPage({ searchParams }: { searchParams: Promise<Search> }) {
   const { session, active } = await requireActiveTenant();
+  await requirePermission(active.tenantId, "dispatch.read");
   const params = await searchParams;
   const tenantId = active.tenantId;
   const canWrite = can(active.permissions, "dispatch.write");

@@ -127,7 +127,7 @@ export default async function CredentialsPage({ searchParams }: { searchParams: 
                   <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
                     <span className="font-medium">{nameOf(c.user_id)}</span>
                     <Badge>{c.state_code}</Badge>
-                    {c.trainee_registered_on && !c.cert_number ? <Badge tone="warn">trainee since {formatBusinessDate(c.trainee_registered_on)}</Badge> : expiryBadge(c.cert_expires_on)}
+                    {c.trainee_registered_on ? <Badge tone="warn">trainee since {formatBusinessDate(c.trainee_registered_on)}</Badge> : expiryBadge(c.cert_expires_on)}
                     {c.license_expires_on && c.license_expires_on < today ? <Badge tone="bad">license expired</Badge> : null}
                   </div>
                   {fields(`c-${c.id}`, c)}

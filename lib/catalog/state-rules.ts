@@ -28,6 +28,9 @@ export async function ensureStateRules(tx: Sql, tenantId: string, serviceTypeId:
       values
         (${tenantId}, ${serviceTypeId}, ${code}, ${defaults.certCategories}, ${defaults.certCategories}, ${defaults.taxClass}, ${defaults.taxClass}, ${defaults.packVersion})
       on conflict (service_type_id, state_code) do update set
+        -- A licensed manager's confirmation covers what the pack said then; changed pack categories need a fresh look.
+        confirmed_at = case when public.service_type_state_rules.pack_cert_categories is distinct from excluded.pack_cert_categories then null else public.service_type_state_rules.confirmed_at end,
+        confirmed_by = case when public.service_type_state_rules.pack_cert_categories is distinct from excluded.pack_cert_categories then null else public.service_type_state_rules.confirmed_by end,
         pack_cert_categories = excluded.pack_cert_categories,
         required_cert_categories = coalesce(
           (select array_agg(distinct c order by c) from unnest(public.service_type_state_rules.required_cert_categories || excluded.pack_cert_categories) as c),

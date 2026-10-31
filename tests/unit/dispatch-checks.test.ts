@@ -68,7 +68,10 @@ describe("dispatch checks (rules 1 to 7)", () => {
     expect(codes(checkAssignment(input({ crew: [lead(null)] }))).b).toEqual(["no_credential"]);
     expect(codes(checkAssignment(input({ crew: [lead({ ...certified, cert_expires_on: "2026-11-09" })] }))).b).toEqual(["cert_expired"]);
     expect(checkAssignment(input({ crew: [lead({ ...certified, cert_expires_on: "2026-11-10" })] })).ok).toBe(true);
-    expect(codes(checkAssignment(input({ crew: [lead({ ...certified, license_expires_on: "2026-01-01" })] }))).b).toEqual(["license_expired"]);
+    expect(codes(checkAssignment(input({ crew: [lead({ ...certified, license_expires_on: "2026-11-09" })] }))).b).toEqual(["license_expired"]);
+    expect(checkAssignment(input({ crew: [lead({ ...certified, license_expires_on: "2026-11-10" })] })).ok).toBe(true);
+    // A trainee date makes a trainee even when a certification number is also on the row.
+    expect(codes(checkAssignment(input({ crew: [lead({ ...certified, trainee_registered_on: "2026-09-01" })] }))).b).toEqual(["trainee_unsupervised"]);
     expect(codes(checkAssignment(input({ crew: [lead({ ...certified, categories: ["7F"] })] }))).b).toEqual(["missing_categories"]);
     expect(checkAssignment(input({ crew: [lead(certified, { role: "helper" }), { user_id: "u2", name: "Lee", role: "lead", credential: certified, branch_ids: null }] })).ok).toBe(true);
   });
@@ -85,9 +88,12 @@ describe("dispatch checks (rules 1 to 7)", () => {
     expect(codes(unknownState).w).toContain("trainee_rules_unknown");
   });
 
-  it("skips the credential check for work that applies no pesticide", () => {
+  it("skips the credential check for work that applies no pesticide, but still needs confirmed state rules", () => {
     const r = checkAssignment(input({ crew: [lead(null)] }, { job_kind: "trapping", treatment_areas: [] }));
     expect(r.ok).toBe(true);
+    const unconfirmed = checkAssignment(input({ crew: [lead(null)], pack: undefined, stateRule: { required_cert_categories: [], pack_version: null, confirmed_at: null }, serviceTypeId: "st1" }, { job_kind: "trapping", treatment_areas: [] }));
+    expect(codes(unconfirmed).b).toEqual(["state_rules_unconfirmed"]);
+    expect(unconfirmed.blockers[0].href).toBe("/catalog/service-types/st1");
   });
 
   it("refuses dates inside a blackout the pack defines (rule 4)", () => {

@@ -170,11 +170,12 @@ export async function confirmStateRule(formData: FormData) {
   const { session } = await requirePermission(tenantId, "compliance.write");
   let error: string | null = null;
   try {
-    await dbAs(session, (tx) =>
-      confirm
-        ? tx`update public.service_type_state_rules set confirmed_at = now(), confirmed_by = auth.uid() where id = ${ruleId} and tenant_id = ${tenantId}`
-        : tx`update public.service_type_state_rules set confirmed_at = null, confirmed_by = null where id = ${ruleId} and tenant_id = ${tenantId}`,
-    );
+    await dbAs(session, async (tx) => {
+      const result = confirm
+        ? await tx`update public.service_type_state_rules set confirmed_at = now(), confirmed_by = auth.uid() where id = ${ruleId} and tenant_id = ${tenantId}`
+        : await tx`update public.service_type_state_rules set confirmed_at = null, confirmed_by = null where id = ${ruleId} and tenant_id = ${tenantId}`;
+      if (result.count === 0) throw Object.assign(new Error("that state rule was not found or cannot be changed by your role"), { code: "23514" });
+    });
   } catch (err) {
     error = errorCode(err);
   }

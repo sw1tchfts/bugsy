@@ -49,11 +49,11 @@ export async function scheduleVisitJson(input: { tenantId: string; visitId: stri
 }
 
 export async function reorderVisitJson(input: { tenantId: string; visitId: string; direction: "up" | "down" }): Promise<BoardResult> {
-  const { session } = await requirePermission(input.tenantId, "dispatch.write");
+  const { session, membership } = await requirePermission(input.tenantId, "dispatch.write");
   try {
-    await dbAs(session, (tx) => reorderRow(tx, input.tenantId, input.visitId, input.direction));
+    const result = await dbAs(session, (tx) => reorderRow(tx, input.tenantId, input.visitId, input.direction, todayInZone(membership.tenantTimezone)));
     revalidatePath(BOARD);
-    return { ok: true, blockers: [], warnings: [] };
+    return toBoardResult(result);
   } catch (err) {
     return { ok: false, blockers: [errorCode(err)], warnings: [] };
   }
@@ -108,14 +108,15 @@ export async function reorderVisit(formData: FormData) {
   const visitId = str(formData, "visit_id");
   const direction = str(formData, "direction") === "up" ? "up" : "down";
   const returnTo = opt(formData, "return_to") ?? BOARD;
-  const { session } = await requirePermission(tenantId, "dispatch.write");
+  const { session, membership } = await requirePermission(tenantId, "dispatch.write");
+  let result: CheckResult | null = null;
   let error: string | null = null;
   try {
-    await dbAs(session, (tx) => reorderRow(tx, tenantId, visitId, direction));
+    result = await dbAs(session, (tx) => reorderRow(tx, tenantId, visitId, direction, todayInZone(membership.tenantTimezone)));
   } catch (err) {
     error = errorCode(err);
   }
-  finish(returnTo, null, error);
+  finish(returnTo, result, error);
 }
 
 export async function skipVisit(formData: FormData) {
