@@ -2,7 +2,7 @@
   "competitor": "Housecall Pro",
   "slug": "housecall-pro",
   "researched_on": "2026-10-20",
-  "updated_on": "2026-10-29",
+  "updated_on": "2026-10-31",
   "profile": {
     "owner": "Housecall Pro, privately held and venture-backed, founded 2013, headquartered in Denver, Colorado per PitchBook; investors include Permira, NewView Capital, Invus and Delta-v Capital.",
     "website": "https://www.housecallpro.com",
@@ -284,7 +284,7 @@
     {
       "id": "CMP-08",
       "status": "Unknown",
-      "notes": "Vendor never mentions Wisconsin or ATCP 29 requirements.",
+      "notes": "The pest control page omits compliance; no state rules or reports found.",
       "source": "https://www.housecallpro.com/industries/pest-control-software/"
     },
     {

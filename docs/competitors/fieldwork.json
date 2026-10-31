@@ -2,7 +2,7 @@
   "competitor": "Fieldwork",
   "slug": "fieldwork",
   "researched_on": "2026-10-30",
-  "updated_on": "2026-10-30",
+  "updated_on": "2026-10-31",
   "profile": {
     "owner": "Fieldwork Software, LLC of Niles, Illinois, privately held and family-run (most help articles are by Beau and Erin O'Hara). It shares its street address and support email with Anstar Products, a pest control products maker listed as App Store developer; no outside funding found. Founding year unclear (Craft says 2012, ZoomInfo 2020).",
     "website": "https://fieldworkhq.com",
@@ -277,9 +277,9 @@
     },
     {
       "id": "CMP-08",
-      "status": "Unknown",
-      "notes": "Wisconsin is not named on the site or in any help article; state report support covers California and New York only.",
-      "source": "https://fieldworkhq.com/features/chemical-tracking-and-reporting/"
+      "status": "Partial",
+      "notes": "California Monthly Summary Use Report data and New York's annual NYSDEC report as CSV; no other state formats, and no state notice or registry rules.",
+      "source": "https://intercom.help/fieldwork/en/articles/1454205-preparing-for-your-nysdec-report-submission"
     },
     {
       "id": "COM-01",

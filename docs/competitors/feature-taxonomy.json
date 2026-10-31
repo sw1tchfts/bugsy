@@ -245,8 +245,8 @@
     {
       "id": "CMP-08",
       "module": "Compliance",
-      "feature": "Wisconsin-specific compliance",
-      "definition": "Explicit Wisconsin support: ATCP 29 record fields, landscape registry advance notice, posting signs. Mark Unknown unless the vendor names Wisconsin."
+      "feature": "State-specific compliance rules",
+      "definition": "Each state's rules applied in the workflow: required record fields, customer and resident notice timing, notification registries, posting signs and seasonal blackouts, maintained per state. Yes needs rules for several states applied automatically; a few state report formats alone is Partial."
     },
     {
       "id": "COM-01",

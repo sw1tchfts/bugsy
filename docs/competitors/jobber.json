@@ -2,7 +2,7 @@
   "competitor": "Jobber",
   "slug": "jobber",
   "researched_on": "2026-10-20",
-  "updated_on": "2026-10-29",
+  "updated_on": "2026-10-31",
   "profile": {
     "owner": "Jobber (legal entity Octopusapp Inc.), private, venture backed company headquartered in Edmonton, Alberta, Canada. Co-founder and CEO Sam Pillar; investors include General Atlantic, Summit Partners and OMERS Ventures.",
     "website": "https://www.getjobber.com",
@@ -282,7 +282,7 @@
     {
       "id": "CMP-08",
       "status": "Unknown",
-      "notes": "Jobber does not name Wisconsin or any state in its chemical tracking or pest control materials.",
+      "notes": "Jobber names no state in its chemical tracking or pest control materials.",
       "source": "https://www.getjobber.com/features/chemical-tracking/"
     },
     {

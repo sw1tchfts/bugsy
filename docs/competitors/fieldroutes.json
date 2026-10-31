@@ -2,7 +2,7 @@
   "competitor": "FieldRoutes",
   "slug": "fieldroutes",
   "researched_on": "2026-10-20",
-  "updated_on": "2026-10-29",
+  "updated_on": "2026-10-31",
   "profile": {
     "owner": "ServiceTitan (NASDAQ: TTAN); FieldRoutes brands itself 'a ServiceTitan company'. Formed in 2021 when PestRoutes and Lobster Marketing rebranded as FieldRoutes.",
     "website": "https://www.fieldroutes.com/",
@@ -275,8 +275,8 @@
     },
     {
       "id": "CMP-08",
-      "status": "Unknown",
-      "notes": "No mention of Wisconsin, ATCP 29 or landscape registry notice. Only California and NPMA-33 are named.",
+      "status": "Partial",
+      "notes": "California Branch 3 WDO reporting and unnamed state chemical reports; no state notice, registry or posting rules documented.",
       "source": "https://www.fieldroutes.com/solutions/termite-pest-control"
     },
     {
