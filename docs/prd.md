@@ -98,7 +98,7 @@ Recommendation: independent, residential-first pest companies with one branch an
 | Residential customer | portal | Know when the technician comes and pay easily | Reminders, on-the-way text, portal, service summaries |
 | Commercial customer | portal | Pass a food-safety audit | Device maps, trends, sighting log, audit binder |
 
-**Where to find them.** State pest control association conferences and recertification events, NPMA's PestWorld, and the switching moments above. The design partner's state sets the first compliance rule pack. Wisconsin research (market, incumbents, channels, rules) is ready in `research_notes/` if the pilot lands there.
+**Where to find them.** State pest control association conferences and recertification events, NPMA's PestWorld, and the switching moments above. The design partner's state sets the first compliance rule pack. If the partner is in Wisconsin, its market research is in `research_notes/` and its rules are already the first worked state file in the compliance skill.
 
 <!-- page: competitors | Competitors -->
 
@@ -275,7 +275,7 @@ Everything ships in one build, sequenced by dependency. Specs 01 to 10 have stub
 These change existing specs or the data model; specs 11 to 21 above close the rest.
 
 1. **Visits need a crew, not one technician.** A trainee needs a certified applicator on site, and records and notices name everyone who applied or directly supervised. Add `visit_technicians` (visit, user, role: applicator, supervisor or helper) and keep `visits.technician_id` as the lead. Affects 04 to 07.
-2. **State notice rules must be known when scheduling.** Advance notices (for example, to addresses on a notification registry) go out before the stop, so the planned treatment and its extent belong on the agreement or service type. The app warns when captured work goes beyond what was planned. Also add `service_types.job_kind` (for example `bat_exclusion`), which the scheduling fixture uses but the data model lacks. Affects 03 to 07.
+2. **State notice rules must be known when scheduling.** Advance notices (for example, to addresses on a notification registry) go out before the stop, so the planned treatment and its extent belong on the agreement or service type. The app warns when captured work goes beyond what was planned. The data model now gives service types a `job_kind` (for example `bat_exclusion`) and treatment areas, and per-state certification and tax rules. Affects 03 to 07.
 3. **Routes need an order.** Visits carry a technician and a date but no sequence. Add a `routes` table (technician, date, start location, ordered stops), which route optimization in spec 19 also needs. Affects 05, 06 and 19.
 4. **Printing at the stop.** Resident notices and posting signs must be left or posted at the time of application in many states. With a native wrapper the app can print to a truck printer; as a web app it cannot reach Bluetooth printers, so pre-printed templates with photo proof are the fallback. Affects 06 and 07.
 5. **Opening contract balances.** Agreements already mid-term on flat monthly or annual prepay carry deferred revenue or an unbilled receivable. Import billed-to-date and delivered-to-date per agreement, or month one of the ledger is wrong. Affects 09 and 10.
@@ -400,12 +400,13 @@ Twelve calls shape the build. The first four should be made before spec 01 start
 | 11 | Features not yet on the list | Add the candidates on the Features page, starting with visit crews, application conditions, mix calculator, recertification credits, forms, multi-unit buildings and termite bait integration, and score all nine competitors on them | Feature list, specs |
 | 12 | Pest-only scope | Stay pest-only; revisit lawn care only if pest-and-lawn firms block deals | Sales positioning |
 
-**Outside answers.** Each launch state brings its own legal questions: record and notice rules, registries, license categories, and sales tax on yard mosquito and tick spraying. Wisconsin's are listed in the discovery spec. Also confirm, per launch state, that an e-signed consent counts as written consent for electronic notices.
+**Outside answers.** Each launch state brings its own legal questions: record and notice rules, registries, license categories, and sales tax on yard mosquito and tick spraying. Wisconsin's are in `.claude/skills/pesticide-compliance/states/wi.md`; each new state gets a file like it. Also confirm, per launch state, that an e-signed consent counts as written consent for electronic notices.
 
 <!-- page: sources | Sources -->
 
 ## Sources and method
 
+- **Compliance rules:** the `pesticide-compliance` skill explains how state rules become rule packs; `states/wi.md` is the first researched state, with fixtures in `fixtures/states/wi/`.
 - **Discovery:** the [discovery spec](https://claude.ai/artifact/PZvWbg1f2PkV4NJK7QjFqb) (business model, Wisconsin rules research, module answers), exported to `docs/discovery-spec.md`.
 - **Competitor profiles:** one JSON file per product in `docs/competitors/`, researched October 20, 2026 and corrected October 29 to 31, 2026, each score with a source link. Public sources only: vendor pages, help centers, release notes, pricing pages, app stores and review sites.
 - **Research notes and report:** `research_notes/Competitor research vs Bugsy PRD/` and `reports/Competitor research vs Bugsy PRD.md`.

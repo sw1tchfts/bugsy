@@ -2,7 +2,7 @@
 
 Status: draft | ready | in progress | done
 Depends on: <spec numbers>
-Skills to load: <wi-pesticide-compliance, pest-accounting, pest-domain>
+Skills to load: <pesticide-compliance, pest-accounting, pest-domain>
 
 ## Goal
 One paragraph: what a user can do when this ships, and why it matters to a pest control company.

@@ -15,8 +15,8 @@ A pest control company is a route-based subscription business. Most revenue come
 | --- | --- | --- |
 | General pest | Recurring plan | Agreements, routes, re-services |
 | Rodent | Recurring plan or one-time; commercial station programs | Device tracking |
-| Termite | Inspection, per-job treatment, then a yearly warranty or monitoring | Warranties, bait station checks, property diagrams; mostly southern Wisconsin |
-| Mosquito and tick | Seasonal recurring, spring to fall | Season windows, landscape notice rules, tax question |
+| Termite | Inspection, per-job treatment, then a yearly warranty or monitoring | Warranties, bait station checks, property diagrams; demand varies widely by region |
+| Mosquito and tick | Seasonal recurring, spring to fall | Season windows, state notice rules for yard spraying, tax question in some states |
 | Bed bug | Per-job bid, several visits | Customer prep checklists |
 | Wildlife | Per-job trapping, exclusion and repairs | Landowner authorization, bat blackout, materials |
 
@@ -49,9 +49,9 @@ Out of scope: lawn care, tree and shrub care, and other trades. Mosquito and tic
 - **Exclusion**: sealing entry points; for bats, one-way doors.
 - **Rounds**: the numbered applications in a mosquito or tick season program.
 
-## Seasonality in Wisconsin
+## Seasonality
 
-Outdoor work (mosquito, tick, perimeter) stops in winter. Companies keep revenue and technician pay steady with interior-only winter visits, skipped months, and flat monthly billing. Spring brings sign-ups and upsells (mosquito and tick).
+In northern states outdoor work (mosquito, tick, perimeter) stops in winter; southern states work year-round, with termite swarm seasons and longer mosquito seasons. Companies keep revenue and technician pay steady with interior-only winter visits, skipped months, and flat monthly billing. Spring brings sign-ups and upsells (mosquito and tick).
 
 ## Users
 

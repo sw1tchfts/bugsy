@@ -1,11 +1,11 @@
 ---
 name: pest-accounting
-description: Accounting rules for the pest platform's billing and general ledger (per-visit revenue recognition, deferred revenue and unbilled receivables per agreement, installment rounding, posting rules, Wisconsin sales tax by service type, Stripe clearing). Use when building or changing invoices, payments, agreements' billing modes, cancellations, tax, journal entries or financial reports.
+description: Accounting rules for the pest platform's billing and general ledger (per-visit revenue recognition, deferred revenue and unbilled receivables per agreement, installment rounding, posting rules, sales tax by service type and state, Stripe clearing). Use when building or changing invoices, payments, agreements' billing modes, cancellations, tax, journal entries or financial reports.
 ---
 
 # Pest accounting rules
 
-Expected numbers live in `fixtures/accounting/` and `fixtures/tax/`. Tests load them; never restate or edit them in code. These policies are reasonable defaults for a service subscription business; have an accountant confirm the revenue allocation method before launch.
+Expected numbers live in `fixtures/accounting/`, and each state's taxability in `fixtures/states/<state>/taxability.json`. Tests load them; never restate or edit them in code. These policies are reasonable defaults for a service subscription business; have an accountant confirm the revenue allocation method before launch.
 
 ## Revenue recognition
 
@@ -51,11 +51,10 @@ Expenses: `chemical_cost`, `technician_labor`, `commissions_expense`, `processin
 
 Every entry balances to the cent. Closed periods reject new postings; corrections post to the open period.
 
-## Sales tax (Wisconsin)
+## Sales tax
 
-- Taxability comes from the service type's `tax_class`, never from line descriptions.
-- Structural pest control is treated as nontaxable until confirmed with DOR. Yard mosquito and tick spraying is an open question, because Wisconsin taxes spraying of lawns, trees and shrubs as a landscaping service (DOR Publication 210). Keep the tax path working so a service type can become taxable without code changes.
-- Rate is the state rate plus county and other local taxes where the service is received (the service address). Rates come from DOR tables with effective dates; never hardcode a rate.
+- Taxability comes from the service type's tax class for the property's state, never from line descriptions. States differ: some tax pest control services, some do not, and some tax yard spraying as a landscaping service (Wisconsin, for example; see `pesticide-compliance/states/wi.md`). Confirm each launch state's answer before go-live and record it with its source; never guess. Keep the tax path working so a service type can become taxable without code changes.
+- Rate is the state rate plus county and other local taxes where the service is received (the service address). Rates come from each state revenue department's tables with effective dates; never hardcode a rate.
 - Invoices mixing taxable and nontaxable work show the portions separately and tax only the taxable part.
 - Exemption certificates on the account (for example a government unit) zero the tax and are kept with the invoice.
 

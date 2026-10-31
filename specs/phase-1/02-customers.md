@@ -11,8 +11,8 @@ Office staff can capture a lead, book an inspection, send a quote and convert a 
 - An account is the billing party; a property is the service location; contacts hang off either (discovery doc, Sales and CRM).
 - Lead source is required on every lead.
 - Pipeline stages: new, inspection booked, quoted, won, lost.
-- Rental and multi-unit properties need resident contacts because pesticide notices go to residents (ATCP 29.55).
-- E-signature on the agreement also captures written consent to electronic notices (ATCP 29.22).
+- Rental and multi-unit properties need resident contacts because many states require pesticide notices to residents, not only the paying account.
+- E-signature on the agreement also captures written consent to electronic notices, which some states require before email or text delivery.
 
 ## Questions for the spec interview
 - Do quotes support tiered good, better, best options in Phase 1?

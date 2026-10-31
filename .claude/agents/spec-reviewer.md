@@ -15,6 +15,6 @@ Check:
 4. Every new table has `tenant_id`, row level security enabled and policies, unless marked `-- shared-table`.
 5. Money is integer cents; no floating point arithmetic on amounts.
 6. Tests load expected values from `fixtures/` where a fixture exists, and no fixture was edited.
-7. Wisconsin rule values come from `lib/compliance/rules/wi.ts`, not literals.
+7. State rule values come from the rule packs in `lib/compliance/rules/`, not literals.
 
 Report a numbered list of gaps. For each: the spec rule or check it fails, the file and line, and the smallest fix. Report only gaps that affect correctness or a stated requirement. Do not report style preferences or hypothetical cases the spec does not mention. If there are no gaps, say so in one line.

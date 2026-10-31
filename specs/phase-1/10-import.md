@@ -14,7 +14,7 @@ A pilot company can load its customers, properties and active agreements from sp
 ## Questions for the spec interview
 - Which fields are required versus optional in each template?
 - Dry-run preview with row-level errors before commit?
-- How to import visit history needed for compliance retention (2 years)?
+- How to import visit history needed for compliance retention (the state's retention period; Wisconsin: 2 years)?
 
 ## Verification will use
 - A sample import file set in fixtures/import/ (to be created with the spec).

@@ -39,8 +39,8 @@ erDiagram
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| tenants | name, legal_name, timezone, state_code [WI], stripe_account_id, status | One pest company |
-| branches | tenant_id, name, address, business_license_number, license_year | One licensed business location (ATCP 29.20) |
+| tenants | name, legal_name, timezone, stripe_account_id, status | One pest company; it may work in several states |
+| branches | tenant_id, name, address, state_code, business_license_number, license_year | One business location; whether it needs its own license comes from its state's rule pack |
 | memberships | tenant_id, user_id (auth.users), role, branch_ids uuid[] null | Null branch_ids means all branches |
 | roles | tenant_id null, key, permissions text[] | Platform defaults have tenant_id null; tenants copy and edit |
 | audit_log | tenant_id, actor_id, table_name, row_id, action, before, after | Written by triggers on sensitive tables |
@@ -50,7 +50,7 @@ erDiagram
 | Table | Key columns | Notes |
 | --- | --- | --- |
 | accounts | tenant_id, name, type [residential, commercial, property_manager], billing_address, tax_exempt_cert_id, terms_days, status | Who pays |
-| properties | tenant_id, account_id, address, lat, lng, property_type, size_sqft, unit_count, notes, landscape_registry_match bool | Where work happens |
+| properties | tenant_id, account_id, address, state_code, lat, lng, property_type, size_sqft, unit_count, notes, registry_matches jsonb | Where work happens; its state selects the compliance rule pack |
 | contacts | tenant_id, account_id null, property_id null, name, email, phone, role [billing, primary, resident, site_contact], sms_opt_in, e_notice_consent_at | Residents get pesticide notices |
 | leads | tenant_id, contact fields, property address, source, stage [new, inspection_booked, quoted, won, lost], lost_reason, owner_id | Converts to account and property |
 | quotes / quote_lines | tenant_id, lead_id or account_id, property_id, status, lines with price_book_item_id and price_cents | Tiered options as separate quote groups |
@@ -59,7 +59,8 @@ erDiagram
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| service_types | tenant_id, service_line [general_pest, rodent, termite, mosquito, bed_bug, wildlife], name, tax_class, required_cert_categories text[], is_landscape bool | Drives tax, licensing and notice rules |
+| service_types | tenant_id, service_line [general_pest, rodent, termite, mosquito, bed_bug, wildlife], name, job_kind, treatment_areas text[] [interior, perimeter, yard, wood, devices] | State packs map job kind and treatment areas to licensing, notice and blackout rules |
+| service_type_state_rules | tenant_id, service_type_id, state_code, required_cert_categories text[], tax_class | Defaults come from the state pack; tenants may tighten, never loosen |
 | price_book_items | tenant_id, service_type_id, tier rule (size bands), initial_price_cents, recurring_price_cents, add_on bool | |
 | products | (shared) name, epa_reg_no, active_ingredients, restricted_use bool, rei_hours, label_url, sds_url, signal_word | Platform-maintained master list |
 | tenant_products | tenant_id, product_id, enabled, unit, unit_cost_cents | Tenant switches on and costs products |
@@ -77,11 +78,11 @@ erDiagram
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| applicator_credentials | tenant_id, user_id, cert_number, categories text[], cert_expires_on, license_number, license_year, trainee_registered_on null, supervisor_id null | One row per technician |
-| application_records | tenant_id, visit_id, snapshot jsonb with every ATCP 29.21 field, locked_at, retention_until | Immutable after lock |
+| applicator_credentials | tenant_id, user_id, state_code, cert_number, categories text[], cert_expires_on, license_number, license_year, recert_credits jsonb, trainee_registered_on null, supervisor_id null | One row per technician per state |
+| application_records | tenant_id, visit_id, state_code, rule_pack_version, snapshot jsonb with every field the state requires, locked_at, retention_until | Immutable after lock |
 | application_record_amendments | tenant_id, record_id, changed_fields jsonb, reason, author_id | Corrections only |
-| notices | tenant_id, kind [post_application, pre_application_offer, resident_notice, rei_sign, landscape_advance], visit_id null, agreement_id null, recipient_contact_id, channel [email, sms, print, mail, phone], due_by, sent_at, proof | Proof of every required notice |
-| landscape_registry | tenant_id, registry_year, address, normalized_address, contact | Imported yearly from DATCP |
+| notices | tenant_id, kind (defined by the state pack, for example post_application, pre_application_offer, resident_notice, posting_sign, registry_advance), visit_id null, agreement_id null, recipient_contact_id, channel [email, sms, print, mail, phone], due_by, sent_at, proof | Proof of every required notice |
+| notification_registries | tenant_id, state_code, registry_kind, registry_year, address, normalized_address, contact | Imported per state, for example Wisconsin's yearly landscape registry |
 
 ## Billing
 
@@ -92,7 +93,7 @@ erDiagram
 | payments | tenant_id, account_id, amount_cents, method, stripe_payment_intent_id, received_at, status | |
 | payment_allocations | tenant_id, payment_id, invoice_id, amount_cents | |
 | payment_methods | tenant_id, account_id, stripe_payment_method_id, brand, last4, autopay | No card data stored |
-| tax_jurisdictions / tax_rates | (shared) code, name, type [state, county, city, district], rate, effective_from | Loaded from DOR rate tables |
+| tax_jurisdictions / tax_rates | (shared) code, name, type [state, county, city, district], rate, effective_from | Loaded from each state revenue department's rate tables |
 
 ## General ledger
 
@@ -110,6 +111,6 @@ erDiagram
 | stock_locations | tenant_id, branch_id, kind [warehouse, truck], vehicle_id null | |
 | stock_movements | tenant_id, product_id, from_location_id, to_location_id, quantity, unit, reason [receipt, transfer, usage, adjustment], visit_product_id null | Usage rows created from visit_products |
 
-## Phase 2 tables (named now so specs do not collide)
+## Tables for specs 11 to 21 (named now so specs do not collide)
 
-devices, device_checks, site_maps, sightings, recommendations, warranties, commissions, door_knocks.
+routes, route_stops, devices, device_checks, site_maps, sightings, recommendations, warranties, commissions, door_knocks, time_entries, message_threads, webhooks, api_keys. Each spec defines its own columns.

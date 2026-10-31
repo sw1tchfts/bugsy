@@ -2,7 +2,7 @@
   "description": "Expected journal lines for single business events. Account keys refer to the chart of accounts template in the pest-accounting skill. Every entry must balance.",
   "test_tax_rate": {
     "rate": "0.055",
-    "note": "Synthetic rate for tests only, not a real Wisconsin jurisdiction rate."
+    "note": "Synthetic rate for tests only, not a real jurisdiction rate."
   },
   "cases": [
     {
@@ -54,7 +54,7 @@
           "subledger": "jurisdiction"
         }
       ],
-      "note": "Tests the tax path only. No pest service is confirmed taxable yet; yard mosquito spraying would follow this path if DOR confirms it is taxable."
+      "note": "Tests the tax path for a service type whose state taxes it. Which services are taxable depends on the state's rules."
     },
     {
       "event": "visit_completed",
