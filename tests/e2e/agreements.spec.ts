@@ -61,6 +61,12 @@ test("office staff sign a quarterly agreement, book a re-service, raise prices i
   await expect(page.getByRole("cell", { name: "Planned", exact: true })).toHaveCount(4);
   await page.screenshot({ path: "test-results/agreement-signed.png", fullPage: true });
 
+  // Signing recorded the customer's consent to electronic notices on her contact.
+  await page.getByRole("link", { name: "Maria Lopez" }).first().click();
+  await expect(page).toHaveURL(/\/customers\/[0-9a-f-]+$/);
+  await expect(page.getByRole("row", { name: /Maria Lopez.*primary/ }).getByText("electronic ok")).toBeVisible();
+  await page.goto(agreementUrl);
+
   // A free re-service.
   await page.getByLabel("What the customer is seeing").fill("Ants back in the kitchen");
   await page.getByRole("button", { name: "Book re-service" }).click();

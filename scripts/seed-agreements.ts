@@ -49,14 +49,17 @@ export async function seedAgreements(sql: Sql, tenant: SeedTenant, tenantId: str
   const year = Number(today.slice(0, 4));
   const seasonYear = today > `${year}-10-31` ? year + 1 : year;
   const [branch] = await sql<{ id: string }[]>`select id from public.branches where tenant_id = ${tenantId} and archived_at is null order by created_at limit 1`;
+  await sql`
+    update public.tenants set agreement_terms = 'Service agreement. The company provides the visits listed at the prices shown for the term stated, with free re-services between visits when pests return. Either party may cancel with 30 days notice; an early cancellation fee applies when the agreement states one. Payment follows the billing mode on the agreement.'
+    where id = ${tenantId} and agreement_terms is null`;
 
   const seeds: AgreementSeed[] = [
     // Quarterly general pest on flat monthly billing, signed this month: the fixture's shape (scenario A).
     { key: "maria-general", account: "Maria Lopez", property: "Home", serviceType: "General pest plan", cadence: "quarterly", billing_mode: "flat_monthly", initial: 24900, recurring: 11900, starts_on: thisMonth, skip_months: [], interior_only_months: [12, 1, 2] },
     // Seasonal mosquito program, annual prepay, six rounds May to October.
     { key: "maria-mosquito", account: "Maria Lopez", property: "Home", serviceType: "Mosquito and tick season", cadence: "seasonal_rounds", cadence_rule: { rounds: 6 }, season_start: `${seasonYear}-05-01`, season_end: `${seasonYear}-10-31`, billing_mode: "annual_prepay", initial: 8900, recurring: 8900, starts_on: `${seasonYear}-05-01`, term_months: 12 },
-    // Monthly rodent program per visit, eleven months in, so it shows on the renewals list.
-    { key: "oakwood-rodent", account: "Oakwood Properties", property: "Oakwood Apartments", serviceType: "Rodent control program", cadence: "monthly", billing_mode: "per_visit", initial: 39500, recurring: 10900, starts_on: addMonths(thisMonth, -11), auto_renew: true },
+    // Monthly rodent program per visit, eleven months in and not auto-renewing, so it shows on the renewals list for a call.
+    { key: "oakwood-rodent", account: "Oakwood Properties", property: "Oakwood Apartments", serviceType: "Rodent control program", cadence: "monthly", billing_mode: "per_visit", initial: 39500, recurring: 10900, starts_on: addMonths(thisMonth, -11), auto_renew: false },
     // Commercial general pest on flat monthly, started three months ago, cancelled below.
     { key: "riverside-cancelled", account: "Riverside Hospitality Group", property: "Riverside Grill downtown", serviceType: "General pest plan", cadence: "monthly", billing_mode: "flat_monthly", initial: 29900, recurring: 13900, starts_on: addMonths(thisMonth, -3), cancel_fee: 5000, auto_renew: false },
   ];
@@ -70,6 +73,7 @@ export async function seedAgreements(sql: Sql, tenant: SeedTenant, tenantId: str
       ids.set(s.key, existing.id);
       // A run that stopped between signing and planning leaves an active agreement without visits; finish it.
       if (existing.status === "active" && existing.visits === 0) await syncVisits(sql, tenantId, existing.id);
+      await sql`update public.agreements set auto_renew = ${s.auto_renew ?? true} where id = ${existing.id} and auto_renew <> ${s.auto_renew ?? true}`;
       continue;
     }
     const target = await accountAndProperty(sql, tenantId, s.account, s.property);
@@ -107,9 +111,12 @@ export async function seedAgreements(sql: Sql, tenant: SeedTenant, tenantId: str
     await syncVisits(sql, tenantId, row.id);
   }
 
-  // Visits whose window has passed are completed, so the renewals list, the home page and the ledger have history.
+  // Visits whose window has passed were done by the demo technician, so the renewals list, the home page and the
+  // ledger have history.
+  const [technician] = await sql<{ user_id: string }[]>`
+    select m.user_id from public.memberships m join public.roles r on r.id = m.role_id where m.tenant_id = ${tenantId} and r.key = 'technician' limit 1`;
   await sql`
-    update public.visits set status = 'scheduled', scheduled_for = due_start, technician_id = null
+    update public.visits set status = 'scheduled', scheduled_for = due_start, technician_id = ${technician.user_id}
     where tenant_id = ${tenantId} and status = 'planned' and kind in ('initial', 'recurring') and due_end < ${today}`;
   await sql`
     update public.visits set status = 'completed', completed_at = (due_start::timestamp + interval '10 hours'), arrived_at = (due_start::timestamp + interval '9 hours'), departed_at = (due_start::timestamp + interval '10 hours')

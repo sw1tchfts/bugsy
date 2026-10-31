@@ -150,29 +150,54 @@ export async function applyPriceIncrease(tx: Sql, tenantId: string, increaseId: 
   return changed;
 }
 
-/** Extends the term by one more term and plans its visits (rule 9). */
+/**
+ * Extends the term by one more term and plans only the new term's visits (rule 9). The current term's visits,
+ * planned or not, are left exactly as they are, including any price that is not due to change until later.
+ */
 export async function renewAgreement(tx: Sql, tenantId: string, agreementId: string): Promise<number> {
   const agreement = await loadAgreement(tx, tenantId, agreementId);
   if (!agreement) throw new Error("agreement not found");
   if (agreement.status !== "active") throw Object.assign(new Error("only an active agreement renews"), { code: "23514" });
-  const [last] = await tx<{ price_cents: string | number }[]>`
-    select price_cents from public.visits where agreement_id = ${agreementId} and kind = 'recurring' and status <> 'cancelled' order by due_start desc limit 1`;
+  const previousEnd = agreement.ends_on;
+  const [last] = await tx<{ price_cents: string | number; due_start: string }[]>`
+    select price_cents, due_start from public.visits where agreement_id = ${agreementId} and kind = 'recurring' and status <> 'cancelled' order by due_start desc limit 1`;
   await tx`update public.agreements set renewals = renewals + 1 where id = ${agreementId} and tenant_id = ${tenantId}`;
-  const inserted = await syncVisits(tx, tenantId, agreementId);
+  const renewed = await loadAgreement(tx, tenantId, agreementId);
+  if (!renewed) throw new Error("agreement not found");
+  const existing = await existingVisits(tx, tenantId, agreementId);
+  let sequence = existing.reduce((max, v) => Math.max(max, v.sequence), 0);
+  const nextTerm = planVisits(renewed)
+    .filter((v) => v.due_start > previousEnd)
+    .map((v) => ({ ...v, kind: "recurring" as const, price_cents: renewed.recurring_price_cents, sequence: ++sequence }));
+  await insertPlanned(tx, renewed, nextTerm);
   if (last && Number(last.price_cents) !== agreement.recurring_price_cents) {
-    await tx`
-      insert into public.agreement_price_changes (tenant_id, agreement_id, old_recurring_price_cents, new_recurring_price_cents, effective_on, reason)
-      values (${tenantId}, ${agreementId}, ${Number(last.price_cents)}, ${agreement.recurring_price_cents}, ${addDays(agreement.ends_on, 1)}, 'renewal')`;
+    // A change already dated after the last visit (a bulk increase effective next term) is the reason the prices differ; no second notice.
+    const [announced] = await tx<{ id: string }[]>`
+      select id from public.agreement_price_changes
+      where agreement_id = ${agreementId} and new_recurring_price_cents = ${agreement.recurring_price_cents} and effective_on > ${last.due_start} limit 1`;
+    if (!announced) {
+      await tx`
+        insert into public.agreement_price_changes (tenant_id, agreement_id, old_recurring_price_cents, new_recurring_price_cents, effective_on, reason)
+        values (${tenantId}, ${agreementId}, ${Number(last.price_cents)}, ${agreement.recurring_price_cents}, ${addDays(previousEnd, 1)}, 'renewal')`;
+    }
   }
-  return inserted;
+  return nextTerm.length;
 }
 
 /** Renews every auto-renewing agreement that ends within 30 days of `today` (rule 9). Returns the agreement ids renewed. */
 export async function runAutoRenewals(tx: Sql, tenantId: string, today: string): Promise<string[]> {
   const due = await tx<{ id: string }[]>`
-    select id from public.agreements where tenant_id = ${tenantId} and status = 'active' and auto_renew and ends_on <= ${addDays(today, 30)} order by ends_on`;
+    select id from public.agreements
+    where tenant_id = ${tenantId} and status = 'active' and auto_renew and ends_on >= ${today} and ends_on <= ${addDays(today, 30)} order by ends_on`;
   for (const a of due) await renewAgreement(tx, tenantId, a.id);
   return due.map((a) => a.id);
+}
+
+/** The housekeeping a renewals view or a scheduled job runs: end what expired, renew what asked to be renewed. */
+export async function maintainTerms(tx: Sql, tenantId: string, today: string): Promise<{ ended: number; renewed: string[] }> {
+  const renewed = await runAutoRenewals(tx, tenantId, today);
+  const ended = await endExpiredAgreements(tx, tenantId, today);
+  return { ended, renewed };
 }
 
 /** Marks active agreements whose term has passed, and did not renew, as ended. */

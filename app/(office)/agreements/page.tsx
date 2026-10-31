@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Badge, Button, Card, Empty, Field, Input, Notice, Table, errorMessage } from "@/components/ui";
 import { BILLING_MODE_LABELS, type BillingMode, CADENCE_LABELS, type Cadence } from "@/lib/agreements/cadence";
+import { maintainTerms } from "@/lib/agreements/db";
 import { AGREEMENT_STATUS_LABELS } from "@/lib/agreements/forms";
 import { can } from "@/lib/auth/permissions";
 import { dbAs } from "@/lib/auth/session";
@@ -44,6 +45,10 @@ export default async function AgreementsPage({ searchParams }: { searchParams: P
   const canWrite = can(active.permissions, "agreements.write");
   const today = todayInZone(active.tenantTimezone);
   const horizon = addDays(today, 30);
+
+  // Housekeeping on view, under the viewer's own permissions: expired terms end, auto-renewing ones renew in time
+  // for dispatch. A scheduled job (spec 13) will run the same function unattended.
+  if (canWrite) await dbAs(session, (tx) => maintainTerms(tx, tenantId, today));
 
   const [rows, reservices, reasons] = await dbAs(session, async (tx) => {
     const rows = await tx<Row[]>`
@@ -98,11 +103,29 @@ export default async function AgreementsPage({ searchParams }: { searchParams: P
       </div>
       {error ? <Notice kind="error">{errorMessage(error)}</Notice> : null}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {tab("all", "All")}
         {tab("renewals", "Ending within 30 days")}
         {tab("reservices", "Open re-services", reservices.length)}
         {canWrite ? tab("reasons", "Cancel reasons") : null}
+        {view === "all" ? (
+          <form method="get" className="ml-auto flex items-center gap-2 text-sm">
+            <label htmlFor="status-filter" className="text-stone-600">
+              Status
+            </label>
+            <select id="status-filter" name="status" defaultValue={status ?? ""} className="rounded border border-stone-300 bg-white px-2 py-1">
+              <option value="">Any</option>
+              {Object.entries(AGREEMENT_STATUS_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <Button type="submit" variant="secondary">
+              Filter
+            </Button>
+          </form>
+        ) : null}
       </div>
 
       {view === "reservices" ? (

@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { applyPriceIncrease as applyIncrease, bookReservice as bookReserviceRow, cancelAgreement as cancelRow, changeRecurringPrice, renewAgreement as renewRow, runAutoRenewals as runRenewals, syncVisits } from "@/lib/agreements/db";
+import { applyPriceIncrease as applyIncrease, bookReservice as bookReserviceRow, cancelAgreement as cancelRow, changeRecurringPrice, maintainTerms, renewAgreement as renewRow, syncVisits } from "@/lib/agreements/db";
 import { readAgreementColumns } from "@/lib/agreements/forms";
 import { dbAs, requirePermission } from "@/lib/auth/session";
 import { intOrNull, opt, str } from "@/lib/customers/forms";
@@ -109,10 +109,11 @@ export async function signAgreement(formData: FormData) {
   let error: string | null = null;
   try {
     await dbAs(session, async (tx) => {
-      const [current] = await tx<{ status: string; number: number; signed_at: string | null }[]>`
-        select status, number, signed_at from public.agreements where id = ${agreementId} and tenant_id = ${tenantId}`;
+      const [current] = await tx<{ status: string; number: number; signed_at: string | null; terms_text: string | null }[]>`
+        select status, number, signed_at, terms_text from public.agreements where id = ${agreementId} and tenant_id = ${tenantId}`;
       if (!current) throw new Error("not found");
       if (current.signed_at) throw Object.assign(new Error("this agreement is already signed"), { code: "23514" });
+      if (!current.terms_text?.trim()) throw Object.assign(new Error("this agreement has no terms to agree to; add them to the agreement or set the company's terms under Settings"), { code: "23514" });
       await tx`
         update public.agreements set status = 'active', signed_at = now(), signed_name = ${signedName}, signed_by_contact_id = ${contactId}, signed_ip = ${ip}
         where id = ${agreementId} and tenant_id = ${tenantId}`;
@@ -182,7 +183,7 @@ export async function runAutoRenewals(formData: FormData) {
   const { session, membership } = await requirePermission(tenantId, "agreements.write");
   let error: string | null = null;
   try {
-    await dbAs(session, (tx) => runRenewals(tx, tenantId, todayInZone(membership.tenantTimezone)));
+    await dbAs(session, (tx) => maintainTerms(tx, tenantId, todayInZone(membership.tenantTimezone)));
   } catch (err) {
     error = errorCode(err);
   }
@@ -201,8 +202,9 @@ export async function cancelAgreement(formData: FormData) {
   let error: string | null = null;
   try {
     await dbAs(session, async (tx) => {
+      // The day the last visit was actually done, not the start of its window.
       const [current] = await tx<{ status: string; last_completed: string | null }[]>`
-        select a.status, (select max(v.due_start)::text from public.visits v where v.agreement_id = a.id and v.status = 'completed') as last_completed
+        select a.status, (select max(coalesce(v.scheduled_for, v.due_start))::text from public.visits v where v.agreement_id = a.id and v.status = 'completed') as last_completed
         from public.agreements a where a.id = ${agreementId} and a.tenant_id = ${tenantId}`;
       if (!current) throw new Error("not found");
       if (current.status !== "draft" && !reasonId) throw Object.assign(new Error("cancelling an agreement needs a reason"), { code: "23514" });
