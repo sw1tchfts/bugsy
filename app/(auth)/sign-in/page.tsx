@@ -10,7 +10,7 @@ type Search = { error?: string; next?: string; sent?: string; email?: string };
 
 export default async function SignInPage({ searchParams }: { searchParams: Promise<Search> }) {
   const params = await searchParams;
-  const next = params.next && params.next.startsWith("/") ? params.next : "/";
+  const next = params.next && params.next.startsWith("/") && !params.next.startsWith("//") ? params.next : "/";
   if (await getSession()) redirect(next);
   const error = errorMessage(params.error);
 

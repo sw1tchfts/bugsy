@@ -63,3 +63,11 @@ export const SEED_TENANTS: SeedTenant[] = [
 export function seedUserEmail(tenant: SeedTenant, roleKey: (typeof ROLE_KEYS)[number]): string {
   return `${roleKey.replace("_", "-")}@${tenant.domain}`;
 }
+
+/** An outside bookkeeper who keeps the books for both companies: the one seeded user with two memberships. */
+export const CROSS_TENANT_USER = {
+  email: seedUserEmail(SEED_TENANTS[1], "bookkeeper"),
+  homeTenant: SEED_TENANTS[1].name,
+  alsoIn: SEED_TENANTS[0].name,
+  roleKey: "bookkeeper" as const,
+};

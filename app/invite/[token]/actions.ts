@@ -10,8 +10,9 @@ export async function acceptInvitation(formData: FormData) {
   let tenantId: string | null = null;
   try {
     await dbAs(session, async (tx) => {
-      await tx`select app.accept_invitation(${token}::uuid)`;
-      const [row] = await tx<{ tenant_id: string }[]>`select tenant_id from public.invitations where token = ${token}::uuid`;
+      // The function returns the new membership; the member can read that row whatever their role.
+      const [accepted] = await tx<{ membership_id: string }[]>`select app.accept_invitation(${token}::uuid) as membership_id`;
+      const [row] = await tx<{ tenant_id: string }[]>`select tenant_id from public.memberships where id = ${accepted.membership_id}`;
       tenantId = row?.tenant_id ?? null;
     });
   } catch {

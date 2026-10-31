@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { PLATFORM_ADMIN_EMAIL, SEED_PASSWORD, SEED_TENANTS, seedUserEmail } from "../../scripts/seed-data";
+import { CROSS_TENANT_USER, PLATFORM_ADMIN_EMAIL, SEED_PASSWORD, SEED_TENANTS, seedUserEmail } from "../../scripts/seed-data";
 
 const [northwind, lakeshore] = SEED_TENANTS;
 
@@ -59,6 +59,39 @@ test("a technician sees branches but cannot add one", async ({ page }) => {
   await page.goto("/settings/branches");
   await expect(page.getByRole("cell", { name: northwind.branches[0].name })).toBeVisible();
   await expect(page.getByRole("button", { name: "Add branch" })).toHaveCount(0);
+});
+
+test("a user in two companies switches between them and never sees mixed data", async ({ page }) => {
+  await page.goto("/sign-in");
+  await page.locator("#email").fill(CROSS_TENANT_USER.email);
+  await page.locator("#password").fill(SEED_PASSWORD);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+
+  const switcher = page.getByLabel("Company");
+  await expect(switcher.locator("option")).toHaveText([lakeshore.name, northwind.name]);
+
+  await switcher.selectOption({ label: northwind.name });
+  await page.getByRole("button", { name: "Switch" }).click();
+  await expect(page.getByRole("heading", { name: northwind.name })).toBeVisible();
+  await page.goto("/settings/branches");
+  await expect(page.getByRole("cell", { name: northwind.branches[0].name })).toBeVisible();
+  await expect(page.getByRole("cell", { name: lakeshore.branches[0].name })).toHaveCount(0);
+
+  await page.getByLabel("Company").selectOption({ label: lakeshore.name });
+  await page.getByRole("button", { name: "Switch" }).click();
+  await expect(page.getByRole("heading", { name: lakeshore.name })).toBeVisible();
+  await page.goto("/settings/branches");
+  await expect(page.getByRole("cell", { name: lakeshore.branches[0].name })).toBeVisible();
+  await expect(page.getByRole("cell", { name: northwind.branches[0].name })).toHaveCount(0);
+  await page.screenshot({ path: "test-results/tenant-switch.png", fullPage: true });
+});
+
+test("a company owner cannot open the platform console", async ({ page }) => {
+  await signIn(page, seedUserEmail(northwind, "owner"));
+  await page.goto("/admin/tenants");
+  await expect(page).toHaveURL(/\/\?error=forbidden/);
+  await expect(page.getByText("Your role does not allow that.")).toBeVisible();
 });
 
 test("a user outside every company sees the no-company page", async ({ page }) => {

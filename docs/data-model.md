@@ -43,6 +43,8 @@ erDiagram
 | branches | tenant_id, name, address, state_code, business_license_number, license_year | One business location; whether it needs its own license comes from its state's rule pack |
 | memberships | tenant_id, user_id (auth.users), role, branch_ids uuid[] null | Null branch_ids means all branches |
 | roles | tenant_id null, key, permissions text[] | Platform defaults have tenant_id null; tenants copy and edit |
+| invitations | tenant_id, email, role_id, branch_ids, token, expires_at, accepted_at | Accepting joins the signed-in user; an existing account gets a membership, never a duplicate user |
+| platform_admins | user_id | Shared table; users of the platform console, who belong to no tenant |
 | audit_log | tenant_id, actor_id, table_name, row_id, action, before, after | Written by triggers on sensitive tables |
 
 ## Customers and sales

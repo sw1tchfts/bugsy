@@ -51,6 +51,7 @@ npm run lint
 npm test            # unit tests
 npm run test:rls    # tenant isolation suite against DATABASE_URL
 npm run test:e2e    # Playwright against the dev server; screenshots land in test-results/
+npm run db:types    # regenerate lib/supabase/types.ts after a migration
 ```
 
 The RLS suite discovers every table in the `public` schema. A new table without row level security or without a select policy fails it, and a new tenant table needs a seeded Lakeshore row so the isolation checks have something to test against.

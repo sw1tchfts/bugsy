@@ -1,12 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { publicSupabaseEnv } from "@/lib/supabase/env";
+import type { Database } from "@/lib/supabase/types";
 
 /** Supabase Auth client for server components, server actions and route handlers. */
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
   const { url, anonKey } = publicSupabaseEnv();
-  return createServerClient(url, anonKey, {
+  return createServerClient<Database>(url, anonKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();

@@ -8,6 +8,7 @@
 import { config as loadEnv } from "dotenv";
 import postgres from "postgres";
 import {
+  CROSS_TENANT_USER,
   PLATFORM_ADMIN_EMAIL,
   ROLE_KEYS,
   SEED_PASSWORD,
@@ -120,6 +121,15 @@ async function main() {
   await sql`insert into public.platform_admins (user_id) values (${adminId}) on conflict do nothing`;
 
   for (const tenant of SEED_TENANTS) await seedTenant(tenant, useAuthServer);
+
+  // The outside bookkeeper belongs to both companies, so the tenant switcher has something to switch.
+  const crossUserId = await ensureUser(CROSS_TENANT_USER.email, useAuthServer);
+  const [second] = await sql<{ id: string }[]>`select id from public.tenants where name = ${CROSS_TENANT_USER.alsoIn}`;
+  const [bookkeeper] = await sql<{ id: string }[]>`select id from public.roles where tenant_id is null and key = ${CROSS_TENANT_USER.roleKey}`;
+  await sql`
+    insert into public.memberships (tenant_id, user_id, role_id)
+    values (${second.id}, ${crossUserId}, ${bookkeeper.id})
+    on conflict (tenant_id, user_id) do update set role_id = excluded.role_id`;
 
   console.log(`done. Sign in with any seeded email and the password "${SEED_PASSWORD}".`);
 }

@@ -1,6 +1,6 @@
 # Spec 01: Foundation (tenancy, auth, roles, branches, audit)
 
-Status: in progress
+Status: done
 Depends on: none
 Skills to load: pest-domain
 
@@ -36,7 +36,7 @@ As in `docs/data-model.md` under Platform and tenancy, plus:
 
 ## Interfaces
 - `supabase/migrations/<timestamp>_foundation.sql`: tables, enums, helper functions, RLS policies, audit triggers
-- `lib/supabase/server.ts`, `lib/supabase/client.ts`: typed clients; generated types in `lib/supabase/types.ts`
+- `lib/supabase/server.ts`, `lib/supabase/client.ts`: Supabase Auth clients typed with the generated `lib/supabase/types.ts` (`npm run db:types`); tenant data access goes through `withRls` in `lib/db.ts`, a transaction carrying the user's claims so row level security applies to every query
 - `lib/auth/session.ts`: `getSession()`, `requireMembership(tenantId)`, `requirePermission(tenantId, perm)`
 - `lib/tenancy/active-tenant.ts`: reads and sets the active tenant cookie; validates membership server-side
 - `app/(auth)/sign-in/page.tsx`, `app/(office)/layout.tsx` with tenant switcher, `app/(office)/settings/{branches,users,roles,audit}/page.tsx`, `app/invite/[token]/page.tsx` to accept an invitation
