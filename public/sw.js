@@ -31,14 +31,22 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (isTechNavigation(request, url)) {
+    // Only the app shell itself ("/tech") is cached and served offline; a summary page under /tech never replaces it.
+    const isShell = url.pathname === "/tech";
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put("/tech", copy));
+          if (isShell && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE).then((cache) => cache.put("/tech", copy));
+          }
           return response;
         })
-        .catch(() => caches.match("/tech").then((cached) => cached || new Response("Offline and no cached app yet. Open the app once while online.", { status: 503, headers: { "content-type": "text/plain" } }))),
+        .catch(() =>
+          (isShell ? caches.match("/tech") : Promise.resolve(undefined)).then(
+            (cached) => cached || new Response("Offline and no cached app yet. Open the app once while online.", { status: 503, headers: { "content-type": "text/plain" } }),
+          ),
+        ),
     );
     return;
   }

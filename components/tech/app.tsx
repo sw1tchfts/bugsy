@@ -10,6 +10,8 @@ import { TREATMENT_AREAS } from "@/lib/catalog/service-lines";
 import { gapsFor } from "@/lib/tech/gaps";
 import { type Locale, gapMessage, t as translate } from "@/lib/tech/i18n";
 import { withLocalChanges } from "@/lib/tech/local";
+import { addDays, todayInZone } from "@/lib/dates";
+import { formatCents } from "@/lib/money";
 import type { ChangePayload, QueuedChange, RoutePayload, RouteVisit, SyncResult } from "@/lib/tech/route-types";
 import { newId, techStore } from "@/lib/tech/store";
 import { dropChange, pendingCount, pushPending } from "@/lib/tech/sync";
@@ -35,6 +37,29 @@ function subscribeToConnectivity(onChange: () => void): () => void {
   };
 }
 
+/** Server rejections that are dictionary keys read in the technician's language; anything else is shown as sent. */
+function rejectionText(t: (k: string) => string, error: string | null): string {
+  return error && error.startsWith("sync.") ? t(error) : (error ?? "");
+}
+
+/** Photos are downscaled on the device (1600 px on the long edge, JPEG) so a full day of them syncs in small requests. */
+async function shrinkImage(file: File, maxEdge = 1600): Promise<string> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("no canvas");
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    return canvas.toDataURL("image/jpeg", 0.82);
+  } catch {
+    return readFileAsDataUrl(file);
+  }
+}
+
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -44,10 +69,12 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
-export function TechApp({ tenantId, userId, locale, today, timezone }: Props) {
+export function TechApp({ tenantId, userId, locale, today: serverToday, timezone }: Props) {
   const router = useRouter();
   const params = useSearchParams();
   const visitId = params.get("visit");
+  // The day comes from the device clock in the tenant's time zone: a shell cached the night before must show the morning's route.
+  const [today] = useState(() => todayInZone(timezone) || serverToday);
   const t = useCallback((key: string, vars?: Record<string, string | number>) => translate(locale, key, vars), [locale]);
 
   const [route, setRoute] = useState<RoutePayload | null>(null);
@@ -66,6 +93,9 @@ export function TechApp({ tenantId, userId, locale, today, timezone }: Props) {
       await techStore.saveRoute(tenantId, payload);
       setRoute(payload);
       setFromCache(false);
+      // Tomorrow's stops ride along, so a phone opened the night before has the morning's route with no signal.
+      const next = await fetch(`/api/tech/route?date=${addDays(today, 1)}`, { cache: "no-store" });
+      if (next.ok) await techStore.saveRoute(tenantId, (await next.json()) as RoutePayload);
     } catch {
       // Offline or the server is unreachable: the cached route stands.
     }
@@ -78,7 +108,7 @@ export function TechApp({ tenantId, userId, locale, today, timezone }: Props) {
       const all = await techStore.listChanges();
       const result = await pushPending(all, async (batch) => {
         const res = await fetch("/api/tech/sync", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ changes: batch }) });
-        if (!res.ok) throw new Error(String(res.status));
+        if (!res.ok) throw Object.assign(new Error(String(res.status)), { status: res.status });
         return ((await res.json()) as { results: SyncResult[] }).results;
       });
       await techStore.putChanges(result.changes);
@@ -163,13 +193,15 @@ export function TechApp({ tenantId, userId, locale, today, timezone }: Props) {
           onBack={() => router.push("/tech")}
         />
       ) : (
-        <RouteList route={route} changes={changes} fromCache={fromCache} locale={locale} t={t} onRefresh={() => void refresh()} />
+        <RouteList route={route} changes={changes} fromCache={fromCache} locale={locale} t={t} onRefresh={() => void refresh()} onDiscard={discard} />
       )}
     </div>
   );
 }
 
-function RouteList({ route, changes, fromCache, locale, t, onRefresh }: { route: RoutePayload; changes: QueuedChange[]; fromCache: boolean; locale: Locale; t: (k: string, v?: Record<string, string | number>) => string; onRefresh: () => void }) {
+function RouteList({ route, changes, fromCache, locale, t, onRefresh, onDiscard }: { route: RoutePayload; changes: QueuedChange[]; fromCache: boolean; locale: Locale; t: (k: string, v?: Record<string, string | number>) => string; onRefresh: () => void; onDiscard: (id: string) => Promise<void> }) {
+  // Rejections for stops that left the route (the office moved the visit) are shown here, since no stop screen will.
+  const strays = changes.filter((c) => c.status === "rejected" && !route.visits.some((v) => v.id === c.visit_id));
   return (
     <section className="grid gap-2">
       <div className="flex items-center justify-between">
@@ -182,6 +214,14 @@ function RouteList({ route, changes, fromCache, locale, t, onRefresh }: { route:
         {t("route.date", { date: route.date })}
         {fromCache ? ` ${t("route.stale")}` : ""}
       </p>
+      {strays.map((c) => (
+        <div key={c.id} className="rounded border border-red-200 bg-red-50 p-2 text-sm text-red-900" role="alert" data-testid="rejected">
+          <p>{t("pending.rejectedOffRoute", { message: rejectionText(t, c.error) })}</p>
+          <button type="button" onClick={() => void onDiscard(c.id)} className="mt-1 rounded border border-red-300 bg-white px-2 py-0.5 text-xs">
+            OK
+          </button>
+        </div>
+      ))}
       {route.visits.length === 0 ? <p className="rounded border border-stone-200 bg-white p-3 text-sm">{t("route.empty")}</p> : null}
       {route.visits.map((raw) => {
         const v = withLocalChanges(route, raw, changes);
@@ -288,7 +328,7 @@ function StopScreen({ route, visit, changes, userId, locale, timezone, t, onQueu
 
       {rejected.map((c) => (
         <div key={c.id} className="rounded border border-red-200 bg-red-50 p-2 text-sm text-red-900" role="alert" data-testid="rejected">
-          <p>{t("pending.rejected", { message: c.error === "sync.notOnCrew" ? t("sync.notOnCrew") : (c.error ?? "") })}</p>
+          <p>{t("pending.rejected", { message: rejectionText(t, c.error) })}</p>
           {c.gaps?.length ? (
             <ul className="list-disc pl-5">
               {c.gaps.map((g) => (
@@ -312,7 +352,7 @@ function StopScreen({ route, visit, changes, userId, locale, timezone, t, onQueu
       {visit.billing_mode === "per_visit" && visit.price_cents > 0 ? (
         <section className="rounded-lg border border-stone-200 bg-white p-3 text-sm">
           <h2 className="font-semibold">{t("payment.title")}</h2>
-          <p className="text-stone-600">{t("payment.perVisit", { amount: `$${(visit.price_cents / 100).toFixed(2)}` })}</p>
+          <p className="text-stone-600">{t("payment.perVisit", { amount: formatCents(visit.price_cents) })}</p>
         </section>
       ) : null}
 
@@ -498,7 +538,7 @@ function ProductsSection({ route, visit, userId, t, onQueue, disabled, nameOf }:
             </label>
             <label className="grid gap-1">
               <span>{t("products.pests")}</span>
-              <input value={pests} onChange={(e) => setPests(e.target.value)} className="rounded border border-stone-300 px-2 py-2" />
+              <input value={pests} onChange={(e) => setPests(e.target.value)} className="rounded border border-stone-300 px-2 py-2" required />
             </label>
             <label className="grid gap-1">
               <span>{t("products.appliedBy")}</span>
@@ -699,7 +739,7 @@ function PhotosSection({ visit, t, onQueue, disabled }: SectionProps) {
       setError(t("photos.tooLarge"));
       return;
     }
-    const dataUrl = await readFileAsDataUrl(file);
+    const dataUrl = file.size > 300 * 1024 ? await shrinkImage(file) : await readFileAsDataUrl(file);
     await onQueue({ kind: "photo", photo_kind: kind, caption: caption || null, taken_at: new Date().toISOString(), data_url: dataUrl });
     setCaption("");
     setError(null);
@@ -742,6 +782,7 @@ function SignatureSection({ visit, t, onQueue, disabled, locale, timezone }: Sec
   const [name, setName] = useState(visit.captured.signature?.signer_name ?? visit.account.name);
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const existing = visit.captured.signature;
+  const [resign, setResign] = useState(false);
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-3 text-sm" data-testid="signature">
       <h2 className="font-semibold">{t("signature.title")}</h2>
@@ -750,13 +791,14 @@ function SignatureSection({ visit, t, onQueue, disabled, locale, timezone }: Sec
           {t("signature.saved", { name: existing.signer_name, time: clock(existing.signed_at, locale, timezone) })}
         </p>
       ) : null}
-      {!disabled ? (
+      {!disabled && (!existing || resign) ? (
         <form
           onSubmit={(e) => {
             e.preventDefault();
             if (!dataUrl || !name.trim()) return;
             void onQueue({ kind: "signature", signer_name: name.trim(), signed_at: new Date().toISOString(), data_url: dataUrl });
             setDataUrl(null);
+            setResign(false);
           }}
           className="mt-2 grid gap-2"
         >
@@ -769,6 +811,10 @@ function SignatureSection({ visit, t, onQueue, disabled, locale, timezone }: Sec
             {t("signature.save")}
           </button>
         </form>
+      ) : !disabled ? (
+        <button type="button" onClick={() => setResign(true)} className="mt-2 justify-self-start rounded border border-stone-300 px-3 py-2">
+          {t("signature.again")}
+        </button>
       ) : null}
     </section>
   );

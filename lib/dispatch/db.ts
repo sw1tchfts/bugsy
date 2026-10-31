@@ -230,6 +230,10 @@ export async function moveDay(tx: Sql, tenantId: string, technicianId: string, f
 export async function setCrew(tx: Sql, tenantId: string, visitId: string, spec: readonly CrewSpec[], today: string): Promise<CheckResult> {
   const visit = await loadVisit(tx, tenantId, visitId);
   if (!visit) throw new Error("visit not found");
+  if (!["planned", "scheduled"].includes(visit.status)) {
+    // The crew of a started or finished visit is part of its legal record (spec 06 rule 6).
+    return { ok: false, blockers: [{ code: "not_schedulable", message: `The crew of a ${visit.status.replace("_", " ")} visit cannot be changed.` }], warnings: [] };
+  }
   const leads = spec.filter((s) => s.role === "lead");
   if (leads.length !== 1) return { ok: false, blockers: [{ code: "one_lead", message: "A crew has exactly one lead." }], warnings: [] };
   const unique = new Set(spec.map((s) => s.user_id));

@@ -31,7 +31,31 @@ export function pendingCount(changes: readonly QueuedChange[]): number {
   return changes.filter((c) => c.status === "pending").length;
 }
 
-/** Sends the pending changes in batches, in order, stopping at the first transport failure so order holds. */
+/** A photo or signature change carries its bytes; it travels alone so one request stays small. */
+export function carriesFile(change: QueuedChange): boolean {
+  const payload = change.payload as { data_url?: unknown } | null;
+  return typeof payload?.data_url === "string";
+}
+
+/** The next batch off the ordered queue: up to `batchSize` plain changes, or a single change that carries a file. */
+export function nextBatch(ordered: readonly QueuedChange[], batchSize: number): QueuedChange[] {
+  if (ordered.length === 0) return [];
+  if (carriesFile(ordered[0])) return [ordered[0]];
+  const batch: QueuedChange[] = [];
+  for (const change of ordered) {
+    if (batch.length >= batchSize || carriesFile(change)) break;
+    batch.push(change);
+  }
+  return batch;
+}
+
+/** The key the app translates when a deployment refuses a file as too large. */
+export const TOO_LARGE = "sync.tooLarge";
+
+/**
+ * Sends the pending changes in batches, in order, stopping at the first transport failure so order holds. A single
+ * file change the server refuses as too large (HTTP 413) is rejected on its own and the rest of the queue goes on.
+ */
 export async function pushPending(
   changes: readonly QueuedChange[],
   send: (batch: QueuedChange[]) => Promise<SyncResult[]>,
@@ -39,22 +63,24 @@ export async function pushPending(
 ): Promise<{ changes: QueuedChange[]; sent: number; failed: boolean }> {
   let current = [...changes];
   let sent = 0;
-  const ordered = pendingInOrder(current);
-  for (let i = 0; i < ordered.length; i += batchSize) {
-    const batch = ordered.slice(i, i + batchSize);
+  let remaining = pendingInOrder(current);
+  while (remaining.length > 0) {
+    const batch = nextBatch(remaining, batchSize);
     try {
       const results = await send(batch);
       current = applyResults(current, results);
-      sent += batch.length;
-      // A rejection inside the batch blocks that visit's remaining changes; recompute before the next batch.
-      const stillPending = new Set(pendingInOrder(current).map((c) => c.id));
-      const remaining = ordered.slice(i + batchSize).filter((c) => stillPending.has(c.id));
-      if (remaining.length !== ordered.slice(i + batchSize).length) {
-        ordered.splice(i + batchSize, ordered.length, ...remaining);
+    } catch (err) {
+      const status = (err as { status?: number } | null)?.status;
+      if (status === 413 && batch.length === 1) {
+        current = applyResults(current, [{ id: batch[0].id, result: "rejected", error: TOO_LARGE }]);
+      } else {
+        return { changes: current, sent, failed: true };
       }
-    } catch {
-      return { changes: current, sent, failed: true };
     }
+    sent += batch.length;
+    // A rejection inside the batch blocks that visit's remaining changes; recompute before the next batch.
+    const stillPending = new Set(pendingInOrder(current).map((c) => c.id));
+    remaining = remaining.slice(batch.length).filter((c) => stillPending.has(c.id));
   }
   return { changes: current, sent, failed: false };
 }

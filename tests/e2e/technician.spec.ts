@@ -107,6 +107,7 @@ test("a technician works a stop offline, syncs it, the office sees the record, a
   await products.getByLabel("Mixed into (optional)").fill("1");
   await products.getByLabel("Site treated").fill("perimeter");
   await products.getByLabel("Where exactly").fill("North foundation");
+  await products.getByLabel("Target pests").fill("ants");
   await expect(products.getByTestId("label-check")).toContainText("Above the label rate");
   await products.getByRole("button", { name: "Save product" }).click();
   await expect(products.getByText("Confirm the amount against the label before saving.")).toBeVisible();
@@ -144,10 +145,9 @@ test("a technician works a stop offline, syncs it, the office sees the record, a
   await page.getByRole("button", { name: "Save signature" }).click();
   await expect(page.getByTestId("signature-saved")).toContainText("Signed by Maria Lopez");
 
-  // Completion is gated: the product has no target pests and no areas are marked yet.
+  // Completion is gated: no areas are marked yet.
   await page.getByRole("button", { name: "Complete visit" }).click();
   const gaps = page.getByTestId("gaps");
-  await expect(gaps).toContainText("Target pests");
   await expect(gaps).toContainText("Areas treated");
   await expect(page.getByTestId("stop-status")).toHaveText("On site");
   await page.screenshot({ path: "test-results/technician-gaps.png", fullPage: true });

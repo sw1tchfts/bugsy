@@ -762,4 +762,45 @@ describe("spec 06 rules enforced in the database", () => {
     await expect(asUser(office, officeEmail, (tx) => tx`update public.visits set status = 'completed' where id = ${visitId}`)).rejects.toThrow(/only dispatch or a technician/);
     await expect(asUser(tech, techEmail, (tx) => tx`update public.visits set status = 'scheduled' where id = ${visitId}`)).rejects.toThrow(/cannot move from in_progress to scheduled/);
   });
+
+  it("moves a visit forward only at the crew's hands, shows a crewmate the lead's credential, and refuses an expired applicator's restricted-use line (rules 1, 3 and 4)", async () => {
+    const dispatcherEmail = seedUserEmail(lakeshore, "dispatcher");
+    const dispatcher = await userId(dispatcherEmail);
+    await expect(asUser(dispatcher, dispatcherEmail, (tx) => tx`update public.visits set status = 'completed' where id = ${visitId}`)).rejects.toThrow(/only the visit's crew/);
+
+    // The office member cannot read the technician's credential until they share a crew with them.
+    const before = await asUser(office, officeEmail, (tx) => tx`select id from public.applicator_credentials where tenant_id = ${lakeshoreId} and user_id = ${tech}`);
+    expect(before.length).toBe(0);
+    await admin`insert into public.visit_crew (tenant_id, visit_id, user_id, role) values (${lakeshoreId}, ${visitId}, ${office}, 'helper')`;
+    try {
+      const shared = await asUser(office, officeEmail, (tx) => tx<{ cert_number: string | null }[]>`select cert_number from public.applicator_credentials where tenant_id = ${lakeshoreId} and user_id = ${tech}`);
+      expect(shared.length).toBe(1);
+      expect(shared[0].cert_number).toBeTruthy();
+    } finally {
+      await admin`delete from public.visit_crew where visit_id = ${visitId} and user_id = ${office}`;
+    }
+
+    // A certification that lapsed before the visit date refuses a restricted-use line at sync.
+    const rup = await masterProduct("62719-4");
+    const [{ had }] = await admin<{ had: boolean }[]>`select exists (select 1 from public.tenant_products where tenant_id = ${lakeshoreId} and product_id = ${rup}) as had`;
+    await admin`insert into public.tenant_products (tenant_id, product_id, enabled, unit, unit_cost_cents) values (${lakeshoreId}, ${rup}, true, 'lb', 0) on conflict (tenant_id, product_id) do update set enabled = true`;
+    const [credential] = await admin<{ cert_expires_on: string | null }[]>`select cert_expires_on from public.applicator_credentials where tenant_id = ${lakeshoreId} and user_id = ${tech} and archived_at is null`;
+    await admin`update public.applicator_credentials set cert_expires_on = current_date - 1 where tenant_id = ${lakeshoreId} and user_id = ${tech} and archived_at is null`;
+    try {
+      await expect(
+        asUser(tech, techEmail, (tx) => tx`insert into public.visit_products (tenant_id, visit_id, product_id, applied_by, site_treated, amount, amount_unit, target_pests)
+          values (${lakeshoreId}, ${visitId}, ${rup}, ${tech}, 'perimeter', 1, 'lb', '{termites}')`),
+      ).rejects.toThrow(/is expired/);
+    } finally {
+      await admin`update public.applicator_credentials set cert_expires_on = ${credential.cert_expires_on} where tenant_id = ${lakeshoreId} and user_id = ${tech} and archived_at is null`;
+      if (!had) await admin`delete from public.tenant_products where tenant_id = ${lakeshoreId} and product_id = ${rup}`;
+    }
+
+    // Every product line names a target pest (rule 2).
+    const demand = await masterProduct("100-1066");
+    await expect(
+      asUser(tech, techEmail, (tx) => tx`insert into public.visit_products (tenant_id, visit_id, product_id, applied_by, site_treated, amount, amount_unit, target_pests)
+        values (${lakeshoreId}, ${visitId}, ${demand}, ${tech}, 'perimeter', 0.5, 'fl_oz', '{}')`),
+    ).rejects.toThrow(/visit_products_target_pests/);
+  });
 });
