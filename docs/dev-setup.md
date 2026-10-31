@@ -56,6 +56,17 @@ npm run db:types    # regenerate lib/supabase/types.ts after a migration
 
 The RLS suite discovers every table in the `public` schema. A new table without row level security or without a select policy fails it, and a new tenant table needs a seeded Lakeshore row so the isolation checks have something to test against.
 
+The technician app's offline reload (service worker shell plus the route in IndexedDB) only hydrates on a production server: the dev server's HMR runtime waits for a connection. `tests/e2e/technician.spec.ts` notices which server it talks to; to exercise the reload path run it against a build:
+
+```bash
+npm run build && npx next start -p 3001
+E2E_BASE_URL=http://localhost:3001 npx playwright test tests/e2e/technician.spec.ts
+```
+
+## Native wrapper (packaging, not yet built)
+
+The technician app is the web layer of the native wrapper the PRD chose: a Capacitor project per platform wraps `/tech` and adds what a browser cannot do well (truck printer, card reader and tap-to-pay plugins, background sync, push). Nothing in the screens changes for it; the wrapper needs the iOS and Android toolchains, which this environment lacks, so it is a packaging step for a machine that has them: `npm i @capacitor/core @capacitor/cli`, `npx cap init`, point `server.url` at the deployment, then `npx cap add ios` and `npx cap add android`.
+
 ## Hosted Supabase and Vercel
 
 Set the same variables in Vercel: `DATABASE_URL` (the project's pooler connection string), `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server only). Do not set `SUPABASE_AUTH_INTERNAL_URL`. Apply migrations with `npx supabase db push` from a linked project.

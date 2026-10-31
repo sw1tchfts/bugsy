@@ -28,6 +28,7 @@ export type ProductInput = {
   label_url: string | null;
   sds_url: string | null;
   label_rates: LabelRate[];
+  upc: string | null;
 };
 
 function text(formData: FormData, key: string): string {
@@ -55,6 +56,8 @@ export function readProduct(formData: FormData): { value: ProductInput } | { err
   if (labelUrl === undefined || sdsUrl === undefined) return { error: "Label and SDS links start with http:// or https://." };
   const rates = parseLabelRates(text(formData, "label_rates"));
   if ("error" in rates) return { error: rates.error };
+  const upc = text(formData, "upc").replace(/\s+/g, "");
+  if (upc && !/^[0-9A-Za-z-]{4,32}$/.test(upc)) return { error: "A barcode is the digits printed under the bars, up to 32 characters." };
   return {
     value: {
       name,
@@ -71,6 +74,7 @@ export function readProduct(formData: FormData): { value: ProductInput } | { err
       label_url: labelUrl,
       sds_url: sdsUrl,
       label_rates: rates.rates,
+      upc: upc || null,
     },
   };
 }

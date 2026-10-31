@@ -13,7 +13,7 @@ Specs 01 to 10 sit in `phase-1/` for historical reasons; the folder name does no
 | 03 | [Catalog: service types, price book, product master](phase-1/03-catalog.md) | done | 01, 02 |
 | 04 | [Agreements and visit generation](phase-1/04-agreements.md) | done | 02, 03 |
 | 05 | [Dispatch board](phase-1/05-dispatch.md) | done | 04 |
-| 06 | [Technician app and visit capture (offline)](phase-1/06-technician-app.md) | stub | 05 |
+| 06 | [Technician app and visit capture (offline)](phase-1/06-technician-app.md) | done | 05 |
 | 07 | [Compliance: credentials, records, notices, state rules](phase-1/07-compliance.md) | stub | 06 |
 | 08 | [Billing: Stripe Connect, invoices, autopay, sales tax](phase-1/08-billing.md) | stub | 04 |
 | 09 | [General ledger: chart of accounts, posting, deferred revenue](phase-1/09-ledger.md) | stub | 08 |

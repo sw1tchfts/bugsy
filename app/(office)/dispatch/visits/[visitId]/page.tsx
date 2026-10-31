@@ -4,10 +4,12 @@ import { notFound } from "next/navigation";
 import { Badge, Button, Card, Empty, Field, Input, Notice, Select, Table, Textarea, errorMessage } from "@/components/ui";
 import { VISIT_KIND_LABELS, VISIT_STATUS_LABELS } from "@/lib/agreements/forms";
 import { can } from "@/lib/auth/permissions";
-import { dbAs } from "@/lib/auth/session";
+import { dbAs, requirePermission } from "@/lib/auth/session";
 import { formatBusinessDate, formatInstant, todayInZone } from "@/lib/dates";
 import { ARRIVAL_WINDOWS, ARRIVAL_WINDOW_LABELS, CREW_ROLES, CREW_ROLE_LABELS, type CheckResult } from "@/lib/dispatch/checks";
+import { VisitSummary } from "@/components/visits/visit-summary";
 import { listMembers, listTechnicians, loadCrew, loadVisit, runCheck } from "@/lib/dispatch/db";
+import { loadRouteVisit } from "@/lib/tech/route-db";
 import { formatCents } from "@/lib/money";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 import { addCrewMember, removeCrewMember, scheduleVisit, setArrivalWindow, setDispatchNotes, skipVisit, unscheduleVisit } from "../../actions";
@@ -36,6 +38,7 @@ type Detail = {
 
 export default async function DispatchVisitPage({ params, searchParams }: { params: Promise<{ visitId: string }>; searchParams: Promise<{ error?: string; warn?: string }> }) {
   const { session, active } = await requireActiveTenant();
+  await requirePermission(active.tenantId, "dispatch.read");
   const { visitId } = await params;
   const { error, warn } = await searchParams;
   const tenantId = active.tenantId;
@@ -60,10 +63,11 @@ export default async function DispatchVisitPage({ params, searchParams }: { para
     const members = await listMembers(tx, tenantId);
     const technicians = await listTechnicians(tx, tenantId);
     const check: CheckResult | null = visit.scheduled_for && visit.status !== "planned" ? await runCheck(tx, tenantId, visit, visit.scheduled_for, crew, today, visit.route_position) : null;
-    return { visit, detail, crew, members, technicians, check };
+    const captured = ["en_route", "in_progress", "completed"].includes(visit.status) ? await loadRouteVisit(tx, tenantId, visitId) : null;
+    return { visit, detail, crew, members, technicians, check, captured };
   });
   if (!data) notFound();
-  const { visit, detail, crew, members, technicians, check } = data;
+  const { visit, detail, crew, members, technicians, check, captured } = data;
   const nameOf = (userId: string) => members.find((m) => m.user_id === userId)?.name ?? "Unknown member";
   const here = `/dispatch/visits/${visit.id}`;
   const open = ["planned", "scheduled"].includes(visit.status);
@@ -112,12 +116,34 @@ export default async function DispatchVisitPage({ params, searchParams }: { para
       {error ? <Notice kind="error">{errorMessage(error)}</Notice> : null}
       {warn ? <Notice kind="info">{warn}</Notice> : null}
 
+      {captured ? (
+        <Card
+          title="Recorded at the stop"
+          description="What the technician captured, as synced from the app."
+          actions={
+            <Link href={`/dispatch/visits/${visit.id}/summary`} className="text-sm text-emerald-800 underline">
+              Printable summary
+            </Link>
+          }
+        >
+          <VisitSummary visit={captured} locale="en" timezone={active.tenantTimezone} names={new Map(members.map((m) => [m.user_id, m.name]))} />
+        </Card>
+      ) : null}
+
       {check ? (
         <Card title="Compliance check" description="Re-run against the current crew and date every time this page loads.">
           {check.blockers.length === 0 && check.warnings.length === 0 ? <p className="text-sm text-emerald-800">Clear: the crew holds what this work needs in {visit.property_state} on {formatBusinessDate(visit.scheduled_for ?? "")}.</p> : null}
           {check.blockers.map((b) => (
             <p key={b.code} className="text-sm text-red-800">
               Blocked: {b.message}
+              {b.href ? (
+                <>
+                  {" "}
+                  <Link href={b.href} className="underline">
+                    Open the service type&apos;s state rules
+                  </Link>
+                </>
+              ) : null}
             </p>
           ))}
           {check.warnings.map((w) => (

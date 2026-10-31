@@ -22,6 +22,7 @@ type Product = {
   label_url: string | null;
   sds_url: string | null;
   label_rates: unknown;
+  upc: string | null;
   verified_at: string | null;
   archived_at: string | null;
   enabled_by: number;
@@ -34,7 +35,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
   const products = await dbAs(session, (tx) =>
     tx<Product[]>`
       select p.id, p.tenant_id, t.name as tenant_name, p.name, p.manufacturer, p.epa_reg_no, p.active_ingredients, p.signal_word, p.restricted_use,
-             p.rei_hours, p.formulation, p.label_url, p.sds_url, p.label_rates, p.verified_at, p.archived_at,
+             p.rei_hours, p.formulation, p.label_url, p.sds_url, p.label_rates, p.upc, p.verified_at, p.archived_at,
              app.product_enabled_by(p.id) as enabled_by
       from public.products p left join public.tenants t on t.id = p.tenant_id
       order by (p.tenant_id is not null) desc, p.archived_at nulls first, p.name`,

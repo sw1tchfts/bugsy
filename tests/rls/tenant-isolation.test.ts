@@ -692,3 +692,74 @@ describe("spec 04 rules enforced in the database", () => {
     await expect(asUser(...owner(), (tx) => tx`delete from public.cancel_reasons where id = ${used.cancel_reason_id}`)).rejects.toThrow(/in use/);
   });
 });
+
+describe("spec 06 rules enforced in the database", () => {
+  const techEmail = seedUserEmail(lakeshore, "technician");
+  const officeEmail = seedUserEmail(lakeshore, "office");
+  let tech = "";
+  let office = "";
+  let visitId = "";
+
+  beforeAll(async () => {
+    tech = await userId(techEmail);
+    office = await userId(officeEmail);
+    const [visit] = await admin<{ id: string }[]>`
+      select id from public.visits where tenant_id = ${lakeshoreId} and technician_id = ${tech} and status = 'in_progress' order by scheduled_for limit 1`;
+    if (!visit) throw new Error("the seed starts one Lakeshore visit for the technician; run npm run seed");
+    visitId = visit.id;
+  });
+
+  const masterProduct = async (epa: string) => (await admin<{ id: string }[]>`select id from public.products where tenant_id is null and epa_reg_no = ${epa}`)[0].id;
+
+  it("lets the crew record at the stop and nobody else (rules 6 and 11)", async () => {
+    const [note] = await asUser(tech, techEmail, (tx) => tx<{ id: string }[]>`insert into public.visit_notes (tenant_id, visit_id, kind, content) values (${lakeshoreId}, ${visitId}, 'note', 'rls suite') returning id`);
+    try {
+      expect(note.id).toBeTruthy();
+      await expect(asUser(office, officeEmail, (tx) => tx`insert into public.visit_notes (tenant_id, visit_id, kind, content) values (${lakeshoreId}, ${visitId}, 'note', 'office')`)).rejects.toThrow(
+        /row-level security|crew records at the stop/,
+      );
+      const otherTech = await userId(seedUserEmail(northwind, "technician"));
+      await expect(asUser(otherTech, seedUserEmail(northwind, "technician"), (tx) => tx`insert into public.visit_notes (tenant_id, visit_id, kind, content) values (${lakeshoreId}, ${visitId}, 'note', 'x')`)).rejects.toThrow(RLS_ERROR);
+    } finally {
+      await admin`delete from public.visit_notes where id = ${note.id}`;
+    }
+  });
+
+  it("refuses a product the company did not enable and a restricted-use product from a trainee (rules 2 and 3)", async () => {
+    const line = (productId: string) =>
+      asUser(tech, techEmail, (tx) => tx<{ id: string }[]>`
+        insert into public.visit_products (tenant_id, visit_id, product_id, applied_by, site_treated, amount, amount_unit, target_pests)
+        values (${lakeshoreId}, ${visitId}, ${productId}, ${tech}, 'perimeter', 1, 'fl_oz', '{ants}') returning id`);
+
+    await expect(line(await masterProduct("432-763"))).rejects.toThrow(/not enabled for the company/);
+
+    const [enabled] = await line(await masterProduct("100-1066"));
+    await admin`delete from public.visit_products where id = ${enabled.id}`;
+
+    const rup = await masterProduct("62719-4");
+    const [{ had }] = await admin<{ had: boolean }[]>`select exists (select 1 from public.tenant_products where tenant_id = ${lakeshoreId} and product_id = ${rup}) as had`;
+    await admin`insert into public.tenant_products (tenant_id, product_id, enabled, unit, unit_cost_cents) values (${lakeshoreId}, ${rup}, true, 'lb', 0) on conflict (tenant_id, product_id) do update set enabled = true`;
+    await admin`update public.applicator_credentials set trainee_registered_on = current_date where tenant_id = ${lakeshoreId} and user_id = ${tech} and archived_at is null`;
+    try {
+      await expect(line(rup)).rejects.toThrow(/trainee cannot apply/);
+    } finally {
+      await admin`update public.applicator_credentials set trainee_registered_on = null where tenant_id = ${lakeshoreId} and user_id = ${tech} and archived_at is null`;
+      if (!had) await admin`delete from public.tenant_products where tenant_id = ${lakeshoreId} and product_id = ${rup}`;
+    }
+  });
+
+  it("keeps files inside their company (rule 8)", async () => {
+    const [file] = await admin<{ id: string }[]>`select id from public.files where tenant_id = ${lakeshoreId} limit 1`;
+    expect(file, "the seed stores a Lakeshore photo and signature").toBeTruthy();
+    const own = await asUser(tech, techEmail, (tx) => tx`select id from public.files where id = ${file.id}`);
+    expect(own.length).toBe(1);
+    const otherTech = await userId(seedUserEmail(northwind, "technician"));
+    const seenByOther = await asUser(otherTech, seedUserEmail(northwind, "technician"), (tx) => tx`select id from public.files where id = ${file.id}`);
+    expect(seenByOther.length).toBe(0);
+  });
+
+  it("keeps a started visit with its technician: the office cannot move it and it never goes backwards (rules 1 and 6)", async () => {
+    await expect(asUser(office, officeEmail, (tx) => tx`update public.visits set status = 'completed' where id = ${visitId}`)).rejects.toThrow(/only dispatch or a technician/);
+    await expect(asUser(tech, techEmail, (tx) => tx`update public.visits set status = 'scheduled' where id = ${visitId}`)).rejects.toThrow(/cannot move from in_progress to scheduled/);
+  });
+});

@@ -24,6 +24,7 @@ type Row = {
   label_url: string | null;
   sds_url: string | null;
   label_rates: unknown;
+  upc: string | null;
   verified_at: string | null;
   enabled: boolean | null;
   unit: string | null;
@@ -39,7 +40,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
   const rows = await dbAs(session, (tx) =>
     tx<Row[]>`
       select p.id, p.tenant_id, p.name, p.manufacturer, p.epa_reg_no, p.active_ingredients, p.signal_word, p.restricted_use, p.rei_hours,
-             p.formulation, p.label_url, p.sds_url, p.label_rates, p.verified_at,
+             p.formulation, p.label_url, p.sds_url, p.label_rates, p.upc, p.verified_at,
              tp.enabled, tp.unit, tp.unit_cost_cents
       from public.products p
       left join public.tenant_products tp on tp.product_id = p.id and tp.tenant_id = ${tenantId}

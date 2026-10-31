@@ -13,6 +13,7 @@ export type ProductValues = {
   label_url?: string | null;
   sds_url?: string | null;
   label_rates?: unknown;
+  upc?: string | null;
 };
 
 /** The product definition fields shared by the office "add a product" form and the platform console. */
@@ -55,6 +56,9 @@ export function ProductFields({ prefix, values = {}, withLabelRates = false }: {
       </Field>
       <Field label="SDS link" htmlFor={id("sds")}>
         <Input id={id("sds")} name="sds_url" type="url" defaultValue={values.sds_url ?? ""} />
+      </Field>
+      <Field label="Barcode (UPC)" htmlFor={id("upc")} hint="The digits under the bars on the label, so technicians can scan it in the app.">
+        <Input id={id("upc")} name="upc" maxLength={32} defaultValue={values.upc ?? ""} />
       </Field>
       {withLabelRates ? (
         <div className="sm:col-span-2">

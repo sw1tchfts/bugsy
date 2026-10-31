@@ -45,6 +45,9 @@ export type Database = {
 "role_is_owner":
 { Args: { "role": string }; Returns: boolean
                            },
+"set_my_locale":
+{ Args: { "p_locale": string,"p_tenant_id": string }; Returns: boolean
+                           },
 "tenant_states":
 { Args: { "tenant": string }; Returns: string[]
                            }
@@ -309,6 +312,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"files": {
+                  Row: {
+                    "byte_size": number,"client_id": string | null,"content_type": string,"created_at": string,"created_by": string | null,"data": string,"id": string,"kind": string,"sha256": string,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "byte_size": number,"client_id"?: string | null,"content_type": string,"created_at"?: string,"created_by"?: string | null,"data": string,"id"?: string,"kind": string,"sha256": string,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "byte_size"?: number,"client_id"?: string | null,"content_type"?: string,"created_at"?: string,"created_by"?: string | null,"data"?: string,"id"?: string,"kind"?: string,"sha256"?: string,"tenant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "files_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"invitations": {
                   Row: {
                     "accepted_at": string | null,"accepted_by": string | null,"branch_ids": (string)[] | null,"created_at": string,"created_by": string | null,"email": string,"expires_at": string,"id": string,"role_id": string,"tenant_id": string,"token": string,"updated_at": string
@@ -395,14 +418,14 @@ isOneToOne: false
                   ]
                 },"memberships": {
                   Row: {
-                    "branch_ids": (string)[] | null,"created_at": string,"created_by": string | null,"display_name": string | null,"id": string,"role_id": string,"tenant_id": string,"updated_at": string,"user_id": string
+                    "branch_ids": (string)[] | null,"created_at": string,"created_by": string | null,"display_name": string | null,"id": string,"locale": string,"role_id": string,"tenant_id": string,"updated_at": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "branch_ids"?: (string)[] | null,"created_at"?: string,"created_by"?: string | null,"display_name"?: string | null,"id"?: string,"role_id": string,"tenant_id": string,"updated_at"?: string,"user_id": string
+                    "branch_ids"?: (string)[] | null,"created_at"?: string,"created_by"?: string | null,"display_name"?: string | null,"id"?: string,"locale"?: string,"role_id": string,"tenant_id": string,"updated_at"?: string,"user_id": string
                   }
                   Update: {
-                    "branch_ids"?: (string)[] | null,"created_at"?: string,"created_by"?: string | null,"display_name"?: string | null,"id"?: string,"role_id"?: string,"tenant_id"?: string,"updated_at"?: string,"user_id"?: string
+                    "branch_ids"?: (string)[] | null,"created_at"?: string,"created_by"?: string | null,"display_name"?: string | null,"id"?: string,"locale"?: string,"role_id"?: string,"tenant_id"?: string,"updated_at"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -493,14 +516,14 @@ isOneToOne: false
                   ]
                 },"products": {
                   Row: {
-                    "active_ingredients": (string)[],"archived_at": string | null,"created_at": string,"created_by": string | null,"epa_reg_no": string,"formulation": string | null,"id": string,"label_rates": NonNullable<Json>,"label_url": string | null,"manufacturer": string | null,"name": string,"rei_hours": number | null,"restricted_use": boolean,"sds_url": string | null,"signal_word": string,"tenant_id": string | null,"updated_at": string,"verified_at": string | null,"verified_by": string | null
+                    "active_ingredients": (string)[],"archived_at": string | null,"created_at": string,"created_by": string | null,"epa_reg_no": string,"formulation": string | null,"id": string,"label_rates": NonNullable<Json>,"label_url": string | null,"manufacturer": string | null,"name": string,"rei_hours": number | null,"restricted_use": boolean,"sds_url": string | null,"signal_word": string,"tenant_id": string | null,"upc": string | null,"updated_at": string,"verified_at": string | null,"verified_by": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "active_ingredients"?: (string)[],"archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"epa_reg_no": string,"formulation"?: string | null,"id"?: string,"label_rates"?: NonNullable<Json>,"label_url"?: string | null,"manufacturer"?: string | null,"name": string,"rei_hours"?: number | null,"restricted_use"?: boolean,"sds_url"?: string | null,"signal_word"?: string,"tenant_id"?: string | null,"updated_at"?: string,"verified_at"?: string | null,"verified_by"?: string | null
+                    "active_ingredients"?: (string)[],"archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"epa_reg_no": string,"formulation"?: string | null,"id"?: string,"label_rates"?: NonNullable<Json>,"label_url"?: string | null,"manufacturer"?: string | null,"name": string,"rei_hours"?: number | null,"restricted_use"?: boolean,"sds_url"?: string | null,"signal_word"?: string,"tenant_id"?: string | null,"upc"?: string | null,"updated_at"?: string,"verified_at"?: string | null,"verified_by"?: string | null
                   }
                   Update: {
-                    "active_ingredients"?: (string)[],"archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"epa_reg_no"?: string,"formulation"?: string | null,"id"?: string,"label_rates"?: NonNullable<Json>,"label_url"?: string | null,"manufacturer"?: string | null,"name"?: string,"rei_hours"?: number | null,"restricted_use"?: boolean,"sds_url"?: string | null,"signal_word"?: string,"tenant_id"?: string | null,"updated_at"?: string,"verified_at"?: string | null,"verified_by"?: string | null
+                    "active_ingredients"?: (string)[],"archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"epa_reg_no"?: string,"formulation"?: string | null,"id"?: string,"label_rates"?: NonNullable<Json>,"label_url"?: string | null,"manufacturer"?: string | null,"name"?: string,"rei_hours"?: number | null,"restricted_use"?: boolean,"sds_url"?: string | null,"signal_word"?: string,"tenant_id"?: string | null,"upc"?: string | null,"updated_at"?: string,"verified_at"?: string | null,"verified_by"?: string | null
                   }
                   Relationships: [
                     {
@@ -705,6 +728,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"sync_log": {
+                  Row: {
+                    "applied_at": string,"client_change_id": string,"created_at": string,"created_by": string | null,"detail": Json | null,"id": string,"kind": string,"result": string,"tenant_id": string,"updated_at": string,"user_id": string,"visit_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "applied_at"?: string,"client_change_id": string,"created_at"?: string,"created_by"?: string | null,"detail"?: Json | null,"id"?: string,"kind": string,"result": string,"tenant_id": string,"updated_at"?: string,"user_id": string,"visit_id"?: string | null
+                  }
+                  Update: {
+                    "applied_at"?: string,"client_change_id"?: string,"created_at"?: string,"created_by"?: string | null,"detail"?: Json | null,"id"?: string,"kind"?: string,"result"?: string,"tenant_id"?: string,"updated_at"?: string,"user_id"?: string,"visit_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sync_log_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"tenant_products": {
                   Row: {
                     "created_at": string,"created_by": string | null,"enabled": boolean,"id": string,"notes": string | null,"product_id": string,"tenant_id": string,"unit": string,"unit_cost_cents": number,"updated_at": string
@@ -797,16 +840,138 @@ isOneToOne: false
       referencedColumns: ["tenant_id","id"]
     }
                   ]
-                },"visits": {
+                },"visit_notes": {
                   Row: {
-                    "account_id": string,"agreement_id": string | null,"arrival_window": string,"arrived_at": string | null,"branch_id": string | null,"cancelled_at": string | null,"completed_at": string | null,"created_at": string,"created_by": string | null,"departed_at": string | null,"dispatch_notes": string | null,"due_end": string,"due_start": string,"id": string,"interior_only": boolean,"kind": string,"notes": string | null,"price_cents": number,"property_id": string,"reservice_reason": string | null,"route_position": number | null,"scheduled_for": string | null,"sequence": number,"service_type_id": string,"skip_reason": string | null,"status": string,"technician_id": string | null,"tenant_id": string,"updated_at": string
+                    "client_id": string | null,"content": string,"created_at": string,"created_by": string | null,"id": string,"kind": string,"recorded_at": string,"tenant_id": string,"updated_at": string,"visit_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "account_id": string,"agreement_id"?: string | null,"arrival_window"?: string,"arrived_at"?: string | null,"branch_id"?: string | null,"cancelled_at"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"departed_at"?: string | null,"dispatch_notes"?: string | null,"due_end": string,"due_start": string,"id"?: string,"interior_only"?: boolean,"kind": string,"notes"?: string | null,"price_cents"?: number,"property_id": string,"reservice_reason"?: string | null,"route_position"?: number | null,"scheduled_for"?: string | null,"sequence"?: number,"service_type_id": string,"skip_reason"?: string | null,"status"?: string,"technician_id"?: string | null,"tenant_id": string,"updated_at"?: string
+                    "client_id"?: string | null,"content": string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"kind"?: string,"recorded_at"?: string,"tenant_id": string,"updated_at"?: string,"visit_id": string
                   }
                   Update: {
-                    "account_id"?: string,"agreement_id"?: string | null,"arrival_window"?: string,"arrived_at"?: string | null,"branch_id"?: string | null,"cancelled_at"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"departed_at"?: string | null,"dispatch_notes"?: string | null,"due_end"?: string,"due_start"?: string,"id"?: string,"interior_only"?: boolean,"kind"?: string,"notes"?: string | null,"price_cents"?: number,"property_id"?: string,"reservice_reason"?: string | null,"route_position"?: number | null,"scheduled_for"?: string | null,"sequence"?: number,"service_type_id"?: string,"skip_reason"?: string | null,"status"?: string,"technician_id"?: string | null,"tenant_id"?: string,"updated_at"?: string
+                    "client_id"?: string | null,"content"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"kind"?: string,"recorded_at"?: string,"tenant_id"?: string,"updated_at"?: string,"visit_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "visit_notes_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "visit_notes_tenant_id_visit_id_fkey"
+      columns: ["tenant_id","visit_id"]
+isOneToOne: false
+      referencedRelation: "visits"
+      referencedColumns: ["tenant_id","id"]
+    }
+                  ]
+                },"visit_photos": {
+                  Row: {
+                    "caption": string | null,"client_id": string | null,"created_at": string,"created_by": string | null,"file_id": string,"id": string,"kind": string,"taken_at": string,"tenant_id": string,"updated_at": string,"visit_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "caption"?: string | null,"client_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"file_id": string,"id"?: string,"kind"?: string,"taken_at"?: string,"tenant_id": string,"updated_at"?: string,"visit_id": string
+                  }
+                  Update: {
+                    "caption"?: string | null,"client_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"file_id"?: string,"id"?: string,"kind"?: string,"taken_at"?: string,"tenant_id"?: string,"updated_at"?: string,"visit_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "visit_photos_file_id_fkey"
+      columns: ["file_id"]
+isOneToOne: false
+      referencedRelation: "files"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "visit_photos_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "visit_photos_tenant_id_visit_id_fkey"
+      columns: ["tenant_id","visit_id"]
+isOneToOne: false
+      referencedRelation: "visits"
+      referencedColumns: ["tenant_id","id"]
+    }
+                  ]
+                },"visit_products": {
+                  Row: {
+                    "amount": number,"amount_unit": string,"applied_by": string,"area_treated": number | null,"area_unit": string | null,"carrier_amount": number | null,"carrier_unit": string | null,"client_id": string | null,"concentration_percent": number | null,"created_at": string,"created_by": string | null,"id": string,"label_check": NonNullable<Json>,"location_description": string | null,"mix_load_site": string | null,"product_id": string,"recorded_at": string,"site_treated": string,"target_pests": (string)[],"tenant_id": string,"updated_at": string,"visit_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount": number,"amount_unit": string,"applied_by": string,"area_treated"?: number | null,"area_unit"?: string | null,"carrier_amount"?: number | null,"carrier_unit"?: string | null,"client_id"?: string | null,"concentration_percent"?: number | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"label_check"?: NonNullable<Json>,"location_description"?: string | null,"mix_load_site"?: string | null,"product_id": string,"recorded_at"?: string,"site_treated": string,"target_pests"?: (string)[],"tenant_id": string,"updated_at"?: string,"visit_id": string
+                  }
+                  Update: {
+                    "amount"?: number,"amount_unit"?: string,"applied_by"?: string,"area_treated"?: number | null,"area_unit"?: string | null,"carrier_amount"?: number | null,"carrier_unit"?: string | null,"client_id"?: string | null,"concentration_percent"?: number | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"label_check"?: NonNullable<Json>,"location_description"?: string | null,"mix_load_site"?: string | null,"product_id"?: string,"recorded_at"?: string,"site_treated"?: string,"target_pests"?: (string)[],"tenant_id"?: string,"updated_at"?: string,"visit_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "visit_products_product_id_fkey"
+      columns: ["product_id"]
+isOneToOne: false
+      referencedRelation: "products"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "visit_products_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "visit_products_tenant_id_visit_id_fkey"
+      columns: ["tenant_id","visit_id"]
+isOneToOne: false
+      referencedRelation: "visits"
+      referencedColumns: ["tenant_id","id"]
+    }
+                  ]
+                },"visit_signatures": {
+                  Row: {
+                    "client_id": string | null,"created_at": string,"created_by": string | null,"file_id": string,"id": string,"signed_at": string,"signer_name": string,"tenant_id": string,"updated_at": string,"visit_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "client_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"file_id": string,"id"?: string,"signed_at"?: string,"signer_name": string,"tenant_id": string,"updated_at"?: string,"visit_id": string
+                  }
+                  Update: {
+                    "client_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"file_id"?: string,"id"?: string,"signed_at"?: string,"signer_name"?: string,"tenant_id"?: string,"updated_at"?: string,"visit_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "visit_signatures_file_id_fkey"
+      columns: ["file_id"]
+isOneToOne: false
+      referencedRelation: "files"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "visit_signatures_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "visit_signatures_tenant_id_visit_id_fkey"
+      columns: ["tenant_id","visit_id"]
+isOneToOne: false
+      referencedRelation: "visits"
+      referencedColumns: ["tenant_id","id"]
+    }
+                  ]
+                },"visits": {
+                  Row: {
+                    "account_id": string,"agreement_id": string | null,"areas_treated": (string)[],"arrival_window": string,"arrived_at": string | null,"branch_id": string | null,"cancelled_at": string | null,"completed_at": string | null,"conditions": Json | null,"created_at": string,"created_by": string | null,"departed_at": string | null,"dispatch_notes": string | null,"due_end": string,"due_start": string,"id": string,"interior_only": boolean,"kind": string,"notes": string | null,"price_cents": number,"property_id": string,"reservice_reason": string | null,"route_position": number | null,"scheduled_for": string | null,"sequence": number,"service_type_id": string,"skip_reason": string | null,"started_by": string | null,"status": string,"summary_sent_at": string | null,"target_pests": (string)[],"technician_id": string | null,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"agreement_id"?: string | null,"areas_treated"?: (string)[],"arrival_window"?: string,"arrived_at"?: string | null,"branch_id"?: string | null,"cancelled_at"?: string | null,"completed_at"?: string | null,"conditions"?: Json | null,"created_at"?: string,"created_by"?: string | null,"departed_at"?: string | null,"dispatch_notes"?: string | null,"due_end": string,"due_start": string,"id"?: string,"interior_only"?: boolean,"kind": string,"notes"?: string | null,"price_cents"?: number,"property_id": string,"reservice_reason"?: string | null,"route_position"?: number | null,"scheduled_for"?: string | null,"sequence"?: number,"service_type_id": string,"skip_reason"?: string | null,"started_by"?: string | null,"status"?: string,"summary_sent_at"?: string | null,"target_pests"?: (string)[],"technician_id"?: string | null,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "account_id"?: string,"agreement_id"?: string | null,"areas_treated"?: (string)[],"arrival_window"?: string,"arrived_at"?: string | null,"branch_id"?: string | null,"cancelled_at"?: string | null,"completed_at"?: string | null,"conditions"?: Json | null,"created_at"?: string,"created_by"?: string | null,"departed_at"?: string | null,"dispatch_notes"?: string | null,"due_end"?: string,"due_start"?: string,"id"?: string,"interior_only"?: boolean,"kind"?: string,"notes"?: string | null,"price_cents"?: number,"property_id"?: string,"reservice_reason"?: string | null,"route_position"?: number | null,"scheduled_for"?: string | null,"sequence"?: number,"service_type_id"?: string,"skip_reason"?: string | null,"started_by"?: string | null,"status"?: string,"summary_sent_at"?: string | null,"target_pests"?: (string)[],"technician_id"?: string | null,"tenant_id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {

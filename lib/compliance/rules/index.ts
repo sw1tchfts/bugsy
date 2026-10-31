@@ -29,6 +29,8 @@ export type StateRules = {
   /** Which work needs advance notice to registry addresses. */
   "registry.triggers"?: RuleValue<{ treatmentAreas?: TreatmentArea[]; jobKinds?: JobKind[] }>;
   "registry.advanceNoticeHours"?: RuleValue<number>;
+  /** Record field keys the state requires beyond the federal floor, for example "conditions.wind_mph". */
+  "records.requiredFields"?: RuleValue<string[]>;
   [key: string]: RuleValue<unknown> | undefined;
 };
 
