@@ -407,7 +407,7 @@ Twelve calls shape the build. The first four should be made before spec 01 start
 ## Sources and method
 
 - **Compliance rules:** the `pesticide-compliance` skill explains how state rules become rule packs and how to research a state; no state is researched yet.
-- **Discovery:** the [discovery spec](https://claude.ai/artifact/PZvWbg1f2PkV4NJK7QjFqb) (business model and module answers; its state-specific parts are superseded by this PRD), exported to `docs/discovery-spec.md`.
+- **Discovery:** the [discovery spec](https://claude.ai/artifact/PZvWbg1f2PkV4NJK7QjFqb) (business model, pricing defaults and module answers), trimmed to its general parts in `docs/discovery-spec.md`.
 - **Competitor profiles:** one JSON file per product in `docs/competitors/`, researched October 20, 2026 and corrected October 29 to 31, 2026, each score with a source link. Public sources only: vendor pages, help centers, release notes, pricing pages, app stores and review sites.
 - **Research notes and report:** `research_notes/Competitor research vs Bugsy PRD/` and `reports/Competitor research vs Bugsy PRD.md`.
 - **Market data:** Census Statistics of US Businesses 2022 (NAICS 561710 by firm size), BLS Occupational Employment and Wage Statistics May 2023, and BLS QCEW 2025.

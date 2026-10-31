@@ -4,7 +4,7 @@ These are for people, and for Claude only when a spec points here. They are not 
 
 - **PRD** (first customer, market, competitors, the feature list, requirements by spec, pricing, build and launch, risks, decisions): `prd.md` is the source of truth. The interactive PRD at https://claude.ai/artifact/1BayEPBwd84ASPVhq3AZK6 is built from it and from `competitors/` by `python3 -I docs/prd-site/build.py`; republish `prd-site/index.html` to the same link after rebuilding (it is a complete HTML document).
 - **Feature list and competitor crosswalk**: one checklist of 80 features in `competitors/feature-taxonomy.json`, Bugsy's scope and spec for each in `competitors/bugsy-plan.json`, and one JSON profile per competitor (nine products, a source behind every score). The PRD site's Features and Competitors pages show them. When a spec decides scope, check the matching feature IDs and update `bugsy-plan.json`.
-- **Discovery spec** (business model, module answers, open questions; written before the scope became national, so its state-specific parts are superseded by the PRD): `discovery-spec.md`, exported from the master doc at https://claude.ai/artifact/PZvWbg1f2PkV4NJK7QjFqb. Re-export it after the doc changes.
+- **Discovery spec** (business model, pricing defaults, module answers, roles, open questions): `discovery-spec.md`, trimmed to its general parts from the original doc at https://claude.ai/artifact/PZvWbg1f2PkV4NJK7QjFqb. Where it and the PRD differ, the PRD wins.
 - **Competitor research, October 29, 2026**: sourced notes in `../research_notes/Competitor research vs Bugsy PRD/` and the comparison report in `../reports/`.
 - **Data model**: `data-model.md`.
 
