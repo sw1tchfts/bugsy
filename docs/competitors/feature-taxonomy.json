@@ -69,6 +69,24 @@
       "definition": "Click to call, call tracking, call recording or caller ID pop of the customer record."
     },
     {
+      "id": "CRM-11",
+      "module": "CRM and sales",
+      "feature": "Multi-unit buildings",
+      "definition": "Apartment and condo buildings served unit by unit, with unit access notes, per-unit history and resident contacts for notices."
+    },
+    {
+      "id": "CRM-12",
+      "module": "CRM and sales",
+      "feature": "Property measurement from satellite imagery",
+      "definition": "Measure square footage, perimeter or lot size from aerial or satellite imagery to price or diagram a property without a site visit."
+    },
+    {
+      "id": "CRM-13",
+      "module": "CRM and sales",
+      "feature": "Lead marketplace intake",
+      "definition": "Leads from marketplaces such as Google Local Services, Angi or Thumbtack flow straight into the pipeline with their source."
+    },
+    {
       "id": "AGR-01",
       "module": "Agreements and pricing",
       "feature": "Recurring service agreements",
@@ -153,6 +171,24 @@
       "definition": "Move many appointments at once, e.g. for weather."
     },
     {
+      "id": "SCH-08",
+      "module": "Scheduling and dispatch",
+      "feature": "Visit crews",
+      "definition": "Several technicians on one visit, each with a role such as lead, applicator, supervisor or helper, recorded on the visit."
+    },
+    {
+      "id": "SCH-09",
+      "module": "Scheduling and dispatch",
+      "feature": "Customer arrival windows",
+      "definition": "Visits promised in a time window such as morning or afternoon, honored by dispatch and shown to the customer."
+    },
+    {
+      "id": "SCH-10",
+      "module": "Scheduling and dispatch",
+      "feature": "Route fill",
+      "definition": "Suggests nearby customers or due visits to fill open slots or cancellations on a technician's day."
+    },
+    {
       "id": "MOB-01",
       "module": "Technician app",
       "feature": "Native mobile app",
@@ -199,6 +235,18 @@
       "module": "Technician app",
       "feature": "Truck inventory on device",
       "definition": "Technician sees and updates the stock on their vehicle."
+    },
+    {
+      "id": "MOB-09",
+      "module": "Technician app",
+      "feature": "Configurable forms and checklists",
+      "definition": "Tenant-built forms and checklists (inspections, WDI, prep checklists) filled in the field and attached to the visit or customer."
+    },
+    {
+      "id": "MOB-10",
+      "module": "Technician app",
+      "feature": "Languages other than English in the technician app",
+      "definition": "The technician app can run in Spanish or another language besides English."
     },
     {
       "id": "CMP-01",
@@ -249,6 +297,24 @@
       "definition": "Each state's rules applied in the workflow: required record fields, customer and resident notice timing, notification registries, posting signs and seasonal blackouts, maintained per state. Yes needs rules for several states applied automatically; a few state report formats alone is Partial."
     },
     {
+      "id": "CMP-09",
+      "module": "Compliance",
+      "feature": "Application conditions on the record",
+      "definition": "Weather, wind speed and direction, or temperature captured with the application, entered or pulled automatically."
+    },
+    {
+      "id": "CMP-10",
+      "module": "Compliance",
+      "feature": "Mix and dilution calculator with label rate checks",
+      "definition": "Calculates mixes and dilutions and warns when amounts or rates fall outside the product label."
+    },
+    {
+      "id": "CMP-11",
+      "module": "Compliance",
+      "feature": "Recertification credit tracking",
+      "definition": "Continuing-education or recertification credits tracked per applicator against renewal requirements."
+    },
+    {
       "id": "COM-01",
       "module": "Commercial",
       "feature": "Device and station inventory per site",
@@ -291,6 +357,12 @@
       "definition": "PO numbers, net terms and consolidated invoices across sites."
     },
     {
+      "id": "COM-08",
+      "module": "Commercial",
+      "feature": "Smart traps and remote monitoring",
+      "definition": "Connected traps or sensors report rodent or insect activity into the device history without a site visit."
+    },
+    {
       "id": "SPC-01",
       "module": "Specialty services",
       "feature": "Termite (graphs, bait monitoring, WDI reports)",
@@ -313,6 +385,12 @@
       "module": "Specialty services",
       "feature": "Mosquito programs",
       "definition": "Seasonal mosquito and tick programs."
+    },
+    {
+      "id": "SPC-06",
+      "module": "Specialty services",
+      "feature": "Termite bait program integration",
+      "definition": "Integration with a manufacturer termite bait program, such as Sentricon with Corteva reporting."
     },
     {
       "id": "BIL-01",
@@ -355,6 +433,24 @@
       "module": "Billing and payments",
       "feature": "Prorated refunds and cancellation billing",
       "definition": "Automatic proration or balance due when an agreement is cancelled."
+    },
+    {
+      "id": "BIL-08",
+      "module": "Billing and payments",
+      "feature": "Card account updater",
+      "definition": "Saved cards are refreshed automatically when the issuer replaces them, so autopay keeps working."
+    },
+    {
+      "id": "BIL-09",
+      "module": "Billing and payments",
+      "feature": "Consumer financing",
+      "definition": "Customers can finance larger jobs or pay over time through a built-in or partner lender."
+    },
+    {
+      "id": "BIL-10",
+      "module": "Billing and payments",
+      "feature": "Surcharging, tipping and estimate deposits",
+      "definition": "Card surcharges or convenience fees, customer tips, or deposits collected on estimates."
     },
     {
       "id": "ACC-01",
@@ -423,6 +519,18 @@
       "definition": "Service report sent to the customer after the visit, listing products applied."
     },
     {
+      "id": "CX-06",
+      "module": "Customer experience",
+      "feature": "Print and mail",
+      "definition": "Letters, notices or invoices printed and mailed from the product, directly or through a mail service."
+    },
+    {
+      "id": "CX-07",
+      "module": "Customer experience",
+      "feature": "Customer surveys and referral program",
+      "definition": "Satisfaction or NPS surveys after service, or a referral program that tracks and rewards referrals."
+    },
+    {
       "id": "RPT-01",
       "module": "Reporting",
       "feature": "Standard financial and operational reports",
@@ -487,6 +595,18 @@
       "module": "Platform",
       "feature": "Marketing tools (direct mail, call tracking, SEO)",
       "definition": "Built-in marketing services beyond email and SMS campaigns."
+    },
+    {
+      "id": "PLT-08",
+      "module": "Platform",
+      "feature": "Office tasks and shared inbox",
+      "definition": "Internal tasks and follow-ups for office staff, or a shared inbox that keeps customer messages on one timeline."
+    },
+    {
+      "id": "PLT-09",
+      "module": "Platform",
+      "feature": "Change history visible to users",
+      "definition": "Users can see who changed what on a customer, agreement, visit or record, and when."
     }
   ],
   "scope": "Pest control only. Lawn care, tree and shrub care, and other trades are out of scope; products that serve them are compared on their pest features only."

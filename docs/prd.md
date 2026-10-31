@@ -8,19 +8,19 @@ Version 3 · October 31, 2026 · Phil Klejwa
 
 ## Summary
 
-Bugsy is one platform for independent pest control companies: CRM, agreements, dispatch, an offline technician app, pesticide compliance, billing and a real general ledger. Everything on the feature list ships in one build; there are no phases. Version 3 drops the phasing, makes compliance a rules engine for any state, sizes the market nationally, and proposes features the list does not yet cover.
+Bugsy is one platform for independent pest control companies: CRM, agreements, dispatch, an offline technician app, pesticide compliance, billing and a real general ledger. Everything on the feature list ships in one build; there are no phases. Version 3 drops the phasing, makes compliance a rules engine for any state, sizes the market nationally, and adds 20 features the original list missed.
 
 <!-- widget: kpis -->
 
 - **The wedge holds.** None of the 9 competitors scored automates regulatory pesticide notices, enforces restricted-use rules, keeps a double-entry ledger, or tracks deferred revenue per agreement. State compliance elsewhere stops at report exports for a handful of states (California, New York, Arizona). No 2025 to 2026 competitor roadmap targets these gaps.
 - **Table stakes are universal.** A map dispatch board, mobile app, field payments, autopay and standard reports are offered by all 9, some only on higher tiers. Reminder and on-the-way texts are offered by 7 of 9, and at least 6 of those charge extra for texting.
-- **One build.** 78 of the 80 features on the list are in scope, built across 21 specs and shipped together. Only other accounting integrations and marketing services are out.
+- **One build.** 98 of the 100 features on the list are in scope, built across 21 specs and shipped together. Only other accounting integrations and marketing services are out.
 - **First customer:** an independent, residential-first pest company with one branch and 3 to 15 technicians, in any state. About 4,100 US firms fit.
 - **Market:** 13,603 US pest control firms with $19.6B in receipts (2022). At $79 to $99 per technician, the target band is worth about $23M to $29M a year at full share, and all independents about $51M to $65M.
 - **Closest rivals for small independents:** GorillaDesk and Fieldwork on price and ease, FieldRoutes for regional companies.
 - **Pricing:** everything included. A base price plus a per-technician price, counted at a trailing peak, is proposed for testing.
 - **Compliance is a rules engine.** Each state's rules are data; the launch states follow the design partner.
-- **Decisions:** 12 calls, each with a recommendation.
+- **Decisions:** 11 calls, each with a recommendation.
 
 "Bugsy" is a working name taken from the repository.
 
@@ -120,7 +120,7 @@ Nine products are scored on the feature list. Select one below to see its profil
 
 <!-- widget: dossiers -->
 
-**Pest-only vendors are the smaller ones.** PestPac is the one large pest-only product, and it sits inside a multi-industry company. FieldRoutes, the largest pest outcome, added lawn care. Bugsy's pest-only scope is defensible because its edge does not depend on more trades, but pest-and-lawn firms will need a second system for lawn work (decision 12).
+**Pest-only vendors are the smaller ones.** PestPac is the one large pest-only product, and it sits inside a multi-industry company. FieldRoutes, the largest pest outcome, added lawn care. Bugsy's pest-only scope is defensible because its edge does not depend on more trades, but pest-and-lawn firms will need a second system for lawn work (decision 11).
 
 **What pest software vendors earn.** No vendor reports pest revenue on its own; the firmest numbers are acquisition prices and Jobber's statements.
 
@@ -142,7 +142,7 @@ Pest-only vendors seem to land between about $2M and $20M a year; only the multi
 
 ## The feature list
 
-One list of 80 features drives both Bugsy's scope and the competitor comparison, so the PRD and the crosswalk cannot drift apart. Every feature is either in scope for the one build, with the spec that builds it, or out of scope.
+One list of 100 features drives both Bugsy's scope and the competitor comparison, so the PRD and the crosswalk cannot drift apart. Every feature is either in scope for the one build, with the spec that builds it, or out of scope.
 
 - **Table stakes (13 features)** are features most competitors have and buyers expect on day one. All are in scope.
 - **The wedge (13 features)** is where few or no competitors offer full support. Its lasting core is state-specific records and notices plus per-agreement contract accounting. The edges are softer: Fieldwork fully meets the product catalog, skills matching is spreading toward license-based assignment, and PestPac and FieldRoutes announced churn analytics in October 2026.
@@ -151,32 +151,32 @@ One list of 80 features drives both Bugsy's scope and the competitor comparison,
 
 <!-- widget: matrix -->
 
-## Features not yet on the list
+## Features added in version 3
 
-These come from features competitors offer outside the 80-item list and from gaps the PRD already names. Adding them means scoring all nine competitors on each (decision 11).
+Twenty features came from what competitors offer outside the original 80 and from gaps the PRD named. All nine competitors are scored on them in the grid above.
 
-| Candidate | Why it matters | Seen at |
-| --- | --- | --- |
-| Visit crews (several technicians on one visit) | Trainee supervision; records and notices must name everyone who applied or supervised | Gap in Bugsy's data model |
-| Application conditions on the record (weather, wind, temperature) | Some states and many labels require them for outdoor work; protects the license on drift claims | Pocomos records weather on service records |
-| Mix and dilution calculator with label rate checks | Prevents over-application; feeds accurate records and inventory | FieldRoutes, Jobber, PestPac |
-| Recertification credit tracking | Applicator licenses renew on continuing-education credits; a natural extension of license tracking | Not seen at any competitor |
-| Configurable forms and checklists (inspections, WDI, bed bug prep) | Every specialty line and many states need their own forms | Fieldwork, ServSuite, Pocomos |
-| Multi-unit buildings (unit-level service, access and resident notices) | Landlords and property managers are a core residential segment | PestPac, FieldRoutes, Fieldwork |
-| Termite bait program integration (Sentricon and Corteva) | Expected by termite operators; 4 of 9 competitors have it | PestPac, FieldRoutes, Fieldwork, GorillaDesk |
-| Smart traps and remote monitoring | Commercial rodent programs are moving to sensors | PestPac, ServSuite |
-| Print and mail of notices, letters and invoices | Customers without electronic consent still need paper notices; older customers want paper bills | ServSuite, Briostack, Pocomos |
-| Property measurement from satellite imagery | Size-tier pricing needs square footage without a site visit | Briostack, GorillaDesk |
-| Customer arrival windows | Morning and afternoon windows are a common booking promise | Fieldwork |
-| Route fill (suggest nearby customers for open slots) | Raises stops per day, the number owners watch | Pocomos, GorillaDesk, PestPac |
-| Card account updater | Fewer failed autopay charges on long-lived agreements | PestPac |
-| Consumer financing | Termite and bed bug jobs run $1,000 to $4,000 | PestPac, FieldRoutes, Housecall Pro |
-| Surcharging, tipping and estimate deposits | Common payment options that tenants will ask for | Fieldwork, GorillaDesk |
-| Customer surveys and referral program | Retention and growth levers beyond review requests | PestPac, GorillaDesk, Briostack, Housecall Pro |
-| Lead marketplace intake (Google, Angi, Thumbtack) | Puts paid leads straight into the pipeline with their source | Housecall Pro, Jobber |
-| Office tasks and a shared customer inbox | Follow-ups and every message on one account timeline | Fieldwork, GorillaDesk |
-| Change history visible to users | Lets owners see who changed what on an account or record | Fieldwork |
-| Spanish and other languages in the technician app | Many crews work in Spanish; worth asking in interviews | Not seen; unverified need |
+| Feature | Why it matters |
+| --- | --- |
+| Visit crews (several technicians on one visit) | Trainee supervision; records and notices must name everyone who applied or supervised |
+| Application conditions on the record (weather, wind, temperature) | Many labels limit outdoor applications by wind or temperature, and some states want conditions on the record; protects the license on drift claims |
+| Mix and dilution calculator with label rate checks | Prevents over-application; feeds accurate records and inventory |
+| Recertification credit tracking | Applicator licenses renew on continuing-education credits; a natural extension of license tracking |
+| Configurable forms and checklists (inspections, WDI, bed bug prep) | Every specialty line and many states need their own forms |
+| Multi-unit buildings (unit-level service, access and resident notices) | Landlords and property managers are a core residential segment |
+| Termite bait program integration (Sentricon and Corteva) | Expected by termite operators; 4 of 9 competitors have it |
+| Smart traps and remote monitoring | Commercial rodent programs are moving to sensors |
+| Print and mail of notices, letters and invoices | Customers without electronic consent still need paper notices; older customers want paper bills |
+| Property measurement from satellite imagery | Size-tier pricing needs square footage without a site visit |
+| Customer arrival windows | Morning and afternoon windows are a common booking promise |
+| Route fill (suggest nearby customers for open slots) | Raises stops per day, the number owners watch |
+| Card account updater | Fewer failed autopay charges on long-lived agreements |
+| Consumer financing | Termite and bed bug jobs run $1,000 to $4,000 |
+| Surcharging, tipping and estimate deposits | Common payment options that tenants will ask for |
+| Customer surveys and referral program | Retention and growth levers beyond review requests |
+| Lead marketplace intake (Google, Angi, Thumbtack) | Puts paid leads straight into the pipeline with their source |
+| Office tasks and a shared customer inbox | Follow-ups and every message on one account timeline |
+| Change history visible to users | Lets owners see who changed what on an account or record |
+| Spanish and other languages in the technician app | Many crews work in Spanish; the app is built translation-ready, Spanish first |
 
 Left out on purpose: fleet dash cams and driver scoring (FieldRoutes, Housecall Pro), and training content programs (WorkWave, Pocomos), which are services rather than product.
 
@@ -383,7 +383,7 @@ The biggest risk is the size of the one build: 21 specs before a customer runs a
 
 ## Decisions needed
 
-Twelve calls shape the build. The first four should be made before spec 01 starts.
+Eleven calls shape the build. The first four should be made before spec 01 starts.
 
 | # | Decision | Recommendation | Blocks |
 | --- | --- | --- | --- |
@@ -397,8 +397,7 @@ Twelve calls shape the build. The first four should be made before spec 01 start
 | 8 | Visit crew | Add `visit_technicians` | Data model for specs 04 to 07 |
 | 9 | Resident notices and signs | Print in the truck if decision 4 picks the native wrapper; otherwise pre-printed templates with photo proof | Specs 06 and 07 |
 | 10 | Out-of-scope list | Keep other accounting integrations and marketing services out; phone integrations, GPS, two-way texting and review requests are in | Feature list |
-| 11 | Features not yet on the list | Add the candidates on the Features page, starting with visit crews, application conditions, mix calculator, recertification credits, forms, multi-unit buildings and termite bait integration, and score all nine competitors on them | Feature list, specs |
-| 12 | Pest-only scope | Stay pest-only; revisit lawn care only if pest-and-lawn firms block deals | Sales positioning |
+| 11 | Pest-only scope | Stay pest-only; revisit lawn care only if pest-and-lawn firms block deals | Sales positioning |
 
 **Outside answers.** Each launch state brings its own legal questions: record and notice rules, registries, license categories, and sales tax on yard mosquito and tick spraying. Each state's answers go in its file under `.claude/skills/pesticide-compliance/states/`. Also confirm, per launch state, that an e-signed consent counts as written consent for electronic notices.
 
