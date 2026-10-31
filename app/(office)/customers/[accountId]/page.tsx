@@ -139,7 +139,8 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
                         <input type="hidden" name="contact_id" value={c.id} />
                         <input type="hidden" name="return_to" value={here} />
                         <input type="hidden" name="grant" value={c.e_notice_consent_at ? "false" : "true"} />
-                        <Input name="e_notice_consent_note" placeholder="How consent was captured" aria-label={`Consent note for ${c.name}`} />
+                        {!c.e_notice_consent_at ? <Input name="e_notice_consent_on" type="date" aria-label={`Consent date for ${c.name}`} /> : null}
+                        <Input name="e_notice_consent_note" placeholder={c.e_notice_consent_at ? "Why consent is withdrawn" : "How consent was captured"} aria-label={`Consent note for ${c.name}`} />
                         <Button type="submit" variant="secondary">
                           {c.e_notice_consent_at ? "Withdraw" : "Consent"}
                         </Button>

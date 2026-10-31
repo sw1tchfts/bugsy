@@ -7,6 +7,7 @@ import { can } from "@/lib/auth/permissions";
 import { dbAs } from "@/lib/auth/session";
 import { type LeadStage, STAGE_LABELS, canTransition } from "@/lib/customers/pipeline";
 import { formatCents } from "@/lib/money";
+import { formatInstant, formatInstantDate } from "@/lib/dates";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 import { createQuote } from "@/app/(office)/quotes/actions";
 import { convertLead, setLeadStage, updateLead } from "../actions";
@@ -61,8 +62,8 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
           {lead.name} <Badge tone={STAGE_TONE[lead.stage]}>{STAGE_LABELS[lead.stage]}</Badge>
         </h1>
         <p className="text-sm text-stone-600">
-          Source: {lead.source_name}. Created {new Date(lead.created_at).toLocaleDateString("en-US")}.
-          {lead.inspection_at ? ` Inspection ${new Date(lead.inspection_at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}.` : ""}
+          Source: {lead.source_name}. Created {formatInstantDate(lead.created_at, active.tenantTimezone)}.
+          {lead.inspection_at ? ` Inspection ${formatInstant(lead.inspection_at, active.tenantTimezone)}.` : ""}
           {lead.account_id ? (
             <>
               {" "}

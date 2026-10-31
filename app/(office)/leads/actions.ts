@@ -6,6 +6,7 @@ import { type FormState } from "@/lib/customers/duplicates";
 import { findDuplicates } from "@/lib/customers/duplicates-db";
 import { addressColumns, addressComplete, emailOrNull, formValues, geocode, opt, readAddress, str } from "@/lib/customers/forms";
 import { type LeadStage, canTransition } from "@/lib/customers/pipeline";
+import { fromTenantLocal } from "@/lib/dates";
 import { dbAs, requirePermission } from "@/lib/auth/session";
 import { errorCode } from "@/lib/db";
 
@@ -84,7 +85,7 @@ export async function setLeadStage(formData: FormData) {
   const tenantId = str(formData, "tenant_id");
   const leadId = str(formData, "lead_id");
   const to = str(formData, "stage") as LeadStage;
-  const { session } = await requirePermission(tenantId, "customers.write");
+  const { session, membership } = await requirePermission(tenantId, "customers.write");
   let error: string | null = null;
   try {
     await dbAs(session, async (tx) => {
@@ -92,9 +93,16 @@ export async function setLeadStage(formData: FormData) {
       if (!lead) throw new Error("not found");
       if (to === "won") throw Object.assign(new Error("use convert"), { code: "23514" });
       if (!canTransition(lead.stage, to)) throw Object.assign(new Error(`a lead cannot move from ${lead.stage} to ${to}`), { code: "23514" });
-      await tx`update public.leads set stage = ${to}, lost_reason = ${to === "lost" ? opt(formData, "lost_reason") : null},
-               inspection_at = ${to === "inspection_booked" ? (opt(formData, "inspection_at") ? new Date(str(formData, "inspection_at")) : null) : null}
-               where id = ${leadId} and tenant_id = ${tenantId}`;
+      // Only the columns this move owns change; a booked inspection survives quoting, losing and reopening.
+      const changes: Record<string, unknown> = { stage: to };
+      if (to === "lost") changes.lost_reason = opt(formData, "lost_reason");
+      if (to === "inspection_booked") {
+        const wall = opt(formData, "inspection_at");
+        const at = wall ? fromTenantLocal(wall, membership.tenantTimezone) : null;
+        if (wall && !at) throw Object.assign(new Error("the inspection time is not a valid date and time"), { code: "23514" });
+        changes.inspection_at = at;
+      }
+      await tx`update public.leads set ${tx(changes)} where id = ${leadId} and tenant_id = ${tenantId}`;
     });
   } catch (err) {
     error = errorCode(err);

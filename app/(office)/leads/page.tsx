@@ -4,6 +4,7 @@ import { Badge, Button, Card, Empty, Field, Input, Notice, Table, errorMessage }
 import { can } from "@/lib/auth/permissions";
 import { dbAs } from "@/lib/auth/session";
 import { type LeadStage, OPEN_STAGES, STAGE_LABELS } from "@/lib/customers/pipeline";
+import { formatInstant } from "@/lib/dates";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 import { createLeadSource, toggleLeadSource } from "./actions";
 
@@ -64,7 +65,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                     <p className="text-stone-500">
                       {l.source_name}
                       {l.city ? `, ${l.city}` : ""}
-                      {l.inspection_at ? `, inspection ${new Date(l.inspection_at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}` : ""}
+                      {l.inspection_at ? `, inspection ${formatInstant(l.inspection_at, active.tenantTimezone)}` : ""}
                     </p>
                   </li>
                 ))}

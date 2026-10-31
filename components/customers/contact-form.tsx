@@ -81,7 +81,10 @@ export function ContactForm({
       <label className="flex items-center gap-2 text-sm sm:col-span-2">
         <input type="checkbox" name="sms_opt_in" value="true" defaultChecked={v.sms_opt_in === "true"} /> Agreed to text messages
       </label>
-      <Field label="Electronic notice consent" htmlFor="cf-consent" hint="Only if consent was captured: say how and when (for example, signed paper form on a date). Leave blank otherwise.">
+      <Field label="Electronic notice consent captured on" htmlFor="cf-consent-on" hint="Only if consent was captured. Leave both fields blank otherwise.">
+        <Input id="cf-consent-on" name="e_notice_consent_on" type="date" defaultValue={v.e_notice_consent_on} />
+      </Field>
+      <Field label="How consent was captured" htmlFor="cf-consent" hint="For example, signed paper form or portal checkbox.">
         <Input id="cf-consent" name="e_notice_consent_note" defaultValue={v.e_notice_consent_note} />
       </Field>
       <div className="sm:col-span-2">

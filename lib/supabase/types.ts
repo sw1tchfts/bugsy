@@ -151,14 +151,14 @@ isOneToOne: false
                   ]
                 },"counters": {
                   Row: {
-                    "key": string,"tenant_id": string,"value": number
+                    "created_at": string,"created_by": string | null,"key": string,"tenant_id": string,"updated_at": string,"value": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "key": string,"tenant_id": string,"value"?: number
+                    "created_at"?: string,"created_by"?: string | null,"key": string,"tenant_id": string,"updated_at"?: string,"value"?: number
                   }
                   Update: {
-                    "key"?: string,"tenant_id"?: string,"value"?: number
+                    "created_at"?: string,"created_by"?: string | null,"key"?: string,"tenant_id"?: string,"updated_at"?: string,"value"?: number
                   }
                   Relationships: [
                     {
@@ -373,14 +373,14 @@ isOneToOne: false
                   ]
                 },"quotes": {
                   Row: {
-                    "accepted_option_id": string | null,"account_id": string | null,"created_at": string,"created_by": string | null,"decided_at": string | null,"id": string,"lead_id": string | null,"notes": string | null,"number": number | null,"property_id": string | null,"sent_at": string | null,"status": string,"tenant_id": string,"updated_at": string,"valid_until": string | null
+                    "accepted_option_id": string | null,"account_id": string | null,"created_at": string,"created_by": string | null,"decided_at": string | null,"id": string,"lead_id": string | null,"notes": string | null,"number": number,"property_id": string | null,"sent_at": string | null,"status": string,"tenant_id": string,"updated_at": string,"valid_until": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "accepted_option_id"?: string | null,"account_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"decided_at"?: string | null,"id"?: string,"lead_id"?: string | null,"notes"?: string | null,"number"?: number | null,"property_id"?: string | null,"sent_at"?: string | null,"status"?: string,"tenant_id": string,"updated_at"?: string,"valid_until"?: string | null
+                    "accepted_option_id"?: string | null,"account_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"decided_at"?: string | null,"id"?: string,"lead_id"?: string | null,"notes"?: string | null,"number": number,"property_id"?: string | null,"sent_at"?: string | null,"status"?: string,"tenant_id": string,"updated_at"?: string,"valid_until"?: string | null
                   }
                   Update: {
-                    "accepted_option_id"?: string | null,"account_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"decided_at"?: string | null,"id"?: string,"lead_id"?: string | null,"notes"?: string | null,"number"?: number | null,"property_id"?: string | null,"sent_at"?: string | null,"status"?: string,"tenant_id"?: string,"updated_at"?: string,"valid_until"?: string | null
+                    "accepted_option_id"?: string | null,"account_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"decided_at"?: string | null,"id"?: string,"lead_id"?: string | null,"notes"?: string | null,"number"?: number,"property_id"?: string | null,"sent_at"?: string | null,"status"?: string,"tenant_id"?: string,"updated_at"?: string,"valid_until"?: string | null
                   }
                   Relationships: [
                     {

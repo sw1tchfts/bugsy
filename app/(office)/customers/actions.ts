@@ -6,6 +6,7 @@ import { EMPTY_FORM_STATE, type FormState } from "@/lib/customers/duplicates";
 import { findDuplicates } from "@/lib/customers/duplicates-db";
 import { addressColumns, addressComplete, emailOrNull, formValues, geocode, intOrNull, opt, readAddress, str } from "@/lib/customers/forms";
 import { dbAs, requirePermission } from "@/lib/auth/session";
+import { fromTenantLocal } from "@/lib/dates";
 import { errorCode } from "@/lib/db";
 import { normalizeEmail } from "@/lib/geo/normalize";
 
@@ -217,7 +218,7 @@ export async function createUnit(formData: FormData) {
 /** Adds a contact to an account, a property, or a unit. */
 export async function createContact(_state: FormState, formData: FormData): Promise<FormState> {
   const tenantId = str(formData, "tenant_id");
-  const { session } = await requirePermission(tenantId, "customers.write");
+  const { session, membership } = await requirePermission(tenantId, "customers.write");
   const accountId = opt(formData, "account_id");
   const propertyId = opt(formData, "property_id");
   const unitId = opt(formData, "unit_id");
@@ -229,6 +230,13 @@ export async function createContact(_state: FormState, formData: FormData): Prom
   if (!name || !CONTACT_ROLES.includes(role)) return fail(EMPTY_FORM_STATE, formData, "Name and role are required.");
   if (!accountId && !propertyId) return fail(EMPTY_FORM_STATE, formData, "A contact belongs to an account or a property.");
   if (role === "resident" && !propertyId) return fail(EMPTY_FORM_STATE, formData, "A resident contact needs a property.");
+  // Rule 7: consent is recorded with the date it was captured and a note saying how, or not at all.
+  const consentNote = opt(formData, "e_notice_consent_note");
+  const consentOn = opt(formData, "e_notice_consent_on");
+  const consentAt = consentOn ? fromTenantLocal(consentOn, membership.tenantTimezone) : null;
+  if ((consentNote || consentOn) && !(consentNote && consentAt)) {
+    return fail(EMPTY_FORM_STATE, formData, "Electronic notice consent needs both the date it was captured and how.");
+  }
 
   let duplicates: FormState["duplicates"];
   let error: string | null = null;
@@ -241,11 +249,10 @@ export async function createContact(_state: FormState, formData: FormData): Prom
           return;
         }
       }
-      const consentNote = opt(formData, "e_notice_consent_note");
       await tx`insert into public.contacts ${tx({
         tenant_id: tenantId, account_id: accountId, property_id: propertyId, unit_id: unitId || null, name, email, phone, role,
         sms_opt_in: formData.get("sms_opt_in") === "true", preferred_channel: opt(formData, "preferred_channel"), notes: opt(formData, "notes"),
-        e_notice_consent_at: consentNote ? new Date() : null, e_notice_consent_note: consentNote,
+        e_notice_consent_at: consentAt, e_notice_consent_note: consentAt ? consentNote : null,
       })}`;
     });
   } catch (err) {
@@ -272,12 +279,15 @@ export async function setContactConsent(formData: FormData) {
   const tenantId = str(formData, "tenant_id");
   const contactId = str(formData, "contact_id");
   const back = str(formData, "return_to") || "/customers";
-  const { session } = await requirePermission(tenantId, "customers.write");
+  const { session, membership } = await requirePermission(tenantId, "customers.write");
   const note = opt(formData, "e_notice_consent_note");
   const grant = formData.get("grant") === "true";
+  const capturedOn = opt(formData, "e_notice_consent_on");
+  const consentAt = grant && capturedOn ? fromTenantLocal(capturedOn, membership.tenantTimezone) : null;
   if (!note) redirect(`${back}?error=${encodeURIComponent("A note saying how consent was captured or withdrawn is required.")}`);
+  if (grant && !consentAt) redirect(`${back}?error=${encodeURIComponent("The date consent was captured is required.")}`);
   await dbAs(session, (tx) =>
-    tx`update public.contacts set e_notice_consent_at = ${grant ? new Date() : null}, e_notice_consent_note = ${note}
+    tx`update public.contacts set e_notice_consent_at = ${consentAt}, e_notice_consent_note = ${note}
        where id = ${contactId} and tenant_id = ${tenantId}`,
   );
   revalidatePath(back);

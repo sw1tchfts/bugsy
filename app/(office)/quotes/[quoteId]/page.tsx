@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Badge, Button, Card, Field, Input, Notice, Select, Textarea, errorMessage } from "@/components/ui";
 import { can } from "@/lib/auth/permissions";
 import { dbAs } from "@/lib/auth/session";
-import { formatBusinessDate, formatInstantDate } from "@/lib/dates";
+import { formatBusinessDate, formatInstantDate, todayInZone } from "@/lib/dates";
 import { formatCents } from "@/lib/money";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 import { addLine, addOption, removeLine, removeOption, setQuoteStatus, updateOption, updateQuote } from "../actions";
@@ -108,14 +108,16 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
                     Declined
                   </Button>
                 </form>
-                <form action={setQuoteStatus}>
-                  <input type="hidden" name="tenant_id" value={tenantId} />
-                  <input type="hidden" name="quote_id" value={quoteId} />
-                  <input type="hidden" name="status" value="expired" />
-                  <Button type="submit" variant="secondary">
-                    Expired
-                  </Button>
-                </form>
+                {quote.valid_until && quote.valid_until < todayInZone(active.tenantTimezone) ? (
+                  <form action={setQuoteStatus}>
+                    <input type="hidden" name="tenant_id" value={tenantId} />
+                    <input type="hidden" name="quote_id" value={quoteId} />
+                    <input type="hidden" name="status" value="expired" />
+                    <Button type="submit" variant="secondary">
+                      Expired
+                    </Button>
+                  </form>
+                ) : null}
               </>
             ) : null}
             {quote.status === "draft" ? <p className="self-center text-sm text-stone-500">Sending marks the quote sent; emailing it to the customer arrives with messaging (spec 11).</p> : null}

@@ -311,3 +311,157 @@ describe("invitations", () => {
     await admin`delete from public.invitations where token = ${invite.token}`;
   });
 });
+
+describe("spec 02 rules enforced in the database", () => {
+  const owner = () => [lakeshoreOwner, seedUserEmail(lakeshore, "owner")] as const;
+
+  async function sourceId(): Promise<string> {
+    const [row] = await admin<{ id: string }[]>`select id from public.lead_sources where tenant_id = ${lakeshoreId} and key = 'phone'`;
+    return row.id;
+  }
+
+  async function accountId(): Promise<string> {
+    const [row] = await admin<{ id: string }[]>`select id from public.accounts where tenant_id = ${lakeshoreId} and archived_at is null order by created_at limit 1`;
+    return row.id;
+  }
+
+  async function newQuote(): Promise<string> {
+    const account = await accountId();
+    const [row] = await asUser(...owner(), (tx) => tx<{ id: string }[]>`insert into public.quotes (tenant_id, account_id) values (${lakeshoreId}, ${account}) returning id`);
+    return row.id;
+  }
+
+  async function newOption(quoteId: string, position: number): Promise<string> {
+    const [row] = await asUser(
+      ...owner(),
+      (tx) => tx<{ id: string }[]>`insert into public.quote_options (tenant_id, quote_id, position, name) values (${lakeshoreId}, ${quoteId}, ${position}, ${`Option ${position}`}) returning id`,
+    );
+    return row.id;
+  }
+
+  async function newLine(optionId: string, quantity: string, unitPriceCents: number): Promise<string> {
+    const [row] = await asUser(
+      ...owner(),
+      (tx) => tx<{ id: string }[]>`insert into public.quote_lines (tenant_id, option_id, description, kind, quantity, unit_price_cents)
+                                    values (${lakeshoreId}, ${optionId}, 'test line', 'recurring', ${quantity}::numeric, ${unitPriceCents}) returning id`,
+    );
+    return row.id;
+  }
+
+  async function setStatus(quoteId: string, status: string) {
+    return asUser(...owner(), (tx) => tx`update public.quotes set status = ${status} where id = ${quoteId}`);
+  }
+
+  it("creates the default lead sources for a new tenant (rule 12)", async () => {
+    // Inside a transaction that is rolled back, so no test tenant is left behind.
+    const found: string[] = [];
+    await admin
+      .begin(async (tx) => {
+        const [tenant] = await tx<{ id: string }[]>`insert into public.tenants (name, timezone) values ('Rule test tenant', 'America/Chicago') returning id`;
+        const keys = await tx<{ key: string }[]>`select key from public.lead_sources where tenant_id = ${tenant.id} order by key`;
+        found.push(...keys.map((k) => k.key));
+        throw new Error("rollback");
+      })
+      .catch((err: Error) => {
+        if (err.message !== "rollback") throw err;
+      });
+    expect(found).toEqual(["ads", "door_to_door", "online_directory", "other", "phone", "referral", "website"]);
+  });
+
+  it("refuses to delete a lead source in use but lets it be deactivated (rule 12)", async () => {
+    const [used] = await admin<{ source_id: string }[]>`select source_id from public.leads where tenant_id = ${lakeshoreId} limit 1`;
+    await expect(asUser(...owner(), (tx) => tx`delete from public.lead_sources where id = ${used.source_id}`)).rejects.toThrow(/in use/);
+    await asUser(...owner(), (tx) => tx`update public.lead_sources set active = false where id = ${used.source_id}`);
+    const [row] = await admin<{ active: boolean }[]>`select active from public.lead_sources where id = ${used.source_id}`;
+    expect(row.active).toBe(false);
+    await asUser(...owner(), (tx) => tx`update public.lead_sources set active = true where id = ${used.source_id}`);
+  });
+
+  it("enforces the lead stage machine: no won or lost start, forbidden moves, lost needs a reason, won needs a conversion (rule 2)", async () => {
+    const source = await sourceId();
+    await expect(
+      asUser(...owner(), (tx) => tx`insert into public.leads (tenant_id, source_id, name, stage) values (${lakeshoreId}, ${source}, 'Rule test', 'won')`),
+    ).rejects.toThrow(/open stage/);
+    const [lead] = await asUser(
+      ...owner(),
+      (tx) => tx<{ id: string }[]>`insert into public.leads (tenant_id, source_id, name, stage, inspection_at) values (${lakeshoreId}, ${source}, 'Rule test', 'inspection_booked', now()) returning id`,
+    );
+    try {
+      await expect(asUser(...owner(), (tx) => tx`update public.leads set stage = 'new' where id = ${lead.id}`)).rejects.toThrow(/cannot move/);
+      await expect(asUser(...owner(), (tx) => tx`update public.leads set stage = 'won' where id = ${lead.id}`)).rejects.toThrow(/must be converted/);
+      await expect(asUser(...owner(), (tx) => tx`update public.leads set stage = 'lost' where id = ${lead.id}`)).rejects.toThrow(/needs a reason/);
+      await asUser(...owner(), (tx) => tx`update public.leads set stage = 'quoted' where id = ${lead.id}`);
+      await asUser(...owner(), (tx) => tx`update public.leads set stage = 'lost', lost_reason = 'went with another company' where id = ${lead.id}`);
+      const [lost] = await admin<{ lost_at: string | null; inspection_at: string | null }[]>`select lost_at, inspection_at from public.leads where id = ${lead.id}`;
+      expect(lost.lost_at).not.toBeNull();
+      expect(lost.inspection_at, "a booked inspection survives later stage moves").not.toBeNull();
+      await expect(asUser(...owner(), (tx) => tx`update public.leads set stage = 'quoted' where id = ${lead.id}`)).rejects.toThrow(/cannot move/);
+      await asUser(...owner(), (tx) => tx`update public.leads set stage = 'new' where id = ${lead.id}`);
+      const [reopened] = await admin<{ lost_at: string | null; lost_reason: string | null; stage: string }[]>`select lost_at, lost_reason, stage from public.leads where id = ${lead.id}`;
+      expect(reopened).toEqual({ lost_at: null, lost_reason: null, stage: "new" });
+    } finally {
+      await admin`delete from public.leads where id = ${lead.id}`;
+    }
+  });
+
+  it("numbers quotes from the tenant's counter, ignoring any supplied number (rule 8)", async () => {
+    const account = await accountId();
+    const [first] = await asUser(...owner(), (tx) => tx<{ id: string; number: number }[]>`insert into public.quotes (tenant_id, account_id, number) values (${lakeshoreId}, ${account}, 999999) returning id, number`);
+    const [second] = await asUser(...owner(), (tx) => tx<{ id: string; number: number }[]>`insert into public.quotes (tenant_id, account_id) values (${lakeshoreId}, ${account}) returning id, number`);
+    try {
+      expect(first.number).not.toBe(999999);
+      expect(second.number).toBe(first.number + 1);
+    } finally {
+      await admin`delete from public.quotes where id in (${first.id}, ${second.id})`;
+    }
+  });
+
+  it("does not let a signed-in user draw another tenant's numbers directly (rule 8, isolation)", async () => {
+    await expect(asUser(northwindOwner, seedUserEmail(northwind, "owner"), (tx) => tx`select app.next_number(${lakeshoreId}, 'quote')`)).rejects.toThrow(/permission denied/);
+    await expect(asUser(...owner(), (tx) => tx`insert into public.counters (tenant_id, key, value) values (${northwindId}, 'quote', 1)`)).rejects.toThrow(RLS_ERROR);
+  });
+
+  it("sends a quote only when every option has a line, accepts only with an option, expires only after valid-until (rule 9)", async () => {
+    const quoteId = await newQuote();
+    try {
+      await expect(setStatus(quoteId, "sent")).rejects.toThrow(/at least one option/);
+      await expect(setStatus(quoteId, "accepted")).rejects.toThrow(/cannot move/);
+      const option1 = await newOption(quoteId, 1);
+      await expect(setStatus(quoteId, "sent")).rejects.toThrow(/every option .* at least one line/);
+      await newLine(option1, "1", 22500);
+      const option2 = await newOption(quoteId, 2);
+      await expect(setStatus(quoteId, "sent")).rejects.toThrow(/every option .* at least one line/);
+      await asUser(...owner(), (tx) => tx`delete from public.quote_options where id = ${option2}`);
+      await setStatus(quoteId, "sent");
+      const [sent] = await admin<{ status: string; sent_at: string | null }[]>`select status, sent_at from public.quotes where id = ${quoteId}`;
+      expect(sent.status).toBe("sent");
+      expect(sent.sent_at).not.toBeNull();
+      await expect(setStatus(quoteId, "accepted")).rejects.toThrow(/accepted option/);
+      await expect(setStatus(quoteId, "expired")).rejects.toThrow(/valid-until/);
+      await asUser(...owner(), (tx) => tx`update public.quotes set valid_until = current_date - 2 where id = ${quoteId}`);
+      await setStatus(quoteId, "expired");
+      const [expired] = await admin<{ status: string; decided_at: string | null }[]>`select status, decided_at from public.quotes where id = ${quoteId}`;
+      expect(expired.status).toBe("expired");
+      expect(expired.decided_at).not.toBeNull();
+      await expect(setStatus(quoteId, "sent")).rejects.toThrow(/cannot move/);
+    } finally {
+      await admin`delete from public.quotes where id = ${quoteId}`;
+    }
+  });
+
+  it("keeps each option's total equal to the sum of its lines, in integer cents rounded half up (rule 8)", async () => {
+    const quoteId = await newQuote();
+    try {
+      const option = await newOption(quoteId, 1);
+      const total = async () => (await admin<{ total_cents: string | number }[]>`select total_cents from public.quote_options where id = ${option}`)[0].total_cents;
+      const lineA = await newLine(option, "2.5", 1999); // 4997.5 rounds to 4998
+      expect(Number(await total())).toBe(4998);
+      await newLine(option, "1", 100);
+      expect(Number(await total())).toBe(5098);
+      await asUser(...owner(), (tx) => tx`delete from public.quote_lines where id = ${lineA}`);
+      expect(Number(await total())).toBe(100);
+    } finally {
+      await admin`delete from public.quotes where id = ${quoteId}`;
+    }
+  });
+});
