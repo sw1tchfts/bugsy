@@ -7,6 +7,7 @@
 
 import { config as loadEnv } from "dotenv";
 import postgres from "postgres";
+import { seedCatalog, seedMasterProducts } from "./seed-catalog";
 import { seedCustomers } from "./seed-customers";
 import {
   CROSS_TENANT_USER,
@@ -25,6 +26,9 @@ const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is not set");
 
 const sql = postgres(databaseUrl, { max: 1, prepare: false, onnotice: () => {} });
+
+/** Master product ids by EPA registration number, filled once before the tenants are seeded. */
+let masterProductIds = new Map<string, string>();
 
 const authUrl =
   process.env.SUPABASE_AUTH_INTERNAL_URL ??
@@ -69,12 +73,14 @@ async function ensureUser(email: string, useAuthServer: boolean): Promise<string
 }
 
 async function seedTenant(tenant: SeedTenant, useAuthServer: boolean) {
-  const [t] = await sql<{ id: string }[]>`
-    insert into public.tenants (name, legal_name, timezone)
-    values (${tenant.name}, ${tenant.legalName}, ${tenant.timezone})
-    on conflict do nothing
-    returning id`;
-  const tenantId = t?.id ?? (await sql<{ id: string }[]>`select id from public.tenants where name = ${tenant.name}`)[0].id;
+  // Tenant names are not unique in the schema, so look the demo company up by name before creating it.
+  const [existing] = await sql<{ id: string }[]>`select id from public.tenants where name = ${tenant.name} order by created_at limit 1`;
+  const tenantId =
+    existing?.id ??
+    (
+      await sql<{ id: string }[]>`
+        insert into public.tenants (name, legal_name, timezone) values (${tenant.name}, ${tenant.legalName}, ${tenant.timezone}) returning id`
+    )[0].id;
 
   for (const b of tenant.branches) {
     await sql`
@@ -113,6 +119,7 @@ async function seedTenant(tenant: SeedTenant, useAuthServer: boolean) {
 
   const [ownerUser] = await sql<{ id: string }[]>`select id from auth.users where email = ${seedUserEmail(tenant, "owner")}`;
   await seedCustomers(sql, tenant, tenantId, ownerUser.id);
+  await seedCatalog(sql, tenant, tenantId, masterProductIds);
 
   console.log(`seeded ${tenant.name} (${tenantId})`);
 }
@@ -123,6 +130,10 @@ async function main() {
 
   const adminId = await ensureUser(PLATFORM_ADMIN_EMAIL, useAuthServer);
   await sql`insert into public.platform_admins (user_id) values (${adminId}) on conflict do nothing`;
+
+  // The shared product master is seeded once; each tenant then enables its own selection.
+  masterProductIds = await seedMasterProducts(sql);
+  console.log(`seeded ${masterProductIds.size} master products`);
 
   for (const tenant of SEED_TENANTS) await seedTenant(tenant, useAuthServer);
 

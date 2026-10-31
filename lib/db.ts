@@ -57,5 +57,6 @@ export function errorCode(err: unknown): string {
   if (e?.code === "23505") return "duplicate";
   if (e?.code === "23503") return "in-use";
   if (e?.code === "23514") return e.message?.replace(/\s+/g, " ").slice(0, 120) ?? "invalid";
+  if (e?.code === "23P01") return "overlap";
   return "failed";
 }

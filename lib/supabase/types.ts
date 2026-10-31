@@ -41,6 +41,9 @@ export type Database = {
                            },
 "role_is_owner":
 { Args: { "role": string }; Returns: boolean
+                           },
+"tenant_states":
+{ Args: { "tenant": string }; Returns: string[]
                            }
           }
           Enums: {
@@ -83,13 +86,7 @@ isOneToOne: false
                     "action"?: string,"actor_id"?: string | null,"after"?: Json | null,"before"?: Json | null,"created_at"?: string,"id"?: never,"row_id"?: string | null,"table_name"?: string,"tenant_id"?: string | null
                   }
                   Relationships: [
-                    {
-      foreignKeyName: "audit_log_tenant_id_fkey"
-      columns: ["tenant_id"]
-isOneToOne: false
-      referencedRelation: "tenants"
-      referencedColumns: ["id"]
-    }
+                    
                   ]
                 },"branches": {
                   Row: {
@@ -293,6 +290,52 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"price_book_items": {
+                  Row: {
+                    "active": boolean,"add_on": boolean,"archived_at": string | null,"created_at": string,"created_by": string | null,"id": string,"initial_price_cents": number,"name": string,"one_time_price_cents": number,"position": number,"recurring_price_cents": number,"service_type_id": string,"size_basis": string,"size_max": number | null,"size_min": number,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"add_on"?: boolean,"archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"initial_price_cents"?: number,"name": string,"one_time_price_cents"?: number,"position"?: number,"recurring_price_cents"?: number,"service_type_id": string,"size_basis"?: string,"size_max"?: number | null,"size_min"?: number,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "active"?: boolean,"add_on"?: boolean,"archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"initial_price_cents"?: number,"name"?: string,"one_time_price_cents"?: number,"position"?: number,"recurring_price_cents"?: number,"service_type_id"?: string,"size_basis"?: string,"size_max"?: number | null,"size_min"?: number,"tenant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "price_book_items_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "price_book_items_tenant_id_service_type_id_fkey"
+      columns: ["tenant_id","service_type_id"]
+isOneToOne: false
+      referencedRelation: "service_types"
+      referencedColumns: ["tenant_id","id"]
+    }
+                  ]
+                },"products": {
+                  Row: {
+                    "active_ingredients": (string)[],"archived_at": string | null,"created_at": string,"created_by": string | null,"epa_reg_no": string,"formulation": string | null,"id": string,"label_rates": NonNullable<Json>,"label_url": string | null,"manufacturer": string | null,"name": string,"rei_hours": number | null,"restricted_use": boolean,"sds_url": string | null,"signal_word": string,"tenant_id": string | null,"updated_at": string,"verified_at": string | null,"verified_by": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active_ingredients"?: (string)[],"archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"epa_reg_no": string,"formulation"?: string | null,"id"?: string,"label_rates"?: NonNullable<Json>,"label_url"?: string | null,"manufacturer"?: string | null,"name": string,"rei_hours"?: number | null,"restricted_use"?: boolean,"sds_url"?: string | null,"signal_word"?: string,"tenant_id"?: string | null,"updated_at"?: string,"verified_at"?: string | null,"verified_by"?: string | null
+                  }
+                  Update: {
+                    "active_ingredients"?: (string)[],"archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"epa_reg_no"?: string,"formulation"?: string | null,"id"?: string,"label_rates"?: NonNullable<Json>,"label_url"?: string | null,"manufacturer"?: string | null,"name"?: string,"rei_hours"?: number | null,"restricted_use"?: boolean,"sds_url"?: string | null,"signal_word"?: string,"tenant_id"?: string | null,"updated_at"?: string,"verified_at"?: string | null,"verified_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "products_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"properties": {
                   Row: {
                     "access_notes": string | null,"account_id": string,"archived_at": string | null,"city": string,"county": string | null,"created_at": string,"created_by": string | null,"geocode_status": string,"id": string,"lat": number | null,"line1": string,"line2": string | null,"lng": number | null,"lot_sqft": number | null,"measured_by": string | null,"name": string | null,"normalized_address": string,"postal_code": string,"property_type": string,"registry_matches": NonNullable<Json>,"size_sqft": number | null,"state_code": string,"tenant_id": string,"unit_count": number | null,"updated_at": string
@@ -321,17 +364,23 @@ isOneToOne: false
                   ]
                 },"quote_lines": {
                   Row: {
-                    "amount_cents": number | null,"created_at": string,"created_by": string | null,"description": string,"id": string,"kind": string,"option_id": string,"position": number,"quantity": number,"tenant_id": string,"unit_price_cents": number,"updated_at": string
+                    "amount_cents": number | null,"created_at": string,"created_by": string | null,"description": string,"id": string,"kind": string,"option_id": string,"position": number,"price_book_item_id": string | null,"quantity": number,"tenant_id": string,"unit_price_cents": number,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "amount_cents"?: never,"created_at"?: string,"created_by"?: string | null,"description": string,"id"?: string,"kind": string,"option_id": string,"position"?: number,"quantity"?: number,"tenant_id": string,"unit_price_cents": number,"updated_at"?: string
+                    "amount_cents"?: never,"created_at"?: string,"created_by"?: string | null,"description": string,"id"?: string,"kind": string,"option_id": string,"position"?: number,"price_book_item_id"?: string | null,"quantity"?: number,"tenant_id": string,"unit_price_cents": number,"updated_at"?: string
                   }
                   Update: {
-                    "amount_cents"?: never,"created_at"?: string,"created_by"?: string | null,"description"?: string,"id"?: string,"kind"?: string,"option_id"?: string,"position"?: number,"quantity"?: number,"tenant_id"?: string,"unit_price_cents"?: number,"updated_at"?: string
+                    "amount_cents"?: never,"created_at"?: string,"created_by"?: string | null,"description"?: string,"id"?: string,"kind"?: string,"option_id"?: string,"position"?: number,"price_book_item_id"?: string | null,"quantity"?: number,"tenant_id"?: string,"unit_price_cents"?: number,"updated_at"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "quote_lines_price_book_item_fk"
+      columns: ["tenant_id","price_book_item_id"]
+isOneToOne: false
+      referencedRelation: "price_book_items"
+      referencedColumns: ["tenant_id","id"]
+    },{
       foreignKeyName: "quote_lines_tenant_id_fkey"
       columns: ["tenant_id"]
 isOneToOne: false
@@ -429,6 +478,78 @@ isOneToOne: false
                   Relationships: [
                     {
       foreignKeyName: "roles_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"service_type_state_rules": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"id": string,"notes": string | null,"pack_cert_categories": (string)[],"pack_tax_class": string,"pack_version": string | null,"required_cert_categories": (string)[],"service_type_id": string,"state_code": string,"tax_class": string,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"notes"?: string | null,"pack_cert_categories"?: (string)[],"pack_tax_class"?: string,"pack_version"?: string | null,"required_cert_categories"?: (string)[],"service_type_id": string,"state_code": string,"tax_class"?: string,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"notes"?: string | null,"pack_cert_categories"?: (string)[],"pack_tax_class"?: string,"pack_version"?: string | null,"required_cert_categories"?: (string)[],"service_type_id"?: string,"state_code"?: string,"tax_class"?: string,"tenant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "service_type_state_rules_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "service_type_state_rules_tenant_id_service_type_id_fkey"
+      columns: ["tenant_id","service_type_id"]
+isOneToOne: false
+      referencedRelation: "service_types"
+      referencedColumns: ["tenant_id","id"]
+    }
+                  ]
+                },"service_types": {
+                  Row: {
+                    "active": boolean,"archived_at": string | null,"created_at": string,"created_by": string | null,"default_duration_minutes": number,"description": string | null,"id": string,"job_kind": string,"name": string,"pricing_method": string,"service_line": string,"tenant_id": string,"treatment_areas": (string)[],"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"default_duration_minutes"?: number,"description"?: string | null,"id"?: string,"job_kind": string,"name": string,"pricing_method"?: string,"service_line": string,"tenant_id": string,"treatment_areas"?: (string)[],"updated_at"?: string
+                  }
+                  Update: {
+                    "active"?: boolean,"archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"default_duration_minutes"?: number,"description"?: string | null,"id"?: string,"job_kind"?: string,"name"?: string,"pricing_method"?: string,"service_line"?: string,"tenant_id"?: string,"treatment_areas"?: (string)[],"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "service_types_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"tenant_products": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"enabled": boolean,"id": string,"notes": string | null,"product_id": string,"tenant_id": string,"unit": string,"unit_cost_cents": number,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"enabled"?: boolean,"id"?: string,"notes"?: string | null,"product_id": string,"tenant_id": string,"unit"?: string,"unit_cost_cents"?: number,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"enabled"?: boolean,"id"?: string,"notes"?: string | null,"product_id"?: string,"tenant_id"?: string,"unit"?: string,"unit_cost_cents"?: number,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "tenant_products_product_id_fkey"
+      columns: ["product_id"]
+isOneToOne: false
+      referencedRelation: "products"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tenant_products_tenant_id_fkey"
       columns: ["tenant_id"]
 isOneToOne: false
       referencedRelation: "tenants"

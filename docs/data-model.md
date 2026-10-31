@@ -61,11 +61,11 @@ erDiagram
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| service_types | tenant_id, service_line [general_pest, rodent, termite, mosquito, bed_bug, wildlife], name, job_kind, treatment_areas text[] [interior, perimeter, yard, wood, devices] | State packs map job kind and treatment areas to licensing, notice and blackout rules |
-| service_type_state_rules | tenant_id, service_type_id, state_code, required_cert_categories text[], tax_class | Defaults come from the state pack; tenants may tighten, never loosen |
-| price_book_items | tenant_id, service_type_id, tier rule (size bands), initial_price_cents, recurring_price_cents, add_on bool | |
-| products | (shared) name, epa_reg_no, active_ingredients, restricted_use bool, rei_hours, label_url, sds_url, signal_word | Platform-maintained master list |
-| tenant_products | tenant_id, product_id, enabled, unit, unit_cost_cents | Tenant switches on and costs products |
+| service_types | tenant_id, service_line [general_pest, rodent, termite, mosquito, bed_bug, wildlife], name, job_kind, treatment_areas text[] [interior, perimeter, yard, wood, devices], pricing_method [price_book, bid], default_duration_minutes, active | State packs map job kind and treatment areas to licensing, notice and blackout rules |
+| service_type_state_rules | tenant_id, service_type_id, state_code, required_cert_categories text[], pack_cert_categories text[], tax_class [taxable, exempt, unknown], pack_tax_class, pack_version | Defaults come from the state pack and are copied onto the row; a check constraint keeps the pack's categories inside the tenant's (tighten, never loosen) |
+| price_book_items | tenant_id, service_type_id, name, add_on bool, size_basis [none, size_sqft, lot_sqft], size_min, size_max (exclusive), initial_price_cents, recurring_price_cents, one_time_price_cents, position, active | An exclusion constraint keeps bands from overlapping within one item name |
+| products | (shared) tenant_id null for master rows, name, manufacturer, epa_reg_no, active_ingredients text[], signal_word, restricted_use bool, rei_hours, formulation, label_url, sds_url, label_rates jsonb, verified_at | Platform-maintained master list; a tenant-added row carries its tenant_id until a platform admin approves it, which clears tenant_id and keeps the id |
+| tenant_products | tenant_id, product_id, enabled, unit, unit_cost_cents | Tenant switches on and costs products; a trigger allows master rows and the tenant's own rows only |
 
 ## Agreements and visits
 

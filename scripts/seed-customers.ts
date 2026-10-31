@@ -29,6 +29,10 @@ function places(tenant: SeedTenant): Record<"home" | "building" | "site1" | "sit
 
 async function insertProperty(sql: Sql, tenantId: string, accountId: string, name: string, place: Place, type: string, extra: Record<string, unknown> = {}) {
   const normalized = normalizeAddress(place);
+  // Properties have no natural unique key in the schema (two accounts may share an address), so look first.
+  const [existing] = await sql<{ id: string }[]>`
+    select id from public.properties where tenant_id = ${tenantId} and account_id = ${accountId} and normalized_address = ${normalized} order by created_at limit 1`;
+  if (existing) return existing.id;
   const [row] = await sql<{ id: string }[]>`
     insert into public.properties ${sql(
       {
@@ -37,11 +41,8 @@ async function insertProperty(sql: Sql, tenantId: string, accountId: string, nam
         geocode_status: "manual", property_type: type, ...extra,
       },
     )}
-    on conflict do nothing
     returning id`;
-  if (row) return row.id;
-  const [existing] = await sql<{ id: string }[]>`select id from public.properties where tenant_id = ${tenantId} and normalized_address = ${normalized} and account_id = ${accountId}`;
-  return existing.id;
+  return row.id;
 }
 
 async function ensureAccount(sql: Sql, tenantId: string, data: { type: string; name: string; email?: string; phone?: string; terms_days?: number }) {

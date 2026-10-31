@@ -202,7 +202,9 @@ describe("platform admin", () => {
     const visibleTenants = await asUser(adminId, PLATFORM_ADMIN_EMAIL, (tx) => tx<{ id: string }[]>`select id from public.tenants`);
     expect(visibleTenants.map((t) => t.id)).toEqual(expect.arrayContaining([northwindId, lakeshoreId]));
 
-    for (const t of tenantTables().filter((t) => t.name !== "tenants")) {
+    // Spec 03 rule 10: products a company added are catalog definitions awaiting approval, not customer data,
+    // and platform admins read them in order to approve them. Every other tenant table stays closed.
+    for (const t of tenantTables().filter((t) => t.name !== "tenants" && t.name !== "products")) {
       const rows = await asUser(adminId, PLATFORM_ADMIN_EMAIL, (tx) =>
         tx`select 1 from public.${tx(t.name)} where tenant_id in (${northwindId}, ${lakeshoreId})
            ${t.name === "audit_log" ? tx`and table_name <> 'tenants'` : tx``}`,
@@ -447,6 +449,69 @@ describe("spec 02 rules enforced in the database", () => {
     } finally {
       await admin`delete from public.quotes where id = ${quoteId}`;
     }
+  });
+
+  it("keeps catalog rules: the master list is read by all and written by platform admins only, private products stay private (spec 03 rules 9 to 11)", async () => {
+    const adminId = await userId(PLATFORM_ADMIN_EMAIL);
+    const asAdmin = <T,>(fn: (tx: Tx) => Promise<T>) => asUser(adminId, PLATFORM_ADMIN_EMAIL, fn);
+
+    const master = await asUser(...owner(), (tx) => tx<{ id: string; epa_reg_no: string }[]>`select id, epa_reg_no from public.products where tenant_id is null and epa_reg_no <> '25b-exempt'`);
+    expect(master.length).toBeGreaterThan(0);
+    await expect(asUser(...owner(), (tx) => tx`insert into public.products (tenant_id, name, epa_reg_no) values (null, 'Sneaky master row', '1-1')`)).rejects.toThrow(RLS_ERROR);
+    const touched = await asUser(...owner(), async (tx) => (await tx`update public.products set name = name where tenant_id is null`).count);
+    expect(touched).toBe(0);
+
+    // A private number already in the master list is refused; a new one is accepted, and only an admin can move it to the master list.
+    await expect(
+      asUser(...owner(), (tx) => tx`insert into public.products (tenant_id, name, epa_reg_no) values (${lakeshoreId}, 'Duplicate of master', ${master[0].epa_reg_no})`),
+    ).rejects.toThrow(/already in the master list/);
+    const [mine] = await asUser(...owner(), (tx) => tx<{ id: string }[]>`insert into public.products (tenant_id, name, epa_reg_no) values (${lakeshoreId}, 'Rule test private', '99998-1') returning id`);
+    try {
+      const seenByOther = await asUser(northwindOwner, seedUserEmail(northwind, "owner"), (tx) => tx`select id from public.products where id = ${mine.id}`);
+      expect(seenByOther.length).toBe(0);
+      await expect(
+        asUser(northwindOwner, seedUserEmail(northwind, "owner"), (tx) => tx`insert into public.tenant_products (tenant_id, product_id) values (${northwindId}, ${mine.id})`),
+      ).rejects.toThrow(/another company/);
+      await expect(asUser(...owner(), (tx) => tx`update public.products set tenant_id = null where id = ${mine.id}`)).rejects.toThrow(RLS_ERROR);
+      await asAdmin((tx) => tx`update public.products set tenant_id = null, verified_at = now(), verified_by = auth.uid() where id = ${mine.id}`);
+      const [after] = await admin<{ tenant_id: string | null; verified_at: string | null }[]>`select tenant_id, verified_at from public.products where id = ${mine.id}`;
+      expect(after.tenant_id).toBeNull();
+      expect(after.verified_at).not.toBeNull();
+      const editedAfter = await asUser(...owner(), async (tx) => (await tx`update public.products set name = 'changed' where id = ${mine.id}`).count);
+      expect(editedAfter).toBe(0);
+      const nowVisible = await asUser(northwindOwner, seedUserEmail(northwind, "owner"), (tx) => tx`select id from public.products where id = ${mine.id}`);
+      expect(nowVisible.length).toBe(1);
+    } finally {
+      await admin`delete from public.tenant_products where product_id = ${mine.id}`;
+      await admin`delete from public.products where id = ${mine.id}`;
+    }
+  });
+
+  it("never lets a tenant loosen the pack's categories and rejects overlapping price bands (spec 03 rules 3 and 5)", async () => {
+    const [rule] = await admin<{ id: string }[]>`select id from public.service_type_state_rules where tenant_id = ${lakeshoreId} order by created_at limit 1`;
+    await admin`update public.service_type_state_rules set pack_cert_categories = '{7A}', required_cert_categories = '{7A,7F}' where id = ${rule.id}`;
+    try {
+      await expect(asUser(...owner(), (tx) => tx`update public.service_type_state_rules set required_cert_categories = '{7F}' where id = ${rule.id}`)).rejects.toThrow(/never_loosen/);
+      await asUser(...owner(), (tx) => tx`update public.service_type_state_rules set required_cert_categories = '{3A,7A,7F}' where id = ${rule.id}`);
+    } finally {
+      await admin`update public.service_type_state_rules set pack_cert_categories = '{}', required_cert_categories = '{}' where id = ${rule.id}`;
+    }
+
+    const [band] = await admin<{ service_type_id: string; name: string }[]>`
+      select service_type_id, name from public.price_book_items where tenant_id = ${lakeshoreId} and size_basis = 'size_sqft' and archived_at is null limit 1`;
+    await expect(
+      asUser(
+        ...owner(),
+        (tx) => tx`insert into public.price_book_items (tenant_id, service_type_id, name, size_basis, size_min, size_max, initial_price_cents)
+                   values (${lakeshoreId}, ${band.service_type_id}, ${band.name}, 'size_sqft', 1500, 2500, 100)`,
+      ),
+    ).rejects.toThrow(/price_book_no_overlap/);
+    const [other] = await asUser(
+      ...owner(),
+      (tx) => tx<{ id: string }[]>`insert into public.price_book_items (tenant_id, service_type_id, name, size_basis, size_min, size_max, initial_price_cents)
+                                   values (${lakeshoreId}, ${band.service_type_id}, ${band.name}, 'lot_sqft', 0, null, 100) returning id`,
+    );
+    await admin`delete from public.price_book_items where id = ${other.id}`;
   });
 
   it("keeps each option's total equal to the sum of its lines, in integer cents rounded half up (rule 8)", async () => {

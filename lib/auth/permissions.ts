@@ -11,6 +11,13 @@ export const PERMISSION_GROUPS = [
     ],
   },
   {
+    label: "Catalog",
+    permissions: [
+      { key: "catalog.read", label: "View service types, the price book and products" },
+      { key: "catalog.write", label: "Edit service types, the price book and products" },
+    ],
+  },
+  {
     label: "Scheduling and visits",
     permissions: [
       { key: "dispatch.read", label: "View the dispatch board and routes" },

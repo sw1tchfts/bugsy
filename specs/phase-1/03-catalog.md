@@ -1,6 +1,6 @@
 # Spec 03: Catalog: service types, price book, product master
 
-Status: ready
+Status: done
 Depends on: 01, 02
 Skills to load: pest-domain, pesticide-compliance, pest-accounting
 
@@ -63,7 +63,7 @@ As in `docs/data-model.md` under Catalog and pricing, with these details and dev
 - Events: audit rows on the five audited tables; no journal entries.
 
 ## Business rules
-1. Every service type has one service line, one job kind, a treatment area set valid for the job kind (inspections, WDI reports and repairs may have none; treatments need at least one), and a pricing method. Names are unique per tenant.
+1. Every service type has one service line, one job kind, a treatment area set valid for the job kind (job kinds that apply pesticide, which are the recurring, one-time, device, termite and bed bug treatments and termite monitoring, need at least one area; inspections, WDI reports, trapping, exclusion, bat exclusion and repairs may have none), and a pricing method. Names are unique per tenant among unarchived service types.
 2. Saving a service type calls `ensureStateRules`: one `service_type_state_rules` row per state in `app.tenant_states(tenant)`. Each row's `pack_cert_categories`, `pack_tax_class` and `pack_version` come from the state pack for that service line and treatment areas; without a pack they are `{}`, `unknown` and null.
 3. Tenants may add certification categories to `required_cert_categories` and may change `tax_class`, but the database rejects a row whose `required_cert_categories` does not contain `pack_cert_categories`. Refreshing from a newer pack adds new pack categories and keeps tenant additions.
 4. `tax_class = 'unknown'` is allowed and is the default without a pack; spec 08 refuses to invoice an unknown class in that state until an owner sets it. Spec 05 treats an empty `required_cert_categories` with no pack as "unknown" and applies the conservative default from the skill (block assignment until a licensed manager confirms).

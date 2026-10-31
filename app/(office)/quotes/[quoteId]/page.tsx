@@ -4,17 +4,20 @@ import { notFound } from "next/navigation";
 import { Badge, Button, Card, Field, Input, Notice, Select, Textarea, errorMessage } from "@/components/ui";
 import { can } from "@/lib/auth/permissions";
 import { dbAs } from "@/lib/auth/session";
+import { type PriceBookItemLike, bandLabel, offeredColumns, priceBookOffers, priceFor } from "@/lib/catalog/pricing";
 import { formatBusinessDate, formatInstantDate, todayInZone } from "@/lib/dates";
 import { formatCents } from "@/lib/money";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
-import { addLine, addOption, removeLine, removeOption, setQuoteStatus, updateOption, updateQuote } from "../actions";
+import { addLine, addLineFromPriceBook, addOption, removeLine, removeOption, setQuoteStatus, updateOption, updateQuote } from "../actions";
 
 export const metadata: Metadata = { title: "Quote" };
 
 type Quote = {
   id: string; number: number; status: string; valid_until: string | null; notes: string | null; sent_at: string | null; decided_at: string | null;
   accepted_option_id: string | null; lead_id: string | null; lead_name: string | null; account_id: string | null; account_name: string | null; created_at: string;
+  property_id: string | null; size_sqft: number | null; lot_sqft: number | null;
 };
+type PriceItem = PriceBookItemLike & { service_type_name: string };
 type Option = { id: string; position: number; name: string; description: string | null; recommended: boolean; total_cents: number };
 type Line = { id: string; option_id: string; position: number; description: string; kind: string; quantity: string; unit_price_cents: number; amount_cents: number };
 
@@ -30,19 +33,46 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
   const data = await dbAs(session, async (tx) => {
     const [quote] = await tx<Quote[]>`
       select q.id, q.number, q.status, q.valid_until, q.notes, q.sent_at, q.decided_at, q.accepted_option_id, q.lead_id, l.name as lead_name,
-             q.account_id, a.name as account_name, q.created_at
-      from public.quotes q left join public.leads l on l.id = q.lead_id left join public.accounts a on a.id = q.account_id
+             q.account_id, a.name as account_name, q.created_at, q.property_id, p.size_sqft, p.lot_sqft
+      from public.quotes q
+        left join public.leads l on l.id = q.lead_id
+        left join public.accounts a on a.id = q.account_id
+        left join public.properties p on p.id = q.property_id
       where q.id = ${quoteId} and q.tenant_id = ${tenantId}`;
     if (!quote) return null;
     const options = await tx<Option[]>`select id, position, name, description, recommended, total_cents from public.quote_options where quote_id = ${quoteId} order by position`;
     const lines = await tx<Line[]>`
       select l.id, l.option_id, l.position, l.description, l.kind, l.quantity::text, l.unit_price_cents, l.amount_cents
       from public.quote_lines l join public.quote_options o on o.id = l.option_id where o.quote_id = ${quoteId} order by o.position, l.position`;
-    return { quote, options, lines };
+    const items = await tx<PriceItem[]>`
+      select p.id, p.service_type_id, st.name as service_type_name, p.name, p.add_on, p.size_basis, p.size_min, p.size_max,
+             p.initial_price_cents, p.recurring_price_cents, p.one_time_price_cents
+      from public.price_book_items p join public.service_types st on st.id = p.service_type_id
+      where p.tenant_id = ${tenantId} and p.active and p.archived_at is null and st.active and st.archived_at is null
+      order by st.name, p.position, p.name, p.size_min`;
+    return { quote, options, lines, items };
   });
   if (!data) notFound();
-  const { quote, options, lines } = data;
+  const { quote, options, lines, items } = data;
   const editable = canWrite && quote.status === "draft";
+
+  // Price book choices for this quote's property. Items that need a size the property lacks are listed but not pickable.
+  const serviceTypeNames = new Map(items.map((i) => [i.service_type_id, i.service_type_name]));
+  const choices: { value: string; label: string }[] = [];
+  const blocked: string[] = [];
+  for (const offer of priceBookOffers(items, { sizeSqft: quote.size_sqft, lotSqft: quote.lot_sqft })) {
+    const prefix = `${serviceTypeNames.get(offer.serviceTypeId)}: ${offer.name}`;
+    if (offer.pick.status === "match") {
+      const item = offer.pick.item;
+      for (const column of offeredColumns(item)) {
+        const band = item.size_basis === "none" ? "" : ` (${bandLabel(item)})`;
+        const kind = item.add_on ? `add-on, ${KIND_LABEL[column].toLowerCase()}` : KIND_LABEL[column].toLowerCase();
+        choices.push({ value: `${item.id}:${column}`, label: `${prefix}${band}, ${kind} ${formatCents(priceFor(item, column))}` });
+      }
+    } else if (offer.pick.status === "needs_measurement") {
+      blocked.push(`${prefix}: enter the ${offer.pick.basis === "size_sqft" ? "home" : "lot"} size on the property first`);
+    }
+  }
 
   return (
     <>
@@ -175,6 +205,33 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
             ) : null}
             {editable ? (
               <div className="mt-4 grid gap-4 border-t border-stone-100 pt-4">
+                {choices.length || blocked.length ? (
+                  <form action={addLineFromPriceBook} className="flex flex-wrap items-end gap-3">
+                    <input type="hidden" name="tenant_id" value={tenantId} />
+                    <input type="hidden" name="quote_id" value={quoteId} />
+                    <input type="hidden" name="option_id" value={o.id} />
+                    <Field label="From the price book" htmlFor={`pick-${o.id}`}>
+                      <Select id={`pick-${o.id}`} name="pick" required defaultValue="">
+                        <option value="" disabled>
+                          Pick an item
+                        </option>
+                        {choices.map((c) => (
+                          <option key={c.value} value={c.value}>
+                            {c.label}
+                          </option>
+                        ))}
+                        {blocked.map((b) => (
+                          <option key={b} value="" disabled>
+                            {b}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <Button type="submit" variant="secondary">
+                      Add from price book
+                    </Button>
+                  </form>
+                ) : null}
                 <form action={addLine} className="grid gap-3 sm:grid-cols-[1fr_160px_90px_120px_auto] sm:items-end">
                   <input type="hidden" name="tenant_id" value={tenantId} />
                   <input type="hidden" name="quote_id" value={quoteId} />

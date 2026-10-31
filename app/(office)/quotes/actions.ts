@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { opt, str } from "@/lib/customers/forms";
 import { dbAs, requirePermission } from "@/lib/auth/session";
 import { errorCode } from "@/lib/db";
+import { type PriceBookItemLike, type PriceColumn, priceBookLine } from "@/lib/catalog/pricing";
 import { parseDollarsToCents } from "@/lib/money";
 
 const LINE_KINDS = ["initial", "recurring", "one_time", "add_on"];
@@ -20,11 +21,17 @@ export async function createQuote(formData: FormData) {
   const { session } = await requirePermission(tenantId, "agreements.write");
   const leadId = opt(formData, "lead_id");
   const accountId = opt(formData, "account_id");
-  const propertyId = opt(formData, "property_id");
+  let propertyId = opt(formData, "property_id");
   let quoteId: string | null = null;
   let error: string | null = null;
   try {
     await dbAs(session, async (tx) => {
+      // An account with exactly one property gets that property on the quote, so the price book can size it.
+      if (!propertyId && accountId) {
+        const properties = await tx<{ id: string }[]>`
+          select id from public.properties where tenant_id = ${tenantId} and account_id = ${accountId} and archived_at is null order by created_at limit 2`;
+        if (properties.length === 1) propertyId = properties[0].id;
+      }
       const [quote] = await tx<{ id: string }[]>`
         insert into public.quotes (tenant_id, lead_id, account_id, property_id, valid_until)
         values (${tenantId}, ${leadId}, ${accountId}, ${propertyId}, current_date + 30) returning id`;
@@ -119,6 +126,36 @@ export async function addLine(formData: FormData) {
         const [{ next }] = await tx<{ next: number }[]>`select coalesce(max(position), 0) + 1 as next from public.quote_lines where option_id = ${optionId}`;
         await tx`insert into public.quote_lines (tenant_id, option_id, position, description, kind, quantity, unit_price_cents)
                  values (${tenantId}, ${optionId}, ${next}, ${str(formData, "description")}, ${kind}, ${quantity}, ${unitPrice})`;
+      });
+    } catch (err) {
+      error = errorCode(err);
+    }
+  }
+  back(quoteId, error);
+}
+
+/** Adds a line from the price book: description, kind and price come from the item; the line stays editable afterwards. */
+export async function addLineFromPriceBook(formData: FormData) {
+  const tenantId = str(formData, "tenant_id");
+  const quoteId = str(formData, "quote_id");
+  const optionId = str(formData, "option_id");
+  const { session } = await requirePermission(tenantId, "agreements.write");
+  const [itemId, column] = str(formData, "pick").split(":");
+  let error: string | null = null;
+  if (!itemId || !["initial", "recurring", "one_time"].includes(column)) {
+    error = "Pick a price book item.";
+  } else {
+    try {
+      await dbAs(session, async (tx) => {
+        const [item] = await tx<PriceBookItemLike[]>`
+          select id, service_type_id, name, add_on, size_basis, size_min, size_max, initial_price_cents, recurring_price_cents, one_time_price_cents
+          from public.price_book_items where id = ${itemId} and tenant_id = ${tenantId} and archived_at is null and active`;
+        if (!item) throw Object.assign(new Error("that price book item is no longer available"), { code: "23514" });
+        const line = priceBookLine(item, column as PriceColumn);
+        if (line.unit_price_cents <= 0) throw Object.assign(new Error("that item has no price for that kind of line"), { code: "23514" });
+        const [{ next }] = await tx<{ next: number }[]>`select coalesce(max(position), 0) + 1 as next from public.quote_lines where option_id = ${optionId}`;
+        await tx`insert into public.quote_lines (tenant_id, option_id, position, description, kind, quantity, unit_price_cents, price_book_item_id)
+                 values (${tenantId}, ${optionId}, ${next}, ${line.description}, ${line.kind}, 1, ${line.unit_price_cents}, ${line.price_book_item_id})`;
       });
     } catch (err) {
       error = errorCode(err);

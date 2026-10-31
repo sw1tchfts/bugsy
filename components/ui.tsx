@@ -118,6 +118,7 @@ export function errorMessage(code: string | undefined): string | null {
     "last-owner": "A company must keep at least one owner. Make someone else an owner first.",
     duplicate: "Something with that name or email already exists.",
     "in-use": "That cannot be removed while something still uses it.",
+    overlap: "That size band overlaps a band that already exists for this item. Bands meet at a boundary; they do not share one.",
     failed: "That did not work. Try again, and tell support if it keeps failing.",
     invitation: "This invitation is not valid for the signed-in account. Sign in with the invited email address.",
   };
