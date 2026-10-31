@@ -53,7 +53,7 @@ Every entry balances to the cent. Closed periods reject new postings; correction
 
 ## Sales tax
 
-- Taxability comes from the service type's tax class for the property's state, never from line descriptions. States differ: some tax pest control services, some do not, and some tax yard spraying as a landscaping service (Wisconsin, for example; see `pesticide-compliance/states/wi.md`). Confirm each launch state's answer before go-live and record it with its source; never guess. Keep the tax path working so a service type can become taxable without code changes.
+- Taxability comes from the service type's tax class for the property's state, never from line descriptions. States differ: some tax pest control services, some do not, and some tax yard spraying as a landscaping service. Confirm each launch state's answer before go-live and record it with its source; never guess. Keep the tax path working so a service type can become taxable without code changes.
 - Rate is the state rate plus county and other local taxes where the service is received (the service address). Rates come from each state revenue department's tables with effective dates; never hardcode a rate.
 - Invoices mixing taxable and nontaxable work show the portions separately and tax only the taxable part.
 - Exemption certificates on the account (for example a government unit) zero the tax and are kept with the invoice.

@@ -36,13 +36,12 @@
       "Well regarded support and free one-on-one coaching, frequently praised in reviews."
     ],
     "weaknesses": [
-      "Pest compliance is thin: chemical tracking is web only (not in the mobile app), on select plans, with no labels, SDS, state reports or Wisconsin support.",
+      "Pest compliance is thin: chemical tracking is web only (not in the mobile app), on select plans, with no labels, SDS or state reports.",
       "No pest-specific commercial or specialty tooling found: no bait station or device barcodes, facility maps, termite graphs or WDI reports, and no native inventory.",
       "Reporting is the most common review complaint (fragmented, limited custom reports unless on Plus); also some app sync bugs and limited customization.",
       "Costs climb with per-user fees and paid add-ons (Marketing Suite, Pipeline, AI Receptionist, Bookkeeping); several reviewers call per-user pricing steep.",
       "Billing gaps for recurring pest accounts: no bulk price increases on existing jobs, no automatic late fees, no built-in general ledger (only a managed bookkeeping add-on)."
-    ],
-    "wisconsin_notes": "No Wisconsin-specific compliance support found (no mention of ATCP 29, landscape registry notice or posting signs); chemical tracking makes no state compliance claims. No Wisconsin pest control customers identified in Jobber marketing or reviews; pest testimonials (Advanced Pest Control, JP Pest Control Service, Pagel Services) give no locations."
+    ]
   },
   "features": [
     {

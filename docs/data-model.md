@@ -82,7 +82,7 @@ erDiagram
 | application_records | tenant_id, visit_id, state_code, rule_pack_version, snapshot jsonb with every field the state requires, locked_at, retention_until | Immutable after lock |
 | application_record_amendments | tenant_id, record_id, changed_fields jsonb, reason, author_id | Corrections only |
 | notices | tenant_id, kind (defined by the state pack, for example post_application, pre_application_offer, resident_notice, posting_sign, registry_advance), visit_id null, agreement_id null, recipient_contact_id, channel [email, sms, print, mail, phone], due_by, sent_at, proof | Proof of every required notice |
-| notification_registries | tenant_id, state_code, registry_kind, registry_year, address, normalized_address, contact | Imported per state, for example Wisconsin's yearly landscape registry |
+| notification_registries | tenant_id, state_code, registry_kind, registry_year, address, normalized_address, contact | Imported per state, in each state's registry format |
 
 ## Billing
 

@@ -39,8 +39,7 @@
       "Reviewers call reporting basic: no report builder, custom reports cannot be saved, and no automatic sales tax by address.",
       "Shallow compliance depth: no documented applicator license tracking, label or SDS storage, stock-level inventory, or state-specific report formats.",
       "Offline mode is limited to the current week, and job and invoice details cannot be edited offline; some reviewers report bugs after the V3 release."
-    ],
-    "wisconsin_notes": "No Wisconsin-specific compliance found (no ATCP 29 fields, landscape registry notice or posting support); chemical tracking pages refer only to generic state requirements. Wisconsin users: Mosquito Police of Antigo, WI (8 techs) is showcased on the mosquito industry page, and a 2026-10-29 scan of Wisconsin pest company websites found GorillaDesk customer portals at Bourn Pest Solutions (Waukesha), Nexus Pest Solutions (Mequon area) and 1st Choice Pest Control (Appleton). Nearby Midwest customers shown in Minnesota, Michigan, Ohio and Missouri."
+    ]
   },
   "features": [
     {
@@ -822,18 +821,6 @@
     {
       "title": "AppGoblin: GorillaDesk on Google Play",
       "url": "https://appgoblin.info/apps/com.gorilladesk.app"
-    },
-    {
-      "title": "Bourn Pest Solutions (Wisconsin GorillaDesk portal user)",
-      "url": "https://bournpestsolutions.com/"
-    },
-    {
-      "title": "Nexus Pest Solutions (Wisconsin GorillaDesk portal user)",
-      "url": "https://nexuspestsolutions.com/"
-    },
-    {
-      "title": "1st Choice Pest Control, Appleton (Wisconsin GorillaDesk portal user)",
-      "url": "https://1stchoicepestcontrolllc.com/"
     }
   ]
 }

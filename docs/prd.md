@@ -8,7 +8,7 @@ Version 3 · October 31, 2026 · Phil Klejwa
 
 ## Summary
 
-Bugsy is one platform for independent pest control companies: CRM, agreements, dispatch, an offline technician app, pesticide compliance, billing and a real general ledger. Everything on the feature list ships in one build; there are no phases. Version 3 drops the phasing and the Wisconsin focus of version 2, sizes the market nationally, and proposes features the list does not yet cover.
+Bugsy is one platform for independent pest control companies: CRM, agreements, dispatch, an offline technician app, pesticide compliance, billing and a real general ledger. Everything on the feature list ships in one build; there are no phases. Version 3 drops the phasing, makes compliance a rules engine for any state, sizes the market nationally, and proposes features the list does not yet cover.
 
 <!-- widget: kpis -->
 
@@ -65,7 +65,7 @@ The US has 13,603 employer pest control firms with $19.6B in receipts (2022). Ce
 
 - **Target pool.** Firms with 5 to 24 employees (roughly 3 to 15 technicians at a 60% technician share) number about 4,090, with $4.6B in receipts and about 24,400 technicians.
 - **Consolidation.** Private-equity platforms and national brands keep buying independents (in 2025, for example, Greenix, Plunkett's and Ecolab bought Midwest companies). Acquired firms move to the buyer's software, so the independent pool shrinks.
-- **Seasonality.** Northern states swing hard: Wisconsin pest employment peaks at 1.33 to 1.44 times its winter low, against about 1.1 nationally. Pricing and staffing models must survive winter.
+- **Seasonality.** Northern states swing hard between winter and summer, while the national swing is about 1.1 times. Pricing and staffing models must survive winter.
 
 **Revenue ceiling.** At $79 to $99 per technician, the target band is worth about $23M to $29M a year at full share, all independents about $51M to $65M, and every US technician about $84M to $106M. Try other prices and shares below.
 
@@ -84,7 +84,7 @@ Recommendation: independent, residential-first pest companies with one branch an
 - There is no dedicated compliance or accounting staff, so automation replaces work nobody has time for.
 - Multi-branch regionals and national brands bring custom integrations, procurement and migrations that slow a first launch. The data model stays multi-branch, so they can follow.
 
-**What they run today.** Small independents run on GorillaDesk, Fieldwork, Pocomos, FieldRoutes, Briostack, horizontal tools such as Jobber and Housecall Pro, or spreadsheets and paper. In a 38-company website sample, most showed no visible software. GorillaDesk showcases pest firms with 13 to 27 technicians, so it is not only an owner-operator tool.
+**What they run today.** Small independents run on GorillaDesk, Fieldwork, Pocomos, FieldRoutes, Briostack, horizontal tools such as Jobber and Housecall Pro, or spreadsheets and paper. GorillaDesk showcases pest firms with 13 to 27 technicians, so it is not only an owner-operator tool.
 
 **Not first:** owner-operators with 1 or 2 technicians (price-led buyers; Fieldwork starts at $39 plus $19 per technician and GorillaDesk at $49), multi-branch regionals, national brands and lawn-care-first companies (out of scope).
 
@@ -98,7 +98,7 @@ Recommendation: independent, residential-first pest companies with one branch an
 | Residential customer | portal | Know when the technician comes and pay easily | Reminders, on-the-way text, portal, service summaries |
 | Commercial customer | portal | Pass a food-safety audit | Device maps, trends, sighting log, audit binder |
 
-**Where to find them.** State pest control association conferences and recertification events, NPMA's PestWorld, and the switching moments above. The design partner's state sets the first compliance rule pack. If the partner is in Wisconsin, its market research is in `research_notes/` and its rules are already the first worked state file in the compliance skill.
+**Where to find them.** State pest control association conferences and recertification events, NPMA's PestWorld, and the switching moments above. The design partner's state sets the first compliance rule pack.
 
 <!-- page: competitors | Competitors -->
 
@@ -312,7 +312,7 @@ Why this structure:
 
 - **A flat $79 to $99 per technician is high.** An 8-technician company would pay $632 to $792 a month: 1.4 to 1.8 times Fieldwork Pro and more than every published option except Fieldwork Enterprise. At 3 technicians the gap is wider ($237 to $297 against $197 for Fieldwork Pro).
 - **Per technician is not new.** Fieldwork already bills only field users with office users free, and GorillaDesk bills per route. "All-inclusive" is what sets Bugsy apart: Fieldwork gates service agreements and routing to Pro and skills matching to Enterprise, and at least 6 of 9 competitors charge for texting. Since Bugsy ships everything at once, every tenant gets the full product.
-- **"Active" technicians swing with the season.** In northern states pest employment swings by a third or more between winter and summer, so a monthly active count would make bills swing too.
+- **"Active" technicians swing with the season.** In northern states pest employment swings sharply between winter and summer, so a monthly active count would make bills swing too.
 - **Crews would pay twice.** GorillaDesk bills a crew once, and Bugsy's `visit_technicians` change makes trainee-plus-applicator crews common.
 - **The cost is affordable; the comparison is the problem.** $632 a month is about 0.5% of revenue for an 8-technician firm earning about $1.4M to $1.7M.
 
@@ -388,7 +388,7 @@ Twelve calls shape the build. The first four should be made before spec 01 start
 | # | Decision | Recommendation | Blocks |
 | --- | --- | --- | --- |
 | 1 | First customer profile | Independent, single branch, residential first, 3 to 15 technicians, any state | Design partner recruiting |
-| 2 | Design partner and launch states | Recruit the partner first; its state's rules are the first rule pack. Wisconsin research is ready if the partner is there | Spec 07, compliance fixtures |
+| 2 | Design partner and launch states | Recruit the partner first; its state's rules are the first rule pack, researched with the compliance skill's add-a-state steps | Spec 07, compliance fixtures |
 | 3 | Stack | Confirm Next.js, Supabase and Vercel, as the kit assumes | Spec 01 |
 | 4 | Technician app | A native wrapper (for example Capacitor) from the start, since everything ships at once: card readers and tap to pay, truck printers, background sync and barcode scanning | Spec 06 |
 | 5 | General ledger default | Bugsy's GL is the system of record, with QuickBooks Online sync for tenants who keep their books there | Specs 09 and 20 |
@@ -400,14 +400,14 @@ Twelve calls shape the build. The first four should be made before spec 01 start
 | 11 | Features not yet on the list | Add the candidates on the Features page, starting with visit crews, application conditions, mix calculator, recertification credits, forms, multi-unit buildings and termite bait integration, and score all nine competitors on them | Feature list, specs |
 | 12 | Pest-only scope | Stay pest-only; revisit lawn care only if pest-and-lawn firms block deals | Sales positioning |
 
-**Outside answers.** Each launch state brings its own legal questions: record and notice rules, registries, license categories, and sales tax on yard mosquito and tick spraying. Wisconsin's are in `.claude/skills/pesticide-compliance/states/wi.md`; each new state gets a file like it. Also confirm, per launch state, that an e-signed consent counts as written consent for electronic notices.
+**Outside answers.** Each launch state brings its own legal questions: record and notice rules, registries, license categories, and sales tax on yard mosquito and tick spraying. Each state's answers go in its file under `.claude/skills/pesticide-compliance/states/`. Also confirm, per launch state, that an e-signed consent counts as written consent for electronic notices.
 
 <!-- page: sources | Sources -->
 
 ## Sources and method
 
-- **Compliance rules:** the `pesticide-compliance` skill explains how state rules become rule packs; `states/wi.md` is the first researched state, with fixtures in `fixtures/states/wi/`.
-- **Discovery:** the [discovery spec](https://claude.ai/artifact/PZvWbg1f2PkV4NJK7QjFqb) (business model, Wisconsin rules research, module answers), exported to `docs/discovery-spec.md`.
+- **Compliance rules:** the `pesticide-compliance` skill explains how state rules become rule packs and how to research a state; no state is researched yet.
+- **Discovery:** the [discovery spec](https://claude.ai/artifact/PZvWbg1f2PkV4NJK7QjFqb) (business model and module answers; its state-specific parts are superseded by this PRD), exported to `docs/discovery-spec.md`.
 - **Competitor profiles:** one JSON file per product in `docs/competitors/`, researched October 20, 2026 and corrected October 29 to 31, 2026, each score with a source link. Public sources only: vendor pages, help centers, release notes, pricing pages, app stores and review sites.
 - **Research notes and report:** `research_notes/Competitor research vs Bugsy PRD/` and `reports/Competitor research vs Bugsy PRD.md`.
 - **Market data:** Census Statistics of US Businesses 2022 (NAICS 561710 by firm size), BLS Occupational Employment and Wage Statistics May 2023, and BLS QCEW 2025.

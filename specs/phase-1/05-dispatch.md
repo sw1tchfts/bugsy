@@ -10,7 +10,7 @@ Dispatchers turn due windows into dated routes on a map-based board with drag an
 ## Already decided (from the discovery doc)
 - Phase 1 is manual dispatch with simple sequencing; route optimization is Phase 2.
 - The board blocks assigning work a technician is not licensed for in the property's state, and blocks job kinds inside a state blackout window (for example bat exclusions); rules come from the state rule packs in lib/compliance/rules/.
-- Jobs at addresses on a state notification registry need the advance notice the state requires before they can be scheduled (in Wisconsin: yard mosquito and tick jobs, and structural work more than 10 feet from the building, at landscape registry addresses).
+- Jobs at addresses on a state notification registry need the advance notice the state requires before they can be scheduled, including rules about which treatments trigger the notice.
 
 ## Questions for the spec interview
 - Board layout: by technician rows, by day columns, or map-first?
@@ -18,6 +18,6 @@ Dispatchers turn due windows into dated routes on a map-based board with drag an
 - Bulk reschedule for weather in Phase 1?
 
 ## Verification will use
-- fixtures/states/wi/scheduling-rules.json (license, trainee, restricted-use and blackout cases (Wisconsin pack; each launch state adds its own folder)).
+- fixtures/states/<state>/ scheduling cases for each launch state (license, trainee, restricted-use, blackout and advance-notice cases), written with the state's rule pack.
 
 The interview fills in the remaining template sections: users and stories, scope, data, interfaces, business rules, edge cases, decisions, open questions and verification.

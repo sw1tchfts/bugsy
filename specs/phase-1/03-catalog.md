@@ -18,6 +18,6 @@ Owners configure what they sell and what they spray: service types per service l
 - Can tenants add private products not in the master list?
 
 ## Verification will use
-- fixtures/states/wi/service-type-rules.json (certification categories and tax class per service line (Wisconsin pack; each launch state adds its own folder)).
+- fixtures/states/<state>/ for each launch state (certification categories and tax class per service line), written with the state's rule pack.
 
 The interview fills in the remaining template sections: users and stories, scope, data, interfaces, business rules, edge cases, decisions, open questions and verification.

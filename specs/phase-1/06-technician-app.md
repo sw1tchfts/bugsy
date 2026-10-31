@@ -20,6 +20,6 @@ Technicians run their day from an installable mobile web app that works offline 
 - Field payments in Phase 1 or later?
 
 ## Verification will use
-- fixtures/states/wi/application-record.json (a completed visit must yield a valid record (Wisconsin pack; each launch state adds its own folder)).
+- fixtures/states/<state>/ application record cases for each launch state (a completed visit must yield a valid record), written with the state's rule pack.
 
 The interview fills in the remaining template sections: users and stories, scope, data, interfaces, business rules, edge cases, decisions, open questions and verification.

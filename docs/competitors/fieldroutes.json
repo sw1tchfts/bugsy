@@ -35,8 +35,7 @@
       "Steep learning curve, especially for office and billing tasks, with thin training material for new users.",
       "QuickBooks sync setup issues and no built-in general ledger; invoice and report customization is limited.",
       "Key extras (marketing automation, fleet GPS, AI dash cams) are separate ServiceTitan Pro products."
-    ],
-    "wisconsin_notes": "Kwik Kill Pest Control of Madison, Wisconsin, a ServSuite user since 2013, moved to FieldRoutes by the end of March 2023, per a FieldRoutes case study published Oct 2023; whether it still runs FieldRoutes in 2026 is unverified. No Wisconsin-specific compliance (ATCP 29, landscape registry notice) found. Only named state compliance is California Branch 3 WDO reporting and NPMA-33."
+    ]
   },
   "features": [
     {
@@ -724,10 +723,6 @@
     {
       "title": "One House Marketing FieldRoutes review (Oct 2026)",
       "url": "https://onehousemarketing.com/fieldroutes-review/"
-    },
-    {
-      "title": "FieldRoutes Kwik Kill Pest Control case study (2023)",
-      "url": "https://www.fieldroutes.com/resources/case-studies/kwik-kill-pest-control-case-study"
     }
   ]
 }

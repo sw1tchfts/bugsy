@@ -8,7 +8,7 @@ This repository starts empty of app code on purpose. It holds the reference mate
 | --- | --- | --- |
 | `CLAUDE.md` | Stack, commands, the rules that are easy to get wrong, workflow | Every session (kept short on purpose) |
 | `specs/` | Build order, a spec template, spec 01 written in full, stubs for 02 to 10 | When you point a session at a spec |
-| `.claude/skills/pesticide-compliance/` | How state pesticide rules become rule packs (licensing, records, notices, registries, blackouts), plus one researched file per state, starting with Wisconsin | Automatically, when work touches compliance |
+| `.claude/skills/pesticide-compliance/` | How state pesticide rules become rule packs (licensing, records, notices, registries, blackouts), plus one researched file per launch state | Automatically, when work touches compliance |
 | `.claude/skills/pest-accounting/` | Revenue recognition, deferred revenue, posting rules, sales tax by service type | Automatically, when work touches money |
 | `.claude/skills/pest-domain/` | How pest companies operate, service lines, glossary | Automatically, when terms or modeling come up |
 | `.claude/skills/write-spec/` | `/write-spec`: Claude interviews you and writes a spec | Only when you type it |
@@ -33,4 +33,4 @@ Node is on the path (the hooks are small Node scripts, so they work on macOS, Li
 
 ## Not decided yet
 
-Stack confirmation, first tenant size, Stripe Connect account type, revenue allocation method, and each launch state's open questions are listed in the PRD, the state files and each spec stub. Specs must not guess them.
+Stack confirmation, first tenant size, Stripe Connect account type, revenue allocation method, and each launch state's open questions are listed in the PRD and each spec stub. Specs must not guess them.

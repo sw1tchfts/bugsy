@@ -34,11 +34,10 @@
     "weaknesses": [
       "Many core features sit on upper tiers: map and devices on Business; agreements, e-signature, routing, multi-branch, API and time sheets on Pro; skills matching, inventory, online booking and Sentricon on Enterprise.",
       "No built-in accounting: one-way sync to QuickBooks Online only, with no general ledger, deferred revenue or proration on cancellation.",
-      "No license expiry tracking, restricted-use controls, pre-application notices or Wisconsin support; state reports cover only California and New York.",
+      "No license expiry tracking, restricted-use controls, pre-application notices; state reports cover only California and New York.",
       "Texting is metered ($0.03 per segment plus $5 a month), and AI, Branch 3 Termite and import fees are not published.",
       "Small review base, many help articles date from 2021 to 2022, and reviewers mention a steep learning curve and map pins hiding nearby jobs."
-    ],
-    "wisconsin_notes": "No Wisconsin-specific compliance: Wisconsin is not named on the site or in any help article, and state reports cover only California and New York. Two Wisconsin customers confirmed through Fieldwork-hosted portals: 1st Choice Pest Solutions (Eau Claire) and On Target Pest and Wildlife Control (La Crosse). Fieldwork Software was the only software vendor exhibiting at WPCA's 2026 Midwest PestCon (exhibitor, not sponsor) and is based nearby in Niles, Illinois. Chemical records stay online 3 years with PDF export."
+    ]
   },
   "features": [
     {
@@ -948,18 +947,6 @@
     {
       "title": "Anstar Products (shared Niles, Illinois address)",
       "url": "https://anstarproducts.com/"
-    },
-    {
-      "title": "WPCA 2026 Midwest PestCon sponsors and exhibitors",
-      "url": "https://wpca27.wildapricot.org/Sponsors"
-    },
-    {
-      "title": "1st Choice Pest Solutions customer portal (Eau Claire, WI)",
-      "url": "https://pestsolutions1stchoice.serviceworkportal.com/sessions/new"
-    },
-    {
-      "title": "On Target Pest and Wildlife Control customer portal (La Crosse, WI)",
-      "url": "https://ontargetpestcontrol.serviceworkportal.com/sessions/new"
     }
   ]
 }

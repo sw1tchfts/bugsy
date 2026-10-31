@@ -34,8 +34,7 @@
       "Customer portal called primitive by a reviewer, with payment link problems; no self-scheduling",
       "Required in-house card processing seen as expensive by some users; few integrations and no documented API",
       "Common add-on costs (GPS tracking, time clock, SMS) and per-customer tiers that shift as customer counts fluctuate"
-    ],
-    "wisconsin_notes": "No Wisconsin customers or Wisconsin-specific compliance found. No mention of ATCP 29 records, the landscape registry or posting signs; the Custom Documents feature names state forms for Arizona, Texas, Georgia, Virginia and Connecticut, not Wisconsin. Other compliance support is generic: chem sheets, dilution rates and per-service technician license numbers."
+    ]
   },
   "features": [
     {

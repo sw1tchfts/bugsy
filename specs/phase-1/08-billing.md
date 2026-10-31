@@ -10,7 +10,7 @@ Tenants bill their customers per visit, flat monthly or annual prepay, take card
 ## Already decided (from the discovery doc)
 - Stripe Connect, one connected account per tenant; card data never touches our database.
 - One statement per account across agreements.
-- Taxability is set per service type and state, confirmed for each launch state before go-live (Wisconsin's answers and open questions are in its state file). Rates by service address from state revenue department tables.
+- Taxability is set per service type and state, confirmed for each launch state before go-live. Rates by service address from state revenue department tables.
 - Collections: reminders, automatic retries, optional late fees, past-due flag that can pause service.
 - Tenant billing (customers) and platform billing (tenants paying us) are separate modules.
 
@@ -21,6 +21,6 @@ Tenants bill their customers per visit, flat monthly or annual prepay, take card
 - Confirm structural pest control and yard mosquito taxability with the Department of Revenue.
 
 ## Verification will use
-- fixtures/accounting/agreement-ledger.json (billing schedules and installment rounding), fixtures/states/wi/taxability.json (Wisconsin pack; each launch state adds its own folder).
+- fixtures/accounting/agreement-ledger.json (billing schedules and installment rounding), fixtures/states/<state>/taxability.json for each launch state.
 
 The interview fills in the remaining template sections: users and stories, scope, data, interfaces, business rules, edge cases, decisions, open questions and verification.

@@ -38,8 +38,7 @@
       "Reviewers report persistent bugs and slow support when issues need escalation.",
       "The mobile app is rated 2.4 on the App Store and about 2.3 on Google Play, and some users report unreliable camera barcode scanning.",
       "There is no built-in general ledger. QuickBooks is fed by a periodic GL export that the vendor says is not a live sync; reports of reconciliation discrepancies could not be verified in 2025 or 2026 reviews."
-    ],
-    "wisconsin_notes": "No Wisconsin forms or ATCP 29 support found. The vendor names only California, Arizona and New York state reports plus generic state-specific exports. Wisconsin users exist though the vendor names none: a 2026-10-29 scan of Wisconsin pest company websites found PestPac customer portals at Fenix Pest Control (listed in Appleton and Madison) and at roll-up entrants Greenix (which absorbed Rove) and Hawx. Third-party data says its customer base skews to the Southeast and California."
+    ]
   },
   "features": [
     {
@@ -779,18 +778,6 @@
     {
       "title": "AppGoblin: PestPac Mobile on Google Play",
       "url": "https://appgoblin.info/apps/com.workwave.pestpacmobile3"
-    },
-    {
-      "title": "Fenix Pest Control (Wisconsin PestPac portal user)",
-      "url": "https://fenixpestcontrol.com/"
-    },
-    {
-      "title": "Greenix Pest Control (PestPac portal, Wisconsin entrant)",
-      "url": "https://greenixpc.com/"
-    },
-    {
-      "title": "Hawx Pest Control (PestPac portal, Wisconsin entrant)",
-      "url": "https://hawxpestcontrol.com/"
     }
   ]
 }

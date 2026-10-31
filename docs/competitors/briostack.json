@@ -37,8 +37,7 @@
       "Reports can be hard to find; termite graphing, bundles and skills-based routing are requested gaps; some dislike route results.",
       "Support quality is inconsistent in negative reviews (slow replies, unreturned calls), and admin controls are limited.",
       "No built-in general ledger (relies on QuickBooks Online); per-user pricing was a reviewer complaint, though the vendor now sells concurrent licenses by active users; seen as more pest-focused than lawn."
-    ],
-    "wisconsin_notes": "No Wisconsin case studies or Wisconsin-specific compliance support (ATCP 29 records, landscape registry notice, posting signs) found in vendor materials; comparison pages claim WDI/WDO forms for all 50 states but never name Wisconsin. One Wisconsin user is visible: a 2026-10-29 scan of Wisconsin pest company websites found a Briostack customer portal at Werner Pest and Odor Control (Seymour). Case studies do not name customer states."
+    ]
   },
   "features": [
     {
@@ -780,10 +779,6 @@
     {
       "title": "EverCommerce Q2 2026 results",
       "url": "https://finviz.com/news/377887/evercommerce-announces-second-quarter-2026-financial-results"
-    },
-    {
-      "title": "Werner Pest and Odor Control (Wisconsin Briostack portal user)",
-      "url": "https://wernerpest.com/"
     }
   ]
 }

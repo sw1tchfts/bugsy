@@ -32,8 +32,7 @@
       "Complaints of slow performance, glitches, crashes and slow syncing in the mobile app",
       "Slow support response and resolution, including training requests left pending for months",
       "Dated interface and steep learning curve; routing add-on reported to underperform; pricing not public"
-    ],
-    "wisconsin_notes": "Kwik Kill Pest Control of Madison ran ServSuite from 2013 until it moved to FieldRoutes in 2023 (FieldRoutes case study). No current Wisconsin ServSuite user found: a 2026-10-29 scan of 38 Wisconsin independents' websites found no ServSuite portal. No ATCP 29 record support, landscape registry notice or other Wisconsin-specific compliance found in public sources."
+    ]
   },
   "features": [
     {
@@ -671,14 +670,6 @@
     {
       "title": "FieldRoutes ServSuite migration, cohort 4 offer",
       "url": "https://fieldroutes.com/lp/ss-migration/cohort-4/free-demo"
-    },
-    {
-      "title": "FieldRoutes Kwik Kill Pest Control case study (2023)",
-      "url": "https://www.fieldroutes.com/resources/case-studies/kwik-kill-pest-control-case-study"
-    },
-    {
-      "title": "Superpages Madison pest control listings (Wisconsin website scan sample)",
-      "url": "https://www.superpages.com/madison-wi/pest-control-services"
     }
   ]
 }

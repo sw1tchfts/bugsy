@@ -5,7 +5,7 @@ description: Pesticide compliance for pest control across US states (business an
 
 # Pesticide compliance
 
-Rules differ by state, so each state's rules are data in its own rule pack, `lib/compliance/rules/<state>.ts`, applied for the state of the property being treated (not the tenant's home state). Product code reads rule values only from packs; never hardcode a notice window, retention period, license rule or blackout date anywhere else. Each researched state has a file in `states/` with its values, citations and open questions. `states/wi.md` (Wisconsin) is the first worked example.
+Rules differ by state, so each state's rules are data in its own rule pack, `lib/compliance/rules/<state>.ts`, applied for the state of the property being treated (not the tenant's home state). Product code reads rule values only from packs; never hardcode a notice window, retention period, license rule or blackout date anywhere else. Each researched state gets a file in `states/<state>.md` next to this one, with its values, citations and open questions. No state is researched yet: the launch states follow the design partner (PRD decision 2).
 
 ## What every state pack answers
 
@@ -26,7 +26,22 @@ Federal law (FIFRA) makes the product label the law and sets minimum standards f
 
 ## Rule pack shape
 
-Every rule is a key, a value, a source citation and an effective date. Keys are shared across states so product code stays state-agnostic; `states/wi.md` lists the keys in use so far (for example `records.retentionYears`, `notice.postApplication.withinDays`, `trainee.maxDays`, `wildlife.batExclusionBlackout`). A key a state does not define means the rule does not apply there; an unknown value is recorded as unknown, never guessed. Packs are versioned, and every locked application record stores the pack version it was checked against.
+Every rule is a key, a value, a source citation and an effective date. Keys are shared across states so product code stays state-agnostic. Starter keys:
+
+| Key | Meaning |
+| --- | --- |
+| `business.licensePerLocation`, `business.licenseExpires` | Business license rules |
+| `license.expires`, `certification.validYears`, `certification.recertCredits` | Applicator license and certification terms |
+| `certification.categoriesByServiceLine` | Categories each service line requires |
+| `trainee.maxDays`, `trainee.supervision` | Trainee or registered-technician limits |
+| `records.requiredFields`, `records.completeBy`, `records.retentionYears` | Application record rules |
+| `notice.preApplicationOffer`, `notice.postApplication.withinDays`, `notice.electronicNeedsConsent` | Customer notices |
+| `notice.resident` | Notices to residents and occupants |
+| `sign.restrictedEntry` | Posting rules |
+| `registry.advanceNoticeHours`, `registry.mailLeadBusinessDays`, `registry.triggers` | Notification registries and which treatments trigger them |
+| `blackout.<jobKind>` | Seasonal blackouts, for example `blackout.bat_exclusion` |
+
+A key a state does not define means the rule does not apply there; an unknown value is recorded as unknown, never guessed. Packs are versioned, and every locked application record stores the pack version it was checked against.
 
 ## Behavior the product must enforce in every state
 
@@ -40,8 +55,8 @@ Every rule is a key, a value, a source citation and an effective date. Keys are 
 ## Adding a state
 
 1. Research the state's pesticide regulator (often the department of agriculture), its administrative code for pesticide use and licensing, and its applicator training program. Cite every value.
-2. Write `states/<state>.md` in the same shape as `states/wi.md`: rule values with keys, certification categories by service line, open questions.
-3. Add the pack `lib/compliance/rules/<state>.ts` and fixtures in `fixtures/states/<state>/` with expected outcomes.
+2. Write `states/<state>.md`: rule values by key with citations, certification categories by service line, open questions.
+3. Add the pack `lib/compliance/rules/<state>.ts` and fixtures in `fixtures/states/<state>/` with expected outcomes (valid and invalid records, notice due times, scheduling allow and block cases, taxability).
 4. Never invent a value. Put unknowns under open questions, with the conservative default the product applies meanwhile.
 
 Scope is pest control only: general pest, rodent, termite, mosquito and tick, bed bug and wildlife. Lawn care, tree and shrub care, and other trades are out of scope.
