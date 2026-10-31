@@ -134,15 +134,33 @@ describe("as a Northwind owner", () => {
 
   it("is stopped by row level security when inserting into another tenant in any tenant table", async () => {
     for (const t of tenantTables()) {
-      // Copy a real Lakeshore row without its generated columns, so the only thing wrong with the insert is the tenant.
-      const [sample] = await admin<{ row: Record<string, unknown> }[]>`
-        select to_jsonb(x) as row from public.${admin(t.name)} x where tenant_id = ${lakeshoreId} limit 1`;
-      const copy = { ...sample.row };
-      for (const key of ["id", "token", "created_at", "updated_at"]) delete copy[key];
-      await expect(
-        asUser(...owner(), (tx) => tx`insert into public.${tx(t.name)} ${tx(copy)}`),
-        `${t.name}: insert into Lakeshore was not blocked by row level security`,
-      ).rejects.toThrow(RLS_ERROR);
+      // Copy real Lakeshore rows without their generated columns, so the only thing wrong with the insert is the
+      // tenant. Some rows are rejected by business-rule triggers before the policy runs (a won lead, for example),
+      // so several samples are tried: none may succeed, and at least one must fail on row level security itself.
+      const samples = await admin<{ row: Record<string, unknown> }[]>`
+        select to_jsonb(x) as row from public.${admin(t.name)} x where tenant_id = ${lakeshoreId} limit 8`;
+      const generated = await admin<{ column_name: string }[]>`
+        select column_name from information_schema.columns
+        where table_schema = 'public' and table_name = ${t.name} and (is_generated = 'ALWAYS' or is_identity = 'YES')`;
+      let blockedByRls = false;
+      const otherErrors: string[] = [];
+      for (const sample of samples) {
+        const copy = { ...sample.row };
+        for (const key of ["id", "token", "created_at", "updated_at", ...generated.map((g) => g.column_name)]) delete copy[key];
+        try {
+          await asUser(...owner(), (tx) => tx`insert into public.${tx(t.name)} ${tx(copy)}`);
+          expect.fail(`${t.name}: insert into Lakeshore succeeded`);
+        } catch (err) {
+          const message = (err as Error).message;
+          if (message.includes("succeeded")) throw err;
+          if (RLS_ERROR.test(message)) {
+            blockedByRls = true;
+            break;
+          }
+          otherErrors.push(message);
+        }
+      }
+      expect(blockedByRls, `${t.name}: no sample reached the row level security check (${otherErrors.join("; ")})`).toBe(true);
     }
   });
 

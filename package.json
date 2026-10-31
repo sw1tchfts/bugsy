@@ -14,7 +14,7 @@
     "seed": "tsx scripts/seed.ts",
     "db:shim": "tsx scripts/db-shim.ts",
     "db:reset-local": "tsx scripts/db-reset-local.ts",
-    "db:types": "supabase gen types typescript --db-url \"$DATABASE_URL\" --schema public,app > lib/supabase/types.ts"
+    "db:types": "tsx scripts/db-types.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

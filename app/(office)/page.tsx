@@ -1,20 +1,34 @@
 import Link from "next/link";
-import { Card, Notice, errorMessage } from "@/components/ui";
+import { Card, Empty, Notice, Table, errorMessage } from "@/components/ui";
 import { dbAs } from "@/lib/auth/session";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
+
+type SourceRow = { source: string; leads: number; won: number; lost: number };
 
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { session, active } = await requireActiveTenant();
   const { error } = await searchParams;
+  const tenantId = active.tenantId;
 
-  const [counts] = await dbAs(session, (tx) =>
-    tx<{ branches: number; members: number; invitations: number }[]>`
+  const [counts, bySource] = await dbAs(session, async (tx) => {
+    const [counts] = await tx<{ accounts: number; properties: number; open_leads: number; inspections: number; sent_quotes: number; branches: number; members: number }[]>`
       select
-        (select count(*)::int from public.branches where tenant_id = ${active.tenantId} and archived_at is null) as branches,
-        (select count(*)::int from public.memberships where tenant_id = ${active.tenantId}) as members,
-        (select count(*)::int from public.invitations where tenant_id = ${active.tenantId} and accepted_at is null and expires_at >= now()) as invitations
-    `,
-  );
+        (select count(*)::int from public.accounts where tenant_id = ${tenantId} and archived_at is null and status = 'active') as accounts,
+        (select count(*)::int from public.properties where tenant_id = ${tenantId} and archived_at is null) as properties,
+        (select count(*)::int from public.leads where tenant_id = ${tenantId} and stage in ('new', 'inspection_booked', 'quoted')) as open_leads,
+        (select count(*)::int from public.leads where tenant_id = ${tenantId} and stage = 'inspection_booked' and inspection_at >= now()) as inspections,
+        (select count(*)::int from public.quotes where tenant_id = ${tenantId} and status = 'sent') as sent_quotes,
+        (select count(*)::int from public.branches where tenant_id = ${tenantId} and archived_at is null) as branches,
+        (select count(*)::int from public.memberships where tenant_id = ${tenantId}) as members`;
+    const bySource = await tx<SourceRow[]>`
+      select s.name as source, count(l.id)::int as leads,
+             count(l.id) filter (where l.stage = 'won')::int as won, count(l.id) filter (where l.stage = 'lost')::int as lost
+      from public.lead_sources s left join public.leads l on l.source_id = s.id and l.created_at >= now() - interval '90 days'
+      where s.tenant_id = ${tenantId}
+      group by s.name having count(l.id) > 0
+      order by count(l.id) desc`;
+    return [counts, bySource] as const;
+  });
 
   return (
     <>
@@ -25,18 +39,38 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         </p>
       </div>
       {error ? <Notice kind="error">{errorMessage(error)}</Notice> : null}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Stat label="Branches" value={counts.branches} href="/settings/branches" />
-        <Stat label="Users" value={counts.members} href="/settings/users" />
-        <Stat label="Open invitations" value={counts.invitations} href="/settings/users" />
+      <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <Stat label="Active accounts" value={counts.accounts} href="/customers" />
+        <Stat label="Properties" value={counts.properties} href="/customers" />
+        <Stat label="Open leads" value={counts.open_leads} href="/leads" />
+        <Stat label="Upcoming inspections" value={counts.inspections} href="/leads" />
+        <Stat label="Quotes awaiting answer" value={counts.sent_quotes} href="/leads" />
       </div>
-      <Card title="What is set up" description="Spec 01 covers companies, branches, users, roles and the audit trail. Customers and scheduling come next.">
-        <ul className="list-disc space-y-1 pl-5 text-sm text-stone-700">
-          <li>Every record belongs to one company, enforced in the database.</li>
-          <li>Roles are bundles of permissions; owners can copy a default role and adjust it.</li>
-          <li>Changes to users, roles, branches and company settings are written to the audit trail.</li>
-        </ul>
+
+      <Card title="Close rate by lead source" description="Leads created in the last 90 days.">
+        {bySource.length === 0 ? (
+          <Empty>No leads in the last 90 days.</Empty>
+        ) : (
+          <Table headers={["Source", "Leads", "Won", "Lost", "Close rate"]}>
+            {bySource.map((r) => (
+              <tr key={r.source}>
+                <td className="py-2 pr-4 font-medium">{r.source}</td>
+                <td className="py-2 pr-4 tabular-nums">{r.leads}</td>
+                <td className="py-2 pr-4 tabular-nums">{r.won}</td>
+                <td className="py-2 pr-4 tabular-nums">{r.lost}</td>
+                <td className="py-2 pr-4 tabular-nums">{r.won + r.lost > 0 ? `${Math.round((r.won / (r.won + r.lost)) * 100)}%` : "open"}</td>
+              </tr>
+            ))}
+          </Table>
+        )}
       </Card>
+
+      <p className="text-sm text-stone-500">
+        {counts.branches} branch{counts.branches === 1 ? "" : "es"}, {counts.members} user{counts.members === 1 ? "" : "s"}.{" "}
+        <Link href="/settings/branches" className="underline">
+          Settings
+        </Link>
+      </p>
     </>
   );
 }

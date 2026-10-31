@@ -7,6 +7,7 @@
 
 import { config as loadEnv } from "dotenv";
 import postgres from "postgres";
+import { seedCustomers } from "./seed-customers";
 import {
   CROSS_TENANT_USER,
   PLATFORM_ADMIN_EMAIL,
@@ -109,6 +110,9 @@ async function seedTenant(tenant: SeedTenant, useAuthServer: boolean) {
       insert into public.invitations (tenant_id, email, role_id)
       values (${tenantId}, ${tenant.pendingInviteEmail}, ${roleId("technician")})`;
   }
+
+  const [ownerUser] = await sql<{ id: string }[]>`select id from auth.users where email = ${seedUserEmail(tenant, "owner")}`;
+  await seedCustomers(sql, tenant, tenantId, ownerUser.id);
 
   console.log(`seeded ${tenant.name} (${tenantId})`);
 }

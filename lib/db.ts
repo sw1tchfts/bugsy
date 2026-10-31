@@ -11,6 +11,9 @@ export const sql: postgres.Sql =
     max: 10,
     prepare: false,
     onnotice: () => {},
+    // Business dates (`date` columns) stay as "yyyy-mm-dd" strings. Turning them into JS Dates
+    // would pin them to UTC midnight and shift them a day in US time zones. timestamptz still maps to Date.
+    types: { plainDate: { to: 1082, from: [1082], serialize: (x: string) => x, parse: (x: string) => x } },
   });
 
 if (process.env.NODE_ENV !== "production") globalForDb.bugsySql = sql;
