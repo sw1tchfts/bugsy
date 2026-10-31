@@ -1,6 +1,6 @@
 # Spec 01: Foundation (tenancy, auth, roles, branches, audit)
 
-Status: ready for review
+Status: in progress
 Depends on: none
 Skills to load: pest-domain
 
@@ -17,7 +17,7 @@ Stand up the app skeleton and the multi-tenant security model that every later s
 ### In scope
 - Next.js App Router project, TypeScript strict, ESLint, Vitest, Playwright, local Supabase
 - Supabase Auth with email magic link and password
-- Tables: tenants, branches, memberships, roles, audit_log (see `docs/data-model.md`)
+- Tables: tenants, branches, memberships, invitations, roles, audit_log (see `docs/data-model.md`)
 - Database helpers `app.is_member(tenant uuid)` and `app.has_permission(tenant uuid, perm text)`
 - RLS on every table, plus the tenant isolation test suite that runs against all tables automatically
 - Office app shell: sign in, tenant switcher, settings pages for branches, users and roles
@@ -39,9 +39,9 @@ As in `docs/data-model.md` under Platform and tenancy, plus:
 - `lib/supabase/server.ts`, `lib/supabase/client.ts`: typed clients; generated types in `lib/supabase/types.ts`
 - `lib/auth/session.ts`: `getSession()`, `requireMembership(tenantId)`, `requirePermission(tenantId, perm)`
 - `lib/tenancy/active-tenant.ts`: reads and sets the active tenant cookie; validates membership server-side
-- `app/(auth)/sign-in/page.tsx`, `app/(office)/layout.tsx` with tenant switcher, `app/(office)/settings/{branches,users,roles}/page.tsx`
+- `app/(auth)/sign-in/page.tsx`, `app/(office)/layout.tsx` with tenant switcher, `app/(office)/settings/{branches,users,roles,audit}/page.tsx`, `app/invite/[token]/page.tsx` to accept an invitation
 - `app/(platform)/admin/tenants/page.tsx`
-- `scripts/seed.ts`: two tenants (Badger Pest, Lakeshore Exterminating), each with two branches and one user per role
+- `scripts/seed.ts`: two tenants (Northwind Pest Control, Lakeshore Exterminating), each with two branches, one user per role, one company-made role and one open invitation; plus a platform admin
 - `tests/rls/tenant-isolation.test.ts`, `tests/e2e/foundation.spec.ts`
 - package.json scripts: dev, build, typecheck, lint, test, test:rls, test:e2e, seed
 
@@ -67,6 +67,6 @@ As in `docs/data-model.md` under Platform and tenancy, plus:
 
 ## Verification
 1. `supabase db reset && npm run seed` completes without errors.
-2. `npm run test:rls` passes. The suite lists every table in the `public` schema that has a `tenant_id` column, and for each one asserts, signed in as a Badger Pest user: rows from Lakeshore cannot be selected, inserted, updated or deleted. A table missing RLS fails the suite, so new tables are covered without new tests.
+2. `npm run test:rls` passes. The suite lists every table in the `public` schema that has a `tenant_id` column, and for each one asserts, signed in as a Northwind user: rows from Lakeshore cannot be selected, inserted, updated or deleted. A table missing RLS fails the suite, so new tables are covered without new tests.
 3. `npm run typecheck && npm run lint && npm test` pass.
-4. `npm run test:e2e` signs in as the Badger owner, creates a branch, invites a technician, and confirms the audit log shows both actions; then signs in as the Lakeshore owner and confirms the Badger branch is not visible. Save screenshots to `test-results/`.
+4. `npm run test:e2e` signs in as the Northwind owner, creates a branch, invites a technician, and confirms the audit log shows both actions; then signs in as the Lakeshore owner and confirms the Northwind branch is not visible. Save screenshots to `test-results/`.

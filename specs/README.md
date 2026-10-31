@@ -8,7 +8,7 @@ Specs 01 to 10 sit in `phase-1/` for historical reasons; the folder name does no
 
 | # | Spec | Status | Depends on |
 | --- | --- | --- | --- |
-| 01 | [Foundation: tenancy, auth, roles, branches, audit](phase-1/01-foundation.md) | ready for review | none |
+| 01 | [Foundation: tenancy, auth, roles, branches, audit](phase-1/01-foundation.md) | in progress | none |
 | 02 | [Customers: accounts, properties, contacts, leads, quotes](phase-1/02-customers.md) | stub | 01 |
 | 03 | [Catalog: service types, price book, product master](phase-1/03-catalog.md) | stub | 01 |
 | 04 | [Agreements and visit generation](phase-1/04-agreements.md) | stub | 02, 03 |
