@@ -141,7 +141,8 @@ export async function updateStateRule(formData: FormData) {
   const serviceTypeId = str(formData, "service_type_id");
   const ruleId = str(formData, "rule_id");
   const { session } = await requirePermission(tenantId, "catalog.write");
-  const categories = [...new Set(str(formData, "required_cert_categories").split(/[,\s]+/).map((c) => c.trim().toUpperCase()).filter(Boolean))].sort();
+  // Category codes are kept as the state writes them (a pack may use "10a"); the pack's own categories always stay.
+  const entered = str(formData, "required_cert_categories").split(/[,\s]+/).map((c) => c.trim()).filter(Boolean);
   const taxClass = str(formData, "tax_class");
   if (!TAX_CLASSES.includes(taxClass)) back(detail(serviceTypeId), "Pick a tax class.");
   let error: string | null = null;
@@ -150,10 +151,7 @@ export async function updateStateRule(formData: FormData) {
       const [rule] = await tx<{ pack_cert_categories: string[] }[]>`
         select pack_cert_categories from public.service_type_state_rules where id = ${ruleId} and tenant_id = ${tenantId} and service_type_id = ${serviceTypeId}`;
       if (!rule) throw new Error("not found");
-      const missing = rule.pack_cert_categories.filter((c) => !categories.includes(c));
-      if (missing.length) {
-        throw Object.assign(new Error(`the state's rule pack requires ${missing.join(", ")}; categories can be added, not removed`), { code: "23514" });
-      }
+      const categories = [...new Set([...rule.pack_cert_categories, ...entered])].sort();
       await tx`update public.service_type_state_rules set required_cert_categories = ${categories}, tax_class = ${taxClass}, notes = ${opt(formData, "notes")}
                where id = ${ruleId} and tenant_id = ${tenantId}`;
     });

@@ -63,9 +63,12 @@ test("an owner builds a service type with state rules and a price book, enables 
   await page.locator("#new-name").fill("Backyard event spray");
   await page.locator("#new-basis").selectOption("none");
   await page.locator("#new-initial").fill("49");
+  await page.locator('form:has(#new-name) input[name="add_on"]').check();
   await page.getByRole("button", { name: "Add item" }).click();
   await page.waitForLoadState("networkidle");
-  await expect(page.locator('input[name="name"][value="Backyard event spray"]')).toBeVisible();
+  const addOnRow = page.locator("form", { has: page.locator('input[name="name"][value="Backyard event spray"]') });
+  await expect(addOnRow).toBeVisible();
+  await expect(addOnRow.locator('input[name="add_on"]')).toBeChecked();
   await page.screenshot({ path: "test-results/service-type.png", fullPage: true });
 
   // Products: enable a master product with a cost, then add one the master list lacks.
@@ -108,6 +111,15 @@ test("an owner builds a service type with state rules and a price book, enables 
   await expect(page.getByRole("row", { name: new RegExp(productName) })).toHaveCount(0);
   await expect(page.getByText(productName)).toBeVisible();
   await page.screenshot({ path: "test-results/admin-products.png", fullPage: true });
+  await signOut(page);
+
+  // Back at Northwind the product is verified and still enabled with its cost.
+  await signIn(page, seedUserEmail(northwind, "owner"));
+  await page.goto("/catalog/products");
+  const approved = page.getByRole("row", { name: new RegExp(productName) });
+  await expect(approved).toBeVisible();
+  await expect(approved.getByText("unverified")).toHaveCount(0);
+  await expect(approved.getByLabel(`Unit cost for ${productName}`)).toHaveValue("4.50");
   await signOut(page);
 
   // The other company never sees Northwind's service type, but does see the approved product, now verified.

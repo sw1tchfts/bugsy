@@ -31,8 +31,8 @@ export async function createMasterProduct(formData: FormData) {
         const [dup] = await tx<{ name: string }[]>`select name from public.products where tenant_id is null and epa_reg_no = ${read.value.epa_reg_no}`;
         if (dup) throw Object.assign(new Error(`${read.value.epa_reg_no} is already in the master list as ${dup.name}`), { code: "23514" });
       }
-      await tx`insert into public.products ${tx({ tenant_id: null, ...read.value, label_rates: tx.json(read.value.label_rates) })}`;
-      await tx`update public.products set verified_at = now(), verified_by = auth.uid() where tenant_id is null and verified_at is null`;
+      const [row] = await tx<{ id: string }[]>`insert into public.products ${tx({ tenant_id: null, ...read.value, label_rates: tx.json(read.value.label_rates) })} returning id`;
+      await tx`update public.products set verified_at = now(), verified_by = auth.uid() where id = ${row.id}`;
     });
   } catch (err) {
     error = errorCode(err);

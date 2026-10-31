@@ -35,7 +35,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
     tx<Product[]>`
       select p.id, p.tenant_id, t.name as tenant_name, p.name, p.manufacturer, p.epa_reg_no, p.active_ingredients, p.signal_word, p.restricted_use,
              p.rei_hours, p.formulation, p.label_url, p.sds_url, p.label_rates, p.verified_at, p.archived_at,
-             (select count(*)::int from public.tenant_products tp where tp.product_id = p.id and tp.enabled) as enabled_by
+             app.product_enabled_by(p.id) as enabled_by
       from public.products p left join public.tenants t on t.id = p.tenant_id
       order by (p.tenant_id is not null) desc, p.archived_at nulls first, p.name`,
   );
