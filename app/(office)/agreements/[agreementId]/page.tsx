@@ -219,7 +219,11 @@ export default async function AgreementPage({ params, searchParams }: { params: 
           <Table headers={["#", "Kind", "Due window", "Scheduled", "Status", "Price", ""]}>
             {visits.map((v) => (
               <tr key={v.id} className={v.status === "cancelled" ? "text-stone-400" : ""}>
-                <td className="py-2 pr-4 tabular-nums">{v.sequence}</td>
+                <td className="py-2 pr-4 tabular-nums">
+                  <Link href={`/dispatch/visits/${v.id}`} className="underline" aria-label={`Visit ${v.sequence} on the dispatch board`}>
+                    {v.sequence}
+                  </Link>
+                </td>
                 <td className="py-2 pr-4">
                   {VISIT_KIND_LABELS[v.kind]}
                   {v.reservice_reason ? <span className="block text-xs text-stone-500">{v.reservice_reason}</span> : null}

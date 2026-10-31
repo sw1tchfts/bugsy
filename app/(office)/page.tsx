@@ -15,7 +15,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const [counts, bySource] = await dbAs(session, async (tx) => {
     const [counts] = await tx<{
       accounts: number; properties: number; open_leads: number; inspections: number; sent_quotes: number; branches: number; members: number;
-      agreements: number; visits_this_month: number; renewals_due: number; reservices: number;
+      agreements: number; visits_this_month: number; renewals_due: number; reservices: number; unscheduled: number;
     }[]>`
       select
         (select count(*)::int from public.accounts where tenant_id = ${tenantId} and archived_at is null and status = 'active') as accounts,
@@ -29,7 +29,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         (select count(*)::int from public.visits where tenant_id = ${tenantId} and status in ('planned', 'scheduled')
            and due_start <= ${endOfMonth(today)} and due_end >= ${startOfMonth(today)}) as visits_this_month,
         (select count(*)::int from public.agreements where tenant_id = ${tenantId} and status = 'active' and ends_on <= ${addDays(today, 30)}) as renewals_due,
-        (select count(*)::int from public.visits where tenant_id = ${tenantId} and kind = 'reservice' and status in ('planned', 'scheduled')) as reservices`;
+        (select count(*)::int from public.visits where tenant_id = ${tenantId} and kind = 'reservice' and status in ('planned', 'scheduled')) as reservices,
+        (select count(*)::int from public.visits where tenant_id = ${tenantId} and status = 'planned' and due_start <= ${addDays(today, 7)}) as unscheduled`;
     const bySource = await tx<SourceRow[]>`
       select s.name as source, count(l.id)::int as leads,
              count(l.id) filter (where l.stage = 'won')::int as won, count(l.id) filter (where l.stage = 'lost')::int as lost
@@ -59,6 +60,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         <Stat label="Visits due this month" value={counts.visits_this_month} href="/agreements" />
         <Stat label="Renewals in 30 days" value={counts.renewals_due} href="/agreements?view=renewals" />
         <Stat label="Open re-services" value={counts.reservices} href="/agreements?view=reservices" />
+        <Stat label="Due this week, unscheduled" value={counts.unscheduled} href="/dispatch" />
       </div>
 
       <Card title="Close rate by lead source" description="Leads created in the last 90 days.">

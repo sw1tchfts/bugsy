@@ -161,6 +161,27 @@ export async function updateStateRule(formData: FormData) {
   back(detail(serviceTypeId), error);
 }
 
+/** A licensed manager confirms a state rule row where no pack is researched, which lets dispatch assign work there (spec 05 rule 3). */
+export async function confirmStateRule(formData: FormData) {
+  const tenantId = str(formData, "tenant_id");
+  const serviceTypeId = str(formData, "service_type_id");
+  const ruleId = str(formData, "rule_id");
+  const confirm = formData.get("confirm") !== "false";
+  const { session } = await requirePermission(tenantId, "compliance.write");
+  let error: string | null = null;
+  try {
+    await dbAs(session, (tx) =>
+      confirm
+        ? tx`update public.service_type_state_rules set confirmed_at = now(), confirmed_by = auth.uid() where id = ${ruleId} and tenant_id = ${tenantId}`
+        : tx`update public.service_type_state_rules set confirmed_at = null, confirmed_by = null where id = ${ruleId} and tenant_id = ${tenantId}`,
+    );
+  } catch (err) {
+    error = errorCode(err);
+  }
+  revalidatePath("/dispatch");
+  back(detail(serviceTypeId), error);
+}
+
 type PriceBookInput = {
   name: string;
   add_on: boolean;

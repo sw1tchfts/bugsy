@@ -23,6 +23,7 @@ import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 import {
   archivePriceBookItem,
   archiveServiceType,
+  confirmStateRule,
   createPriceBookItem,
   refreshStateRules,
   updatePriceBookItem,
@@ -54,6 +55,7 @@ type StateRule = {
   pack_tax_class: "taxable" | "exempt" | "unknown";
   pack_version: string | null;
   notes: string | null;
+  confirmed_at: string | null;
 };
 
 type Item = {
@@ -83,6 +85,7 @@ export default async function ServiceTypePage({ params, searchParams }: { params
   const { error } = await searchParams;
   const tenantId = active.tenantId;
   const canWrite = can(active.permissions, "catalog.write");
+  const canConfirm = can(active.permissions, "compliance.write");
 
   const [serviceType, rules, items] = await dbAs(session, async (tx) => {
     const [st] = await tx<ServiceType[]>`
@@ -90,7 +93,7 @@ export default async function ServiceTypePage({ params, searchParams }: { params
       from public.service_types where id = ${serviceTypeId} and tenant_id = ${tenantId}`;
     if (!st) return [null, [], []] as const;
     const rules = await tx<StateRule[]>`
-      select id, state_code, required_cert_categories, pack_cert_categories, tax_class, pack_tax_class, pack_version, notes
+      select id, state_code, required_cert_categories, pack_cert_categories, tax_class, pack_tax_class, pack_version, notes, confirmed_at
       from public.service_type_state_rules where service_type_id = ${serviceTypeId} and tenant_id = ${tenantId} order by state_code`;
     const items = await tx<Item[]>`
       select id, name, add_on, size_basis, size_min, size_max, initial_price_cents, recurring_price_cents, one_time_price_cents, position, active, archived_at
@@ -156,7 +159,20 @@ export default async function ServiceTypePage({ params, searchParams }: { params
                       <Badge tone="good">pack {r.pack_version}</Badge> {r.pack_cert_categories.length ? `requires ${r.pack_cert_categories.join(", ")}` : "no categories listed"}; tax {TAX_LABELS[r.pack_tax_class].toLowerCase()}
                     </span>
                   ) : (
-                    <Badge tone="warn">no rule pack for {r.state_code} yet</Badge>
+                    <span className="flex flex-wrap items-center gap-2">
+                      <Badge tone="warn">no rule pack for {r.state_code} yet</Badge>
+                      {r.confirmed_at ? <Badge tone="good">confirmed by a licensed manager</Badge> : <Badge tone="bad">unconfirmed: dispatch blocked</Badge>}
+                      {canConfirm ? (
+                        <form action={confirmStateRule}>
+                          {hidden}
+                          <input type="hidden" name="rule_id" value={r.id} />
+                          <input type="hidden" name="confirm" value={r.confirmed_at ? "false" : "true"} />
+                          <Button type="submit" variant="secondary">
+                            {r.confirmed_at ? "Withdraw confirmation" : "Confirm rules"}
+                          </Button>
+                        </form>
+                      ) : null}
+                    </span>
                   )}
                 </td>
                 {canWrite ? (

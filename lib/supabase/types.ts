@@ -177,6 +177,26 @@ isOneToOne: false
       referencedColumns: ["tenant_id","id"]
     }
                   ]
+                },"applicator_credentials": {
+                  Row: {
+                    "archived_at": string | null,"categories": (string)[],"cert_expires_on": string | null,"cert_number": string | null,"created_at": string,"created_by": string | null,"id": string,"license_expires_on": string | null,"license_number": string | null,"license_year": number | null,"notes": string | null,"recert_credits": NonNullable<Json>,"state_code": string,"supervisor_id": string | null,"tenant_id": string,"trainee_registered_on": string | null,"updated_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "archived_at"?: string | null,"categories"?: (string)[],"cert_expires_on"?: string | null,"cert_number"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"license_expires_on"?: string | null,"license_number"?: string | null,"license_year"?: number | null,"notes"?: string | null,"recert_credits"?: NonNullable<Json>,"state_code": string,"supervisor_id"?: string | null,"tenant_id": string,"trainee_registered_on"?: string | null,"updated_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "archived_at"?: string | null,"categories"?: (string)[],"cert_expires_on"?: string | null,"cert_number"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"license_expires_on"?: string | null,"license_number"?: string | null,"license_year"?: number | null,"notes"?: string | null,"recert_credits"?: NonNullable<Json>,"state_code"?: string,"supervisor_id"?: string | null,"tenant_id"?: string,"trainee_registered_on"?: string | null,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "applicator_credentials_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"audit_log": {
                   Row: {
                     "action": string,"actor_id": string | null,"after": Json | null,"before": Json | null,"created_at": string,"id": number,"row_id": string | null,"table_name": string,"tenant_id": string | null
@@ -375,14 +395,14 @@ isOneToOne: false
                   ]
                 },"memberships": {
                   Row: {
-                    "branch_ids": (string)[] | null,"created_at": string,"created_by": string | null,"id": string,"role_id": string,"tenant_id": string,"updated_at": string,"user_id": string
+                    "branch_ids": (string)[] | null,"created_at": string,"created_by": string | null,"display_name": string | null,"id": string,"role_id": string,"tenant_id": string,"updated_at": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "branch_ids"?: (string)[] | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"role_id": string,"tenant_id": string,"updated_at"?: string,"user_id": string
+                    "branch_ids"?: (string)[] | null,"created_at"?: string,"created_by"?: string | null,"display_name"?: string | null,"id"?: string,"role_id": string,"tenant_id": string,"updated_at"?: string,"user_id": string
                   }
                   Update: {
-                    "branch_ids"?: (string)[] | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"role_id"?: string,"tenant_id"?: string,"updated_at"?: string,"user_id"?: string
+                    "branch_ids"?: (string)[] | null,"created_at"?: string,"created_by"?: string | null,"display_name"?: string | null,"id"?: string,"role_id"?: string,"tenant_id"?: string,"updated_at"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -641,14 +661,14 @@ isOneToOne: false
                   ]
                 },"service_type_state_rules": {
                   Row: {
-                    "created_at": string,"created_by": string | null,"id": string,"notes": string | null,"pack_cert_categories": (string)[],"pack_tax_class": string,"pack_version": string | null,"required_cert_categories": (string)[],"service_type_id": string,"state_code": string,"tax_class": string,"tenant_id": string,"updated_at": string
+                    "confirmed_at": string | null,"confirmed_by": string | null,"created_at": string,"created_by": string | null,"id": string,"notes": string | null,"pack_cert_categories": (string)[],"pack_tax_class": string,"pack_version": string | null,"required_cert_categories": (string)[],"service_type_id": string,"state_code": string,"tax_class": string,"tenant_id": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"notes"?: string | null,"pack_cert_categories"?: (string)[],"pack_tax_class"?: string,"pack_version"?: string | null,"required_cert_categories"?: (string)[],"service_type_id": string,"state_code": string,"tax_class"?: string,"tenant_id": string,"updated_at"?: string
+                    "confirmed_at"?: string | null,"confirmed_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"notes"?: string | null,"pack_cert_categories"?: (string)[],"pack_tax_class"?: string,"pack_version"?: string | null,"required_cert_categories"?: (string)[],"service_type_id": string,"state_code": string,"tax_class"?: string,"tenant_id": string,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"notes"?: string | null,"pack_cert_categories"?: (string)[],"pack_tax_class"?: string,"pack_version"?: string | null,"required_cert_categories"?: (string)[],"service_type_id"?: string,"state_code"?: string,"tax_class"?: string,"tenant_id"?: string,"updated_at"?: string
+                    "confirmed_at"?: string | null,"confirmed_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"notes"?: string | null,"pack_cert_categories"?: (string)[],"pack_tax_class"?: string,"pack_version"?: string | null,"required_cert_categories"?: (string)[],"service_type_id"?: string,"state_code"?: string,"tax_class"?: string,"tenant_id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -779,14 +799,14 @@ isOneToOne: false
                   ]
                 },"visits": {
                   Row: {
-                    "account_id": string,"agreement_id": string | null,"arrived_at": string | null,"branch_id": string | null,"cancelled_at": string | null,"completed_at": string | null,"created_at": string,"created_by": string | null,"departed_at": string | null,"due_end": string,"due_start": string,"id": string,"interior_only": boolean,"kind": string,"notes": string | null,"price_cents": number,"property_id": string,"reservice_reason": string | null,"scheduled_for": string | null,"sequence": number,"service_type_id": string,"status": string,"technician_id": string | null,"tenant_id": string,"updated_at": string
+                    "account_id": string,"agreement_id": string | null,"arrival_window": string,"arrived_at": string | null,"branch_id": string | null,"cancelled_at": string | null,"completed_at": string | null,"created_at": string,"created_by": string | null,"departed_at": string | null,"dispatch_notes": string | null,"due_end": string,"due_start": string,"id": string,"interior_only": boolean,"kind": string,"notes": string | null,"price_cents": number,"property_id": string,"reservice_reason": string | null,"route_position": number | null,"scheduled_for": string | null,"sequence": number,"service_type_id": string,"skip_reason": string | null,"status": string,"technician_id": string | null,"tenant_id": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "account_id": string,"agreement_id"?: string | null,"arrived_at"?: string | null,"branch_id"?: string | null,"cancelled_at"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"departed_at"?: string | null,"due_end": string,"due_start": string,"id"?: string,"interior_only"?: boolean,"kind": string,"notes"?: string | null,"price_cents"?: number,"property_id": string,"reservice_reason"?: string | null,"scheduled_for"?: string | null,"sequence"?: number,"service_type_id": string,"status"?: string,"technician_id"?: string | null,"tenant_id": string,"updated_at"?: string
+                    "account_id": string,"agreement_id"?: string | null,"arrival_window"?: string,"arrived_at"?: string | null,"branch_id"?: string | null,"cancelled_at"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"departed_at"?: string | null,"dispatch_notes"?: string | null,"due_end": string,"due_start": string,"id"?: string,"interior_only"?: boolean,"kind": string,"notes"?: string | null,"price_cents"?: number,"property_id": string,"reservice_reason"?: string | null,"route_position"?: number | null,"scheduled_for"?: string | null,"sequence"?: number,"service_type_id": string,"skip_reason"?: string | null,"status"?: string,"technician_id"?: string | null,"tenant_id": string,"updated_at"?: string
                   }
                   Update: {
-                    "account_id"?: string,"agreement_id"?: string | null,"arrived_at"?: string | null,"branch_id"?: string | null,"cancelled_at"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"departed_at"?: string | null,"due_end"?: string,"due_start"?: string,"id"?: string,"interior_only"?: boolean,"kind"?: string,"notes"?: string | null,"price_cents"?: number,"property_id"?: string,"reservice_reason"?: string | null,"scheduled_for"?: string | null,"sequence"?: number,"service_type_id"?: string,"status"?: string,"technician_id"?: string | null,"tenant_id"?: string,"updated_at"?: string
+                    "account_id"?: string,"agreement_id"?: string | null,"arrival_window"?: string,"arrived_at"?: string | null,"branch_id"?: string | null,"cancelled_at"?: string | null,"completed_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"departed_at"?: string | null,"dispatch_notes"?: string | null,"due_end"?: string,"due_start"?: string,"id"?: string,"interior_only"?: boolean,"kind"?: string,"notes"?: string | null,"price_cents"?: number,"property_id"?: string,"reservice_reason"?: string | null,"route_position"?: number | null,"scheduled_for"?: string | null,"sequence"?: number,"service_type_id"?: string,"skip_reason"?: string | null,"status"?: string,"technician_id"?: string | null,"tenant_id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {

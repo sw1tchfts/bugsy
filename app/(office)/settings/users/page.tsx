@@ -3,6 +3,7 @@ import { Button, Card, Empty, Field, Input, Notice, Select, Table, errorMessage 
 import { can } from "@/lib/auth/permissions";
 import { dbAs } from "@/lib/auth/session";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
+import { setDisplayName } from "@/app/(office)/dispatch/actions";
 import { changeMemberRole, inviteUser, removeMember, revokeInvitation } from "./actions";
 
 export const metadata: Metadata = { title: "Users" };
@@ -11,6 +12,7 @@ type Member = {
   membership_id: string;
   user_id: string;
   email: string | null;
+  display_name: string | null;
   role_id: string;
   role_name: string;
   branch_ids: string[] | null;
@@ -28,7 +30,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
 
   const [members, roles, branches, invitations] = await dbAs(session, async (tx) => {
     const members = await tx<Member[]>`
-      select m.id as membership_id, m.user_id, d.email, m.role_id, r.name as role_name, m.branch_ids, d.last_sign_in_at
+      select m.id as membership_id, m.user_id, d.email, m.display_name, m.role_id, r.name as role_name, m.branch_ids, d.last_sign_in_at
       from public.memberships m
       join public.roles r on r.id = m.role_id
       left join app.member_directory(${tenantId}) d on d.user_id = m.user_id
@@ -57,10 +59,24 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
       {error ? <Notice kind="error">{errorMessage(error)}</Notice> : null}
 
       <Card title="Members" description="Everyone who can sign in to this company. A member without a branch scope sees every branch.">
-        <Table headers={["Email", "Role", "Branches", "Last sign-in", ""]}>
+        <Table headers={["Email", "Name", "Role", "Branches", "Last sign-in", ""]}>
           {members.map((m) => (
             <tr key={m.membership_id}>
               <td className="py-2 pr-4 font-medium">{m.email ?? m.user_id}</td>
+              <td className="py-2 pr-4">
+                {canWrite ? (
+                  <form action={setDisplayName} className="flex items-center gap-2">
+                    <input type="hidden" name="tenant_id" value={tenantId} />
+                    <input type="hidden" name="membership_id" value={m.membership_id} />
+                    <Input name="display_name" defaultValue={m.display_name ?? ""} placeholder="Shown on the board" aria-label={`Display name for ${m.email ?? m.user_id}`} className="w-40" />
+                    <Button type="submit" variant="secondary">
+                      Save
+                    </Button>
+                  </form>
+                ) : (
+                  (m.display_name ?? "")
+                )}
+              </td>
               <td className="py-2 pr-4">
                 {canWrite ? (
                   <form action={changeMemberRole} className="flex items-center gap-2">

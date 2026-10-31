@@ -637,7 +637,7 @@ describe("spec 04 rules enforced in the database", () => {
       await expect(insertVisit("recurring", "en_route", 12000)).rejects.toThrow(/starts planned or scheduled/);
       const [visit] = await insertVisit("recurring", "planned", 12000);
       await expect(asUser(...owner(), (tx) => tx`update public.visits set status = 'completed' where id = ${visit.id}`)).rejects.toThrow(/cannot move/);
-      await asUser(...owner(), (tx) => tx`update public.visits set status = 'scheduled', scheduled_for = '2027-02-03' where id = ${visit.id}`);
+      await asUser(...owner(), (tx) => tx`update public.visits set status = 'scheduled', scheduled_for = '2027-02-03', technician_id = ${lakeshoreOwner} where id = ${visit.id}`);
       await asUser(...owner(), (tx) => tx`update public.visits set status = 'completed' where id = ${visit.id}`);
       const [done] = await admin<{ completed_at: string | null }[]>`select completed_at from public.visits where id = ${visit.id}`;
       expect(done.completed_at).not.toBeNull();
@@ -646,6 +646,42 @@ describe("spec 04 rules enforced in the database", () => {
       expect(free.id).toBeTruthy();
     } finally {
       await admin`delete from public.agreements where id = ${id}`;
+    }
+  });
+
+  it("keeps visit status changes with dispatch and technicians, and a scheduled visit with a date and lead (rule 11, spec 05)", async () => {
+    const officeId = await userId(seedUserEmail(lakeshore, "office"));
+    const [scheduled] = await admin<{ id: string }[]>`select id from public.visits where tenant_id = ${lakeshoreId} and status = 'scheduled' limit 1`;
+    expect(scheduled, "the seed schedules at least one Lakeshore visit").toBeTruthy();
+    await expect(asUser(officeId, seedUserEmail(lakeshore, "office"), (tx) => tx`update public.visits set status = 'completed' where id = ${scheduled.id}`)).rejects.toThrow(/only dispatch or a technician/);
+    const [planned] = await admin<{ id: string }[]>`select id from public.visits where tenant_id = ${lakeshoreId} and status = 'planned' limit 1`;
+    await expect(asUser(...owner(), (tx) => tx`update public.visits set status = 'scheduled' where id = ${planned.id}`)).rejects.toThrow(/needs a date and a lead technician/);
+  });
+
+  it("keeps credentials readable by their owner, dispatch and compliance, and writable by compliance only (spec 05 rule 11)", async () => {
+    const techEmail = seedUserEmail(lakeshore, "technician");
+    const tech = await userId(techEmail);
+    const own = await asUser(tech, techEmail, (tx) => tx<{ user_id: string }[]>`select user_id from public.applicator_credentials where tenant_id = ${lakeshoreId}`);
+    expect(own.length).toBeGreaterThan(0);
+    expect(own.every((r) => r.user_id === tech)).toBe(true);
+    const dispatcherEmail = seedUserEmail(lakeshore, "dispatcher");
+    const dispatcher = await userId(dispatcherEmail);
+    const all = await asUser(dispatcher, dispatcherEmail, (tx) => tx`select id from public.applicator_credentials where tenant_id = ${lakeshoreId}`);
+    expect(all.length).toBeGreaterThan(own.length);
+    await expect(
+      asUser(dispatcher, dispatcherEmail, (tx) => tx`insert into public.applicator_credentials (tenant_id, user_id, state_code, cert_number) values (${lakeshoreId}, ${dispatcher}, 'ZZ', 'X-1')`),
+    ).rejects.toThrow(RLS_ERROR);
+    const managerEmail = seedUserEmail(lakeshore, "compliance_manager");
+    const manager = await userId(managerEmail);
+    await expect(
+      asUser(manager, managerEmail, (tx) => tx`insert into public.applicator_credentials (tenant_id, user_id, state_code, cert_number) values (${lakeshoreId}, ${northwindOwner}, 'ZZ', 'X-1')`),
+    ).rejects.toThrow(/member of the company/);
+    const [created] = await asUser(manager, managerEmail, (tx) => tx<{ id: string }[]>`insert into public.applicator_credentials (tenant_id, user_id, state_code, cert_number, categories) values (${lakeshoreId}, ${lakeshoreOwner}, 'ZZ', 'X-1', '{7A}') returning id`);
+    try {
+      const seenByOther = await asUser(northwindOwner, seedUserEmail(northwind, "owner"), (tx) => tx`select id from public.applicator_credentials where id = ${created.id}`);
+      expect(seenByOther.length).toBe(0);
+    } finally {
+      await admin`delete from public.applicator_credentials where id = ${created.id}`;
     }
   });
 

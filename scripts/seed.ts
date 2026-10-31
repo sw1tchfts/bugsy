@@ -10,6 +10,7 @@ import postgres from "postgres";
 import { PG_TYPES } from "../lib/pg-types";
 import { seedAgreements } from "./seed-agreements";
 import { seedCatalog, seedMasterProducts } from "./seed-catalog";
+import { seedDispatch } from "./seed-dispatch";
 import { seedCustomers } from "./seed-customers";
 import {
   CROSS_TENANT_USER,
@@ -123,6 +124,7 @@ async function seedTenant(tenant: SeedTenant, useAuthServer: boolean) {
   await seedCustomers(sql, tenant, tenantId, ownerUser.id);
   await seedCatalog(sql, tenant, tenantId, masterProductIds);
   await seedAgreements(sql, tenant, tenantId, ownerUser.id);
+  await seedDispatch(sql, tenant, tenantId, SEED_TENANTS.indexOf(tenant));
 
   console.log(`seeded ${tenant.name} (${tenantId})`);
 }
