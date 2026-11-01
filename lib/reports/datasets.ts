@@ -1,6 +1,7 @@
 // The datasets reports and the export read (spec 12 rules 9 and 10). Each is a fixed query with $1 for the company,
 // declared columns and the permission it needs; the builder only ever names these. Row level security still decides
-// which rows a member sees, because every query runs under their session.
+// which rows a member sees, because every query runs under their session. Lookups (account, service type, property)
+// are left joins, so a role that cannot read a lookup still gets its rows, with that column empty.
 
 export type ColumnType = "text" | "number" | "money" | "date" | "boolean";
 export type DatasetColumn = { name: string; label: string; type: ColumnType };
@@ -27,7 +28,7 @@ export const DATASETS: Dataset[] = [
     permission: "customers.read",
     columns: [c("account", "Account"), c("address", "Address"), c("city", "City"), c("state_code", "State"), c("postal_code", "ZIP"), c("property_type", "Type"), c("size_sqft", "Square feet", "number"), c("unit_count", "Units", "number")],
     sql: `select a.name as account, p.normalized_address as address, p.city, p.state_code, p.postal_code, p.property_type, p.size_sqft, p.unit_count
-          from public.properties p join public.accounts a on a.id = p.account_id where p.tenant_id = $1 and p.archived_at is null`,
+          from public.properties p left join public.accounts a on a.id = p.account_id where p.tenant_id = $1 and p.archived_at is null`,
   },
   {
     key: "agreements",
@@ -40,7 +41,7 @@ export const DATASETS: Dataset[] = [
     ],
     sql: `select g.number, a.name as account, st.name as service_type, st.service_line, g.status, g.billing_mode, g.cadence, g.starts_on, g.ends_on, ${day("g.signed_at")} as signed_on, g.cancelled_on,
                  r.name as cancel_reason, g.initial_price_cents as initial_price, g.recurring_price_cents as recurring_price, g.auto_renew, g.cutover_on is not null as imported, p.state_code
-          from public.agreements g join public.accounts a on a.id = g.account_id join public.service_types st on st.id = g.service_type_id join public.properties p on p.id = g.property_id
+          from public.agreements g left join public.accounts a on a.id = g.account_id left join public.service_types st on st.id = g.service_type_id left join public.properties p on p.id = g.property_id
           left join public.cancel_reasons r on r.id = g.cancel_reason_id
           where g.tenant_id = $1`,
   },
@@ -55,7 +56,7 @@ export const DATASETS: Dataset[] = [
     sql: `select v.scheduled_for, v.due_start, v.status, v.kind, st.name as service_type, st.service_line, a.name as account, p.city, p.state_code,
                  coalesce(m.display_name, 'Unassigned') as technician, v.price_cents as price,
                  case when v.arrived_at is not null and v.departed_at is not null then round(extract(epoch from (v.departed_at - v.arrived_at)) / 60) end as minutes_on_site, v.imported
-          from public.visits v join public.service_types st on st.id = v.service_type_id join public.accounts a on a.id = v.account_id join public.properties p on p.id = v.property_id
+          from public.visits v left join public.service_types st on st.id = v.service_type_id left join public.accounts a on a.id = v.account_id left join public.properties p on p.id = v.property_id
           left join public.memberships m on m.tenant_id = v.tenant_id and m.user_id = v.technician_id
           where v.tenant_id = $1`,
   },
@@ -66,7 +67,7 @@ export const DATASETS: Dataset[] = [
     columns: [c("number", "Number", "number"), c("kind", "Kind"), c("status", "Status"), c("source", "Source"), c("account", "Account"), c("issued_on", "Issued", "date"), c("due_on", "Due", "date"), c("subtotal", "Subtotal", "money"), c("tax", "Tax", "money"), c("total", "Total", "money"), c("paid", "Paid", "money"), c("open", "Open", "money")],
     sql: `select i.number, i.kind, i.status, i.source, a.name as account, i.issued_on, i.due_on, i.subtotal_cents as subtotal, i.tax_cents as tax, i.total_cents as total, i.paid_cents as paid,
                  case when i.status in ('issued', 'partially_paid', 'past_due') then i.total_cents - i.paid_cents else 0 end as open
-          from public.invoices i join public.accounts a on a.id = i.account_id where i.tenant_id = $1 and i.status <> 'draft'`,
+          from public.invoices i left join public.accounts a on a.id = i.account_id where i.tenant_id = $1 and i.status <> 'draft'`,
   },
   {
     key: "payments",
@@ -74,7 +75,7 @@ export const DATASETS: Dataset[] = [
     permission: "billing.read",
     columns: [c("kind", "Kind"), c("method", "Method"), c("status", "Status"), c("amount", "Amount", "money"), c("received_on", "Received", "date"), c("account", "Account"), c("reference", "Reference")],
     sql: `select p.kind, p.method, p.status, p.amount_cents as amount, ${day("p.received_at")} as received_on, a.name as account, p.reference
-          from public.payments p join public.accounts a on a.id = p.account_id where p.tenant_id = $1`,
+          from public.payments p left join public.accounts a on a.id = p.account_id where p.tenant_id = $1`,
   },
   {
     key: "leads",

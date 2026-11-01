@@ -15,7 +15,7 @@ export default async function TechniciansReportPage({ searchParams }: { searchPa
   await requirePermission(active.tenantId, "reports.read");
   await requirePermission(active.tenantId, "visits.read");
   const range = rangeOf(await searchParams, todayInZone(active.tenantTimezone), { days: 30 });
-  const rows = await dbAs(session, (tx) => technicianReport(tx, active.tenantId, active.tenantTimezone, range.from, range.to));
+  const rows = await dbAs(session, (tx) => technicianReport(tx, active.tenantId, active.tenantTimezone, range.from, range.to, active.permissions));
 
   return (
     <>
@@ -41,7 +41,7 @@ export default async function TechniciansReportPage({ searchParams }: { searchPa
                 <td className="py-1 pr-4 tabular-nums">
                   {share(r.reservice_rate)} ({r.reserviced} of {r.base})
                 </td>
-                <td className="py-1 pr-4 tabular-nums">{formatCents(r.product_cost_cents)}</td>
+                <td className="py-1 pr-4 tabular-nums">{r.product_cost_cents === null ? "needs ledger access" : formatCents(r.product_cost_cents)}</td>
               </tr>
             ))}
           </Table>

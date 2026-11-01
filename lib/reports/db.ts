@@ -6,10 +6,10 @@ import { toCsv } from "@/lib/compliance/export";
 import { addDays, addMonths, todayInZone } from "@/lib/dates";
 import { contractLines } from "@/lib/ledger/db";
 import { contractPositions } from "@/lib/ledger/post";
-import { type Definition, MAX_ROWS, buildQuery } from "./builder";
+import { type Definition, buildQuery } from "./builder";
 import { DATASETS, type Dataset, datasetFor } from "./datasets";
 import { definitionFromJson } from "./form";
-import { type AgreementFacts, type Attrition, type Cohort, activeOn, attrition, cohorts, lastActiveDay, monthsBetween, rate, retention } from "./metrics";
+import { AGING, type AgingBucket, type AgreementFacts, type Attrition, type Cohort, activeOn, agingBucket, attrition, cohorts, lastActiveDay, monthsBetween, rate, retention } from "./metrics";
 
 type Sql = postgres.Sql | postgres.TransactionSql;
 
@@ -18,10 +18,11 @@ export type AgreementRow = AgreementFacts & { service_line: string; cancel_reaso
 /** Every signed agreement with what retention needs: its dates, service line, reason, and the lead of its last stop. */
 export async function agreementFacts(tx: Sql, tenantId: string, timeZone: string): Promise<AgreementRow[]> {
   return tx<AgreementRow[]>`
-    select g.id, g.number, (g.signed_at at time zone ${timeZone})::date::text as signed_on, g.status, g.cancelled_on::text, g.ends_on::text, st.service_line, r.name as cancel_reason, a.name as account_name,
+    select g.id, g.number, (g.signed_at at time zone ${timeZone})::date::text as signed_on, g.status, g.cancelled_on::text, g.ends_on::text,
+           coalesce(st.service_line, 'not shown') as service_line, r.name as cancel_reason, coalesce(a.name, 'not shown') as account_name,
            (select coalesce(m.display_name, 'Member') from public.visits v left join public.memberships m on m.tenant_id = v.tenant_id and m.user_id = v.technician_id
             where v.agreement_id = g.id and v.status = 'completed' and not v.imported order by v.completed_at desc nulls last limit 1) as technician
-    from public.agreements g join public.service_types st on st.id = g.service_type_id join public.accounts a on a.id = g.account_id
+    from public.agreements g left join public.service_types st on st.id = g.service_type_id left join public.accounts a on a.id = g.account_id
     left join public.cancel_reasons r on r.id = g.cancel_reason_id
     where g.tenant_id = ${tenantId} and g.signed_at is not null and g.status <> 'draft'`;
 }
@@ -128,10 +129,11 @@ export async function retentionReport(tx: Sql, tenantId: string, timeZone: strin
   };
 }
 
-export type TechnicianRow = { technician: string; stops: number; working_days: number; stops_per_day: number | null; revenue_cents: number; minutes_on_site: number | null; product_cost_cents: number; base: number; reserviced: number; reservice_rate: number | null };
+export type TechnicianRow = { technician: string; stops: number; working_days: number; stops_per_day: number | null; revenue_cents: number; minutes_on_site: number | null; product_cost_cents: number | null; base: number; reserviced: number; reservice_rate: number | null };
 
-/** Productivity per lead technician for a range (rule 5). */
-export async function technicianReport(tx: Sql, tenantId: string, timeZone: string, from: string, to: string): Promise<TechnicianRow[]> {
+/** Productivity per lead technician for a range (rule 5). Product cost comes from the ledger, net of reversals, and is
+ *  null for a member who cannot read the ledger rather than a zero that looks real. */
+export async function technicianReport(tx: Sql, tenantId: string, timeZone: string, from: string, to: string, permissions: readonly string[]): Promise<TechnicianRow[]> {
   const rows = await tx<{ technician: string; stops: number; working_days: number; revenue: string | number; minutes: string | number | null; cost: string | number; base: number; reserviced: number }[]>`
     with done as (
       select v.id, v.agreement_id, v.technician_id, v.kind, v.price_cents, v.completed_at, v.arrived_at, v.departed_at, (v.completed_at at time zone ${timeZone})::date as day
@@ -141,9 +143,10 @@ export async function technicianReport(tx: Sql, tenantId: string, timeZone: stri
     )
     select coalesce(m.display_name, 'Member') as technician, count(*)::int as stops, count(distinct d.day)::int as working_days, coalesce(sum(d.price_cents), 0) as revenue,
            avg(extract(epoch from (d.departed_at - d.arrived_at)) / 60) filter (where d.arrived_at is not null and d.departed_at is not null) as minutes,
-           coalesce((select sum(l.debit_cents) from public.journal_lines l join public.journal_entries e on e.id = l.entry_id join public.gl_accounts g on g.id = l.gl_account_id
-                     join public.visit_products vp on vp.id = e.source_id
-                     where e.tenant_id = ${tenantId} and e.source_type = 'product_use' and g.key = 'chemical_cost' and vp.visit_id in (select id from done x where x.technician_id = d.technician_id)), 0) as cost,
+           (select coalesce(sum(l.debit_cents - l.credit_cents), 0) from public.journal_lines l join public.journal_entries e on e.id = l.entry_id join public.gl_accounts g on g.id = l.gl_account_id
+            where e.tenant_id = ${tenantId} and g.key = 'chemical_cost'
+              and coalesce(e.reverses, e.id) in (select u.id from public.journal_entries u join public.visit_products vp on vp.id = u.source_id
+                                                 where u.tenant_id = ${tenantId} and u.source_type = 'product_use' and vp.visit_id in (select id from done x where x.technician_id = d.technician_id))) as cost,
            count(*) filter (where d.kind <> 'reservice')::int as base,
            count(*) filter (where d.kind <> 'reservice' and exists (
              select 1 from public.visits r where r.agreement_id = d.agreement_id and r.kind = 'reservice' and r.created_at > d.completed_at and r.created_at <= d.completed_at + interval '30 days'))::int as reserviced
@@ -156,7 +159,7 @@ export async function technicianReport(tx: Sql, tenantId: string, timeZone: stri
     stops_per_day: r.working_days ? r.stops / r.working_days : null,
     revenue_cents: Number(r.revenue),
     minutes_on_site: r.minutes === null ? null : Math.round(Number(r.minutes)),
-    product_cost_cents: Number(r.cost),
+    product_cost_cents: can(permissions, "gl.read") ? Number(r.cost) : null,
     base: r.base,
     reserviced: r.reserviced,
     reservice_rate: rate(r.reserviced, r.base),
@@ -181,29 +184,30 @@ export async function revenueByLine(tx: Sql, tenantId: string, from: string, to:
   return { rows, months, accounts, totals };
 }
 
-export const AGING = ["current", "1 to 30", "31 to 60", "61 to 90", "over 90"] as const;
-export type AgingRow = { account: string; account_id: string; buckets: Record<(typeof AGING)[number], number>; total: number };
+export { AGING };
+export type AgingRow = { account: string; account_id: string; buckets: Record<AgingBucket, number>; total: number };
 
-/** Receivables aging by days past due on the day (rule 7). */
-export async function arAging(tx: Sql, tenantId: string, day: string): Promise<{ rows: AgingRow[]; totals: Record<(typeof AGING)[number], number> }> {
+/** Receivables aging on a day (rule 7): each invoice issued by then and not void by then, less what was paid on it by
+ *  then (by the payment's received date), bucketed by days past due on that day. */
+export async function arAging(tx: Sql, tenantId: string, timeZone: string, day: string): Promise<{ rows: AgingRow[]; totals: Record<AgingBucket, number> }> {
   const open = await tx<{ account_id: string; account: string; due_on: string | null; open: string | number }[]>`
-    select i.account_id, a.name as account, i.due_on::text, i.total_cents - i.paid_cents as open
-    from public.invoices i join public.accounts a on a.id = i.account_id
-    where i.tenant_id = ${tenantId} and i.kind = 'invoice' and i.status in ('issued', 'partially_paid', 'past_due') and i.total_cents > i.paid_cents and i.issued_on <= ${day}`;
-  const bucket = (due: string | null): (typeof AGING)[number] => {
-    if (!due || due >= day) return "current";
-    const days = Math.round((Date.parse(`${day}T00:00:00Z`) - Date.parse(`${due}T00:00:00Z`)) / 86_400_000);
-    return days <= 30 ? "1 to 30" : days <= 60 ? "31 to 60" : days <= 90 ? "61 to 90" : "over 90";
-  };
-  const empty = () => Object.fromEntries(AGING.map((b) => [b, 0])) as Record<(typeof AGING)[number], number>;
+    select i.account_id, coalesce(a.name, 'not shown') as account, i.due_on::text,
+           i.total_cents - coalesce((select sum(pa.amount_cents) from public.payment_allocations pa left join public.payments p on p.id = pa.payment_id
+                                     where pa.invoice_id = i.id and (coalesce(p.received_at, pa.created_at) at time zone ${timeZone})::date <= ${day}), 0) as open
+    from public.invoices i left join public.accounts a on a.id = i.account_id
+    where i.tenant_id = ${tenantId} and i.kind = 'invoice' and i.status <> 'draft' and i.issued_on <= ${day}
+      and (i.voided_at is null or (i.voided_at at time zone ${timeZone})::date > ${day})`;
+  const empty = () => Object.fromEntries(AGING.map((b) => [b, 0])) as Record<AgingBucket, number>;
   const by = new Map<string, AgingRow>();
   const totals = empty();
   for (const o of open) {
+    const cents = Number(o.open);
+    if (cents <= 0) continue;
     const row = by.get(o.account_id) ?? { account: o.account, account_id: o.account_id, buckets: empty(), total: 0 };
-    const b = bucket(o.due_on);
-    row.buckets[b] += Number(o.open);
-    row.total += Number(o.open);
-    totals[b] += Number(o.open);
+    const b = agingBucket(o.due_on, day);
+    row.buckets[b] += cents;
+    row.total += cents;
+    totals[b] += cents;
     by.set(o.account_id, row);
   }
   return { rows: [...by.values()].sort((a, b) => b.total - a.total), totals };
@@ -252,7 +256,7 @@ export function datasetsFor(permissions: readonly string[]): Dataset[] {
   return DATASETS.filter((d) => can(permissions, d.permission));
 }
 
-export async function runDefinition(tx: Sql, tenantId: string, dataset: Dataset, def: Definition, rowLimit: number): Promise<{ columns: string[]; rows: Record<string, unknown>[] }> {
+export async function runDefinition(tx: Sql, tenantId: string, dataset: Dataset, def: Definition, rowLimit: number | null): Promise<{ columns: string[]; rows: Record<string, unknown>[] }> {
   const q = buildQuery(def, dataset, tenantId, rowLimit);
   const rows = (await tx.unsafe(q.text, q.params as never[])) as unknown as Record<string, unknown>[];
   return { columns: q.columns, rows };
@@ -287,9 +291,9 @@ export function rowsToCsv(columns: readonly string[], rows: readonly Record<stri
 /** One CSV per dataset the member can read, each run under their session, with a README of the columns. */
 export async function exportDatasets(tx: Sql, tenantId: string, permissions: readonly string[]): Promise<Record<string, string>> {
   const files: Record<string, string> = {};
-  const readme: string[] = ["Bugsy data export", "", "One CSV per dataset your role can read. Money columns are integer cents; dates are YYYY-MM-DD.", ""];
+  const readme: string[] = ["Bugsy data export", "", "One CSV per dataset your role can read, every row your role can see. Money columns are integer cents; dates are YYYY-MM-DD in the company's time zone.", ""];
   for (const d of datasetsFor(permissions)) {
-    const { columns, rows } = await runDefinition(tx, tenantId, d, { columns: d.columns.map((c) => c.name), filters: [], group_by: [], aggregates: [] }, MAX_ROWS);
+    const { columns, rows } = await runDefinition(tx, tenantId, d, { columns: d.columns.map((c) => c.name), filters: [], group_by: [], aggregates: [] }, null);
     files[`${d.key}.csv`] = rowsToCsv(columns, rows);
     readme.push(`${d.key}.csv (${rows.length} rows): ${d.columns.map((c) => `${c.name} (${c.type})`).join(", ")}`);
   }

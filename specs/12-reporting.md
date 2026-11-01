@@ -22,7 +22,7 @@ The owner opens Bugsy and sees whether the business is healthy: how many custome
 - Standard reports, each with a date range and a CSV: retention and churn, technician productivity, revenue by service line (ledger), receivables aging, sales by source, re-services.
 - Datasets for the builder and the export, defined in code: accounts, properties, agreements, visits, invoices, payments, leads, journal lines, messages. Each names its columns, their types and the permission it needs; queries run under the member's session, so row level security decides the rows.
 - Saved reports: per company, private to the author or shared.
-- Export: `/api/reports/export.zip` with one CSV per dataset the member can read and a README describing the columns.
+- Export: `/api/reports/export.zip` with one CSV per dataset the member can read, every row the member can see, and a README describing the columns.
 ### Out of scope
 - Forecasting and budgets; scheduled report emails (a later spec may add them over messaging).
 - Payroll and commissions reports (specs 17 and 18).
@@ -42,11 +42,11 @@ Migration `supabase/migrations/20261101170000_reporting.sql`.
 ## Business rules
 1. An agreement is active on a day when it was signed on or before that day, it is not a draft, it was not cancelled on or before that day, and its term (renewals included) had not ended before that day.
 2. Attrition for a month is the agreements lost in the month (cancelled, or ended without renewal) divided by those active on its first day, where a loss belongs to the month of the agreement's last active day (the day before a cancellation takes effect, or the term's last day), so a plan ending on the 31st or cancelled from the 1st counts in the month it was last active; retention over a range is the share of agreements active at its start still active at its end (pest-domain skill).
-3. A cohort is the agreements signed in a month; its retention at month N is the share still active N months after its signing month ends.
+3. A cohort is the agreements signed in a month; its retention at month N is the share still active on the first day after the Nth month following its signing month ends (month 0 is the day after the signing month ends), so a plan that stops at a month's end is lost in that month, as rule 2 counts it.
 4. Cancellations are attributed to the reason recorded at cancellation, the agreement's service line, and the lead technician of the agreement's last completed visit (or "no visit yet").
-5. Technician productivity counts completed visits where the technician was the lead: working days are the distinct days with a completed visit, stops per day is completed visits over working days, revenue serviced is the sum of those visits' prices, time on site is the mean of departure minus arrival, product cost is the ledger's chemical cost posted for those visits, and the re-service rate is the share of the technician's completed visits that were not themselves re-services after which a re-service was booked on the same agreement within 30 days.
+5. Technician productivity counts completed visits where the technician was the lead: working days are the distinct days with a completed visit, stops per day is completed visits over working days, revenue serviced is the sum of those visits' prices, time on site is the mean of departure minus arrival, product cost is the ledger's chemical cost posted for those visits net of reversals (shown only to members who can read the ledger), and the re-service rate is the share of the technician's completed visits that were not themselves re-services after which a re-service was booked on the same agreement within 30 days.
 6. Revenue by service line is the ledger's revenue accounts by month (credits minus debits), so it matches the income statement (spec 09 rule 16).
-7. Receivables aging buckets open invoices by days past due on the report's date: current, 1 to 30, 31 to 60, 61 to 90, over 90.
+7. Receivables aging buckets invoices open on the report's date by days past due on that date: current, 1 to 30, 31 to 60, 61 to 90, over 90. An invoice's balance on a date is its total less the payments applied to it that were received by then; an invoice voided by then is not open.
 8. Close rate by source is won leads over won plus lost leads created in the range; open leads are counted but not in the rate.
 9. A custom report reads only a defined dataset, its declared columns and operators; nothing a user types becomes SQL text. Results are limited to 5,000 rows on screen; the CSV has them all up to 100,000.
 10. Every report and export runs under the member's session: a member sees only rows their permissions show, and datasets needing a permission they lack are not offered.
@@ -56,7 +56,8 @@ Migration `supabase/migrations/20261101170000_reporting.sql`.
 - A month with no agreements active on its first day: attrition is shown as no data, not zero.
 - An agreement signed and cancelled in the same month: it counts in neither the denominator nor the losses of that month's attrition, and in its cohort as lost at month 0.
 - A renewed agreement keeps one row; its ends_on is the latest term's end, so renewal is not churn.
-- An imported agreement (spec 10) counts from its signing as imported; its visits done before Bugsy count for nobody's productivity.
+- An imported agreement (spec 10) counts from its signing as imported; its visits done before Bugsy count for nobody's productivity. One imported as already ended (its term over before it was signed in Bugsy) was never active here: it is nobody's loss and in no cohort.
+- A cancellation dated after the term had already run out (a plan on hold past its end) is lost on the term's last day.
 - A technician with completed visits but no arrival or departure times: time on site averages only visits with both.
 
 ## Decisions

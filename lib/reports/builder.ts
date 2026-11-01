@@ -79,7 +79,7 @@ const ident = (name: string) => `"${name.replace(/"/g, "")}"`;
 const SQL_OP: Record<Exclude<Operator, "contains" | "empty" | "not_empty">, string> = { eq: "=", neq: "<>", gt: ">", gte: ">=", lt: "<", lte: "<=" };
 
 /** SQL text and parameters for a checked definition; $1 is the company. Throws on an unchecked one. */
-export function buildQuery(def: Definition, dataset: Dataset, tenantId: string, rowLimit: number): { text: string; params: (string | number | boolean)[]; columns: string[] } {
+export function buildQuery(def: Definition, dataset: Dataset, tenantId: string, rowLimit: number | null): { text: string; params: (string | number | boolean)[]; columns: string[] } {
   const problems = checkDefinition(def, dataset);
   if (problems.length) throw Object.assign(new Error(problems.join("; ")), { code: "23514" });
   const types = new Map(dataset.columns.map((c) => [c.name, c.type]));
@@ -102,7 +102,8 @@ export function buildQuery(def: Definition, dataset: Dataset, tenantId: string, 
     : def.columns.map((col) => `d.${ident(col)}`);
   const columns = grouped ? [...def.group_by, ...def.aggregates.map(aggregateName)] : def.columns;
   const order = def.sort ? `order by ${ident(def.sort.column)} ${def.sort.dir}` : grouped && def.group_by.length ? `order by ${def.group_by.map((g) => ident(g)).join(", ")}` : "";
-  const limit = Math.min(def.limit ?? rowLimit, rowLimit);
-  const text = `select ${selectCols.join(", ")} from (${dataset.sql}) d${where.length ? ` where ${where.join(" and ")}` : ""}${grouped && def.group_by.length ? ` group by ${def.group_by.map((g) => `d.${ident(g)}`).join(", ")}` : ""} ${order} limit ${limit}`;
+  // A screen or a CSV caps the rows; the full export (rowLimit null) takes every row.
+  const limit = rowLimit === null ? (def.limit ?? null) : Math.min(def.limit ?? rowLimit, rowLimit);
+  const text = `select ${selectCols.join(", ")} from (${dataset.sql}) d${where.length ? ` where ${where.join(" and ")}` : ""}${grouped && def.group_by.length ? ` group by ${def.group_by.map((g) => `d.${ident(g)}`).join(", ")}` : ""} ${order}${limit === null ? "" : ` limit ${limit}`}`;
   return { text, params, columns };
 }

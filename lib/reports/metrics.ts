@@ -10,14 +10,21 @@ export function activeOn(a: AgreementFacts, day: string): boolean {
   return a.ends_on >= day;
 }
 
-/** The last day an agreement was active, once it has stopped: the day before its cancellation took effect, or its
- *  term's last day once that has passed. A loss belongs to the month of this day, the month it was last active in. */
+/** True for an agreement whose term was over before it was signed in Bugsy: a plan imported as already ended (spec 10).
+ *  It was never active here, so it is nobody's loss and in no cohort. */
+export function neverActive(a: AgreementFacts): boolean {
+  return !a.signed_on || a.status === "draft" || (!a.cancelled_on && a.ends_on < a.signed_on);
+}
+
+/** The last day an agreement was active, once it has stopped: the day before its cancellation took effect or its
+ *  term's last day, whichever came first, once that has passed. A loss belongs to the month of this day. A plan
+ *  cancelled the day it was signed was never active; its loss still belongs to the month it was signed in. */
 export function lastActiveDay(a: AgreementFacts, today: string): string | null {
-  if (!a.signed_on || a.status === "draft") return null;
+  if (neverActive(a) || !a.signed_on) return null;
   if (a.cancelled_on) {
-    // A plan cancelled the day it was signed was never active; its loss still belongs to the month it was signed in.
     const before = addDays(a.cancelled_on, -1);
-    return before < a.signed_on ? a.signed_on : before;
+    const last = before < a.ends_on ? before : a.ends_on;
+    return last < a.signed_on ? a.signed_on : last;
   }
   return a.ends_on < today ? a.ends_on : null;
 }
@@ -53,16 +60,28 @@ export type Cohort = { month: string; signed: number; retained: (number | null)[
 export function cohorts(agreements: readonly AgreementFacts[], fromMonth: string, toMonth: string, depth: number, today: string): Cohort[] {
   const out: Cohort[] = [];
   for (let m = fromMonth; m <= toMonth; m = nextMonth(m)) {
-    const signed = agreements.filter((a) => a.signed_on && a.status !== "draft" && a.signed_on.slice(0, 7) === m);
+    const signed = agreements.filter((a) => !neverActive(a) && a.signed_on?.slice(0, 7) === m);
     const retained: (number | null)[] = [];
     for (let n = 0; n <= depth; n += 1) {
-      const at = endOfMonth(addMonths(monthStart(m), n));
+      // Kept N months on means still active the day after the Nth month ends, so a plan that stops at a month's end
+      // (cancelled from the 1st, or a term ending on the 31st) counts as lost in that month, as attrition counts it.
+      const at = addMonths(monthStart(m), n + 1);
       if (at > today || signed.length === 0) retained.push(null);
       else retained.push(signed.filter((a) => activeOn(a, at)).length / signed.length);
     }
     out.push({ month: m, signed: signed.length, retained });
   }
   return out;
+}
+
+export const AGING = ["current", "1 to 30", "31 to 60", "61 to 90", "over 90"] as const;
+export type AgingBucket = (typeof AGING)[number];
+
+/** Rule 7: an open invoice's bucket by whole days past its due date on the day; not yet due is current. */
+export function agingBucket(due: string | null, day: string): AgingBucket {
+  if (!due || due >= day) return "current";
+  const days = Math.round((Date.parse(`${day}T00:00:00Z`) - Date.parse(`${due}T00:00:00Z`)) / 86_400_000);
+  return days <= 30 ? "1 to 30" : days <= 60 ? "31 to 60" : days <= 90 ? "61 to 90" : "over 90";
 }
 
 export function rate(numerator: number, denominator: number): number | null {

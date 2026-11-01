@@ -11,6 +11,7 @@ import { refreshNoticeTasks } from "../../lib/compliance/db";
 import { sweep } from "../../lib/ledger/db";
 import { PG_TYPES } from "../../lib/pg-types";
 import { buildQuery } from "../../lib/reports/builder";
+import { arAging, salesBySource, technicianReport } from "../../lib/reports/db";
 import { DATASETS, datasetFor } from "../../lib/reports/datasets";
 import { CROSS_TENANT_USER, PLATFORM_ADMIN_EMAIL, ROLE_KEYS, SEED_TENANTS, seedUserEmail } from "../../scripts/seed-data";
 
@@ -1490,6 +1491,17 @@ describe("spec 12 rules enforced in the database", () => {
     expect(gone).toHaveLength(1);
   });
 
+  it("lets an owner delete only their own and shared reports, even with no filter (rule 11)", async () => {
+    const owner = seedUserEmail(lakeshore, "owner");
+    const removed = await admin.begin(async (tx) => {
+      await tx.unsafe("set local role authenticated");
+      await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: lakeshoreOwner, email: owner, role: "authenticated" })}, true)`;
+      const rows = await tx<{ name: string }[]>`delete from public.saved_reports returning name`;
+      throw Object.assign(new Error("rollback"), { rows });
+    }).catch((e: { rows?: { name: string }[] }) => e.rows ?? []);
+    expect(removed.map((r) => r.name)).toEqual(["Completed visits by technician"]);
+  });
+
   it("runs a report under the member's own permissions: the office sees no journal lines (rule 10)", async () => {
     const [{ n }] = await admin<{ n: number }[]>`select count(*)::int as n from public.journal_lines where tenant_id = ${lakeshoreId}`;
     expect(n).toBeGreaterThan(0);
@@ -1507,5 +1519,105 @@ describe("spec 12 rules enforced in the database", () => {
       const ours = await asUser(northwindOwner, owner, (tx) => run(tx, d.key, northwindId));
       expect(ours.length, d.key).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("spec 12 report queries", () => {
+  const ROLLBACK = "rollback: fixture only";
+
+  /** Runs `fn` over fixture rows written with triggers off, then throws so nothing stays. */
+  async function withFixture<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
+    let out: T | undefined;
+    await admin
+      .begin(async (tx) => {
+        await tx.unsafe("set local session_replication_role = replica");
+        out = await fn(tx);
+        throw new Error(ROLLBACK);
+      })
+      .catch((e: Error) => {
+        if (e.message !== ROLLBACK) throw e;
+      });
+    return out as T;
+  }
+
+  it("counts a technician's stops, days, revenue, time on site, re-service rate and net product cost, leaving imported visits out (rule 5)", async () => {
+    const tz = northwind.timezone;
+    const tech = await userId(seedUserEmail(northwind, "technician"));
+    const result = await withFixture(async (tx) => {
+      const [g] = await tx<{ id: string; account_id: string; property_id: string; service_type_id: string }[]>`
+        select id, account_id, property_id, service_type_id from public.agreements where tenant_id = ${northwindId} and status = 'active' limit 1`;
+      const visit = async (v: { kind: string; agreement: boolean; price: number; completed: string; arrived?: string; departed?: string; imported?: boolean; created?: string }) =>
+        (
+          await tx<{ id: string }[]>`
+            insert into public.visits (tenant_id, account_id, property_id, service_type_id, agreement_id, kind, due_start, due_end, status, technician_id, price_cents,
+                                       completed_at, arrived_at, departed_at, imported, created_at)
+            values (${northwindId}, ${g.account_id}, ${g.property_id}, ${g.service_type_id}, ${v.agreement ? g.id : null}, ${v.kind}, '2099-02-01', '2099-02-28', 'completed', ${tech}, ${v.price},
+                    ${v.completed}, ${v.arrived ?? null}, ${v.departed ?? null}, ${v.imported ?? false}, ${v.created ?? v.completed})
+            returning id`
+        )[0].id;
+      const v1 = await visit({ kind: "recurring", agreement: true, price: 10000, completed: "2099-02-01T10:00:00-05:00", arrived: "2099-02-01T09:00:00-05:00", departed: "2099-02-01T09:45:00-05:00" });
+      await visit({ kind: "one_time", agreement: false, price: 5000, completed: "2099-02-01T14:00:00-05:00" });
+      await visit({ kind: "reservice", agreement: true, price: 0, completed: "2099-02-02T11:00:00-05:00", arrived: "2099-02-02T10:00:00-05:00", departed: "2099-02-02T10:30:00-05:00", created: "2099-02-01T16:00:00-05:00" });
+      await visit({ kind: "recurring", agreement: true, price: 9900, completed: "2099-02-03T10:00:00-05:00", imported: true });
+      // 12.50 of product on v1, then reversed in the ledger and posted again at 8.00: the net cost is 8.00.
+      const [vp] = await tx<{ id: string }[]>`
+        insert into public.visit_products (tenant_id, visit_id, product_id, applied_by, site_treated, amount, amount_unit, target_pests)
+        select tenant_id, ${v1}, product_id, applied_by, site_treated, amount, amount_unit, target_pests from public.visit_products where tenant_id = ${northwindId} limit 1 returning id`;
+      const [cost] = await tx<{ id: string }[]>`select id from public.gl_accounts where tenant_id = ${northwindId} and key = 'chemical_cost'`;
+      const entry = async (key: string, debit: number, credit: number, reverses: string | null, source: string) => {
+        const [e] = await tx<{ id: string }[]>`
+          insert into public.journal_entries (tenant_id, posted_on, source_type, source_id, source_key, reverses)
+          values (${northwindId}, '2099-02-01', ${source}, ${source === "product_use" ? vp.id : null}, ${key}, ${reverses}) returning id`;
+        await tx`insert into public.journal_lines (tenant_id, entry_id, position, gl_account_id, debit_cents, credit_cents) values (${northwindId}, ${e.id}, 1, ${cost.id}, ${debit}, ${credit})`;
+        return e.id;
+      };
+      const first = await entry(`rls:use:${Date.now()}`, 1250, 0, null, "product_use");
+      await entry(`rls:rev:${Date.now()}`, 0, 1250, first, "reversal");
+      await entry(`rls:use2:${Date.now()}`, 800, 0, null, "product_use");
+      return {
+        withLedger: await technicianReport(tx, northwindId, tz, "2099-02-01", "2099-02-28", ["*"]),
+        without: await technicianReport(tx, northwindId, tz, "2099-02-01", "2099-02-28", ["visits.read", "reports.read"]),
+      };
+    });
+    expect(result.withLedger).toHaveLength(1);
+    expect(result.withLedger[0]).toMatchObject({ stops: 3, working_days: 2, stops_per_day: 1.5, revenue_cents: 15000, minutes_on_site: 38, base: 2, reserviced: 1, reservice_rate: 0.5, product_cost_cents: 800 });
+    expect(result.without[0].product_cost_cents).toBeNull();
+  });
+
+  it("ages receivables as they stood on the day: paid later still open, voided by then gone (rule 7)", async () => {
+    const tz = lakeshore.timezone;
+    const result = await withFixture(async (tx) => {
+      const [a] = await tx<{ id: string }[]>`insert into public.accounts (tenant_id, type, name) values (${lakeshoreId}, 'residential', 'RLS Aging') returning id`;
+      const invoice = async (key: string, issued: string, due: string, total: number, status: string, voided: string | null = null) =>
+        (
+          await tx<{ id: string }[]>`
+            insert into public.invoices (tenant_id, account_id, source, source_key, kind, status, number, issued_on, due_on, total_cents, paid_cents, voided_at, void_reason)
+            values (${lakeshoreId}, ${a.id}, 'manual', ${key}, 'invoice', ${status}, ${900000 + Math.floor(Math.random() * 99999)}, ${issued}, ${due}, ${total}, ${status === "paid" ? total : 0}, ${voided},
+                    ${voided ? "billed in error" : null}) returning id`
+        )[0].id;
+      const paid = await invoice(`rls:aging:paid:${Date.now()}`, "2099-01-01", "2099-01-31", 10000, "paid");
+      await invoice(`rls:aging:open:${Date.now()}`, "2099-03-01", "2099-03-31", 5000, "issued");
+      await invoice(`rls:aging:void:${Date.now()}`, "2099-01-05", "2099-01-20", 7000, "void", "2099-02-10T12:00:00-06:00");
+      const [p] = await tx<{ id: string }[]>`
+        insert into public.payments (tenant_id, account_id, method, amount_cents, received_at) values (${lakeshoreId}, ${a.id}, 'check', 10000, '2099-03-15T12:00:00-05:00') returning id`;
+      await tx`insert into public.payment_allocations (tenant_id, payment_id, invoice_id, amount_cents) values (${lakeshoreId}, ${p.id}, ${paid}, 10000)`;
+      const mine = async (day: string) => (await arAging(tx, lakeshoreId, tz, day)).rows.find((r) => r.account_id === a.id)?.buckets ?? null;
+      return { jan: await mine("2099-01-25"), mar1: await mine("2099-03-01"), mar20: await mine("2099-03-20") };
+    });
+    expect(result.jan).toMatchObject({ current: 10000, "1 to 30": 7000 });
+    expect(result.mar1).toMatchObject({ current: 5000, "1 to 30": 10000, "31 to 60": 0 });
+    expect(result.mar20).toMatchObject({ current: 5000, "1 to 30": 0 });
+  });
+
+  it("closes won over won plus lost by source, counting open leads but not in the rate (rule 8)", async () => {
+    const result = await withFixture(async (tx) => {
+      const [src] = await tx<{ id: string; name: string }[]>`select id, name from public.lead_sources where tenant_id = ${lakeshoreId} order by name limit 1`;
+      for (const stage of ["won", "won", "lost", "new"]) {
+        await tx`insert into public.leads (tenant_id, source_id, name, stage, created_at) values (${lakeshoreId}, ${src.id}, ${`RLS ${stage}`}, ${stage}, '2099-02-10T12:00:00-06:00')`;
+      }
+      return { src: src.name, report: await salesBySource(tx, lakeshoreId, lakeshore.timezone, "2099-02-01", "2099-02-28") };
+    });
+    expect(result.report.rows).toEqual([{ source: result.src, leads: 4, won: 2, lost: 1, open: 1, rate: 2 / 3 }]);
+    expect(result.report.total).toMatchObject({ leads: 4, won: 2, lost: 1, open: 1 });
   });
 });

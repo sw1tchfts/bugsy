@@ -24,7 +24,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ repo
   if (report === "receivables") {
     const on = url.searchParams.get("on") ?? today;
     if (!isIsoDate(on)) return new NextResponse("on is a business date", { status: 400 });
-    const r = await dbAs(session, (tx) => arAging(tx, active.tenantId, on));
+    const r = await dbAs(session, (tx) => arAging(tx, active.tenantId, active.tenantTimezone, on));
     const headers = ["account", ...AGING.map((b) => `${b.replace(/ /g, "_")}_cents`), "total_cents"];
     return csvResponse(toCsv(headers, r.rows.map((x) => [x.account, ...AGING.map((b) => x.buckets[b]), x.total])), `receivables-aging-${on}.csv`);
   }
@@ -42,11 +42,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ repo
     return csvResponse(toCsv(["row", "month_or_day", "active_at_start", "lost", "attrition", "agreement", "account", "reason"], [...months, ...lost]), name);
   }
   if (report === "technicians") {
-    const rows = await dbAs(session, (tx) => technicianReport(tx, active.tenantId, tz, from, to));
+    const rows = await dbAs(session, (tx) => technicianReport(tx, active.tenantId, tz, from, to, active.permissions));
     return csvResponse(
       toCsv(
         ["technician", "stops", "working_days", "stops_per_day", "revenue_cents", "minutes_on_site", "reservice_base", "reserviced", "reservice_rate", "product_cost_cents"],
-        rows.map((r) => [r.technician, r.stops, r.working_days, r.stops_per_day?.toFixed(2) ?? "", r.revenue_cents, r.minutes_on_site ?? "", r.base, r.reserviced, r.reservice_rate ?? "", r.product_cost_cents]),
+        rows.map((r) => [r.technician, r.stops, r.working_days, r.stops_per_day?.toFixed(2) ?? "", r.revenue_cents, r.minutes_on_site ?? "", r.base, r.reserviced, r.reservice_rate ?? "", r.product_cost_cents ?? ""]),
       ),
       name,
     );

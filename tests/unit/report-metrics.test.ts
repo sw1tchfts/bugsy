@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type AgreementFacts, activeOn, attrition, cohorts, lastActiveDay, monthsBetween, percent, retention } from "@/lib/reports/metrics";
+import { type AgreementFacts, activeOn, agingBucket, attrition, cohorts, lastActiveDay, monthsBetween, percent, retention } from "@/lib/reports/metrics";
 
 const a = (id: string, signed_on: string | null, ends_on: string, extra: Partial<AgreementFacts> = {}): AgreementFacts => ({ id, signed_on, status: "active", cancelled_on: null, ends_on, ...extra });
 const today = "2027-06-15";
@@ -61,9 +61,44 @@ describe("attrition, retention and cohorts (spec 12 rules 2 and 3)", () => {
     expect(rows.find((r) => r.month === "2027-01")?.retained).toEqual([null, null, null, null]);
   });
 
+  it("counts a cancellation dated after a lapsed term in the month the term ended", () => {
+    const lapsed = [a("l", "2027-01-01", "2027-03-31", { status: "cancelled", cancelled_on: "2027-05-15" })];
+    expect(lastActiveDay(lapsed[0], today)).toBe("2027-03-31");
+    expect(attrition(lapsed, "2027-03", today)).toMatchObject({ active_at_start: 1, lost: 1 });
+    expect(attrition(lapsed, "2027-05", today).lost).toBe(0);
+  });
+
+  it("leaves a plan imported as already ended out of losses and cohorts (spec 10)", () => {
+    const go = [a("i1", "2027-04-01", "2028-03-31"), a("i2", "2027-04-01", "2028-03-31"), a("old", "2027-04-01", "2027-01-31", { status: "ended" })];
+    expect(lastActiveDay(go[2], today)).toBeNull();
+    expect(cohorts(go, "2027-04", "2027-04", 1, today)[0]).toEqual({ month: "2027-04", signed: 2, retained: [1, 1] });
+    expect(attrition(go, "2027-01", today)).toMatchObject({ active_at_start: 0, lost: 0 });
+  });
+
+  it("counts a plan that stops at its signing month's end as lost at month 0, as attrition does", () => {
+    const stops = [a("s1", "2027-03-05", "2028-03-04", { status: "cancelled", cancelled_on: "2027-04-01" }), a("s2", "2027-03-05", "2027-03-31", { status: "ended" })];
+    expect(cohorts(stops, "2027-03", "2027-03", 0, today)[0].retained).toEqual([0]);
+    expect(attrition([...stops, a("x", "2027-02-01", "2028-01-31")], "2027-03", today).lost).toBe(0);
+  });
+
   it("formats rates and walks months", () => {
     expect(percent(0.0234)).toBe("2.3%");
     expect(percent(null)).toBe("no data");
     expect(monthsBetween("2026-11-15", "2027-02-01")).toEqual(["2026-11", "2026-12", "2027-01", "2027-02"]);
+  });
+});
+
+describe("receivables aging buckets (spec 12 rule 7)", () => {
+  it("buckets by whole days past due on the day, with not yet due as current", () => {
+    const day = "2027-06-15";
+    expect(agingBucket(null, day)).toBe("current");
+    expect(agingBucket("2027-06-15", day)).toBe("current");
+    expect(agingBucket("2027-06-14", day)).toBe("1 to 30");
+    expect(agingBucket("2027-05-16", day)).toBe("1 to 30");
+    expect(agingBucket("2027-05-15", day)).toBe("31 to 60");
+    expect(agingBucket("2027-04-16", day)).toBe("31 to 60");
+    expect(agingBucket("2027-04-15", day)).toBe("61 to 90");
+    expect(agingBucket("2027-03-17", day)).toBe("61 to 90");
+    expect(agingBucket("2027-03-16", day)).toBe("over 90");
   });
 });

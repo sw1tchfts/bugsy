@@ -18,14 +18,14 @@ export default async function ReceivablesReportPage({ searchParams }: { searchPa
   const params = await searchParams;
   const today = todayInZone(active.tenantTimezone);
   const on = params.on && isIsoDate(params.on) ? params.on : today;
-  const r = await dbAs(session, (tx) => arAging(tx, active.tenantId, on));
+  const r = await dbAs(session, (tx) => arAging(tx, active.tenantId, active.tenantTimezone, on));
   const total = AGING.reduce((s, b) => s + r.totals[b], 0);
 
   return (
     <>
       <Back />
       <h1 className="text-2xl font-semibold">Receivables aging</h1>
-      <p className="text-sm text-stone-600">Open invoices by how many days past their due date they are on the day shown. Current means not yet due.</p>
+      <p className="text-sm text-stone-600">Invoices open on the day shown, less what was paid on them by then, by how many days past their due date they were. Current means not yet due.</p>
       <form method="get" className="flex flex-wrap items-end gap-3">
         <Field label="As of" htmlFor="on">
           <Input id="on" name="on" type="date" defaultValue={on} />
