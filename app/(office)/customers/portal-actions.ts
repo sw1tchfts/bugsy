@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -29,7 +30,6 @@ export async function invitePortalUser(formData: FormData) {
   const properties = formData.getAll("property_ids").map(String).filter((v) => /^[0-9a-f-]{36}$/i.test(v));
   let email = (opt(formData, "email") ?? "").trim().toLowerCase();
   let error: string | null = null;
-  let link: string | null = null;
   try {
     await dbAs(session, async (tx) => {
       let name = email;
@@ -40,12 +40,14 @@ export async function invitePortalUser(formData: FormData) {
         name = c.name;
       }
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw Object.assign(new Error("An invitation needs an email address."), { code: "23514" });
-      const [row] = await tx<{ id: string; token: string }[]>`
-        insert into public.portal_users (tenant_id, account_id, contact_id, email, property_ids)
-        values (${tenantId}, ${accountId}, ${contactId}, ${email}, ${properties.length ? properties : null}) returning id, token`;
-      link = `${await origin()}/portal/invite/${row.token}`;
-      const url = link;
-      await safely(tx, "portal invitation", (t) => queuePortalInvite(t, tenantId, { portal_user_id: row.id, email, name, contact_id: contactId, account_id: accountId, url }, membership.tenantTimezone));
+      // The link is made here and goes only into the customer's message; staff cannot read it back.
+      const id = randomUUID();
+      const token = randomUUID();
+      await tx`
+        insert into public.portal_users (id, tenant_id, account_id, contact_id, email, property_ids, token)
+        values (${id}, ${tenantId}, ${accountId}, ${contactId}, ${email}, ${properties.length ? properties : null}, ${token})`;
+      const url = `${await origin()}/portal/invite/${token}`;
+      await safely(tx, "portal invitation", (t) => queuePortalInvite(t, tenantId, { portal_user_id: id, email, name, contact_id: contactId, account_id: accountId, url }, membership.tenantTimezone));
     });
   } catch (err) {
     error = errorCode(err);

@@ -69,7 +69,10 @@ test("the customer portal: an invited customer pays, asks for a re-service and m
   await page.waitForLoadState("networkidle");
   const row = page.getByTestId("portal-user").filter({ hasText: email });
   await expect(row).toContainText("invited");
-  const link = (await row.getByTestId("portal-invite-link").textContent())?.trim() as string;
+  // Staff never see the link: it is read from the message sent to Maria.
+  await expect(row.getByText("/portal/invite/")).toHaveCount(0);
+  const [message] = await sql<{ body: string }[]>`select body from public.messages where lower(to_address) = ${email} order by created_at desc limit 1`;
+  const link = message?.body.match(/\/portal\/invite\/[0-9a-f-]{36}/)?.[0] as string;
   expect(link).toMatch(/^\/portal\/invite\/[0-9a-f-]{36}$/);
   await signOut(page);
 

@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Badge, Button, Card, Empty, Field, Input, Notice, Table, errorMessage } from "@/components/ui";
+import { PaymentFields } from "@/components/payment-fields";
+import { Badge, Button, Card, Empty, Notice, Table, errorMessage } from "@/components/ui";
+import { loadSettings } from "@/lib/billing/db";
 import { formatBusinessDate } from "@/lib/dates";
 import { formatCents } from "@/lib/money";
+import { cardEntry } from "@/lib/payments";
 import { overview } from "@/lib/portal/db";
 import { portalDb, requirePortal } from "@/lib/portal/session";
 import { addCard, updateCard } from "../actions";
@@ -13,7 +16,8 @@ export const metadata: Metadata = { title: "Billing" };
 export default async function PortalBilling({ searchParams }: { searchParams: Promise<{ note?: string; error?: string }> }) {
   const q = await searchParams;
   const { session, identity } = await requirePortal();
-  const data = await portalDb(session, identity, (tx) => overview(tx, identity));
+  const [data, settings] = await portalDb(session, identity, (tx) => Promise.all([overview(tx, identity), loadSettings(tx, identity.tenant_id)]));
+  const entry = cardEntry(settings);
   return (
     <>
       <h1 className="text-2xl font-semibold">Billing</h1>
@@ -51,15 +55,7 @@ export default async function PortalBilling({ searchParams }: { searchParams: Pr
           </ul>
         )}
         <form action={addCard} className="mt-4 grid gap-3 border-t border-stone-100 pt-3 sm:grid-cols-4">
-          <Field label="Card number" htmlFor="card-number">
-            <Input id="card-number" name="number" inputMode="numeric" autoComplete="cc-number" required />
-          </Field>
-          <Field label="Month" htmlFor="card-month">
-            <Input id="card-month" name="exp_month" inputMode="numeric" placeholder="MM" required />
-          </Field>
-          <Field label="Year" htmlFor="card-year">
-            <Input id="card-year" name="exp_year" inputMode="numeric" placeholder="YYYY" required />
-          </Field>
+          <PaymentFields {...entry} idPrefix="card" required />
           <label className="flex items-center gap-2 self-end pb-2 text-sm">
             <input type="checkbox" name="autopay" /> Use for autopay
           </label>

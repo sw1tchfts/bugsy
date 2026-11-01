@@ -68,8 +68,8 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
       from public.agreements a join public.service_types st on st.id = a.service_type_id join public.properties p on p.id = a.property_id
       where a.tenant_id = ${tenantId} and a.account_id = ${accountId} and a.archived_at is null
       order by case a.status when 'active' then 0 when 'draft' then 1 else 2 end, a.created_at desc`;
-    const portalUsers = await tx<{ id: string; email: string; status: string; property_ids: string[] | null; invited_at: Date; accepted_at: Date | null; token: string }[]>`
-      select id, email, status, property_ids, invited_at, accepted_at, token from public.portal_users where tenant_id = ${tenantId} and account_id = ${accountId} order by invited_at desc`;
+    const portalUsers = await tx<{ id: string; email: string; status: string; property_ids: string[] | null; invited_at: Date; accepted_at: Date | null }[]>`
+      select id, email, status, property_ids, invited_at, accepted_at from public.portal_users where tenant_id = ${tenantId} and account_id = ${accountId} order by invited_at desc`;
     return { account, properties, contacts, quotes, agreements, portalUsers };
   });
   if (!data) notFound();
@@ -344,11 +344,7 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
                   <td className="py-2 pr-4 text-sm">{u.property_ids ? properties.filter((p) => u.property_ids?.includes(p.id)).map((p) => p.name ?? p.normalized_address).join("; ") : "All"}</td>
                   <td className="py-2 pr-4">
                     <Badge tone={u.status === "active" ? "good" : u.status === "invited" ? "warn" : "neutral"}>{u.status}</Badge>
-                    {u.status === "invited" ? (
-                      <span className="block text-xs text-stone-500" data-testid="portal-invite-link">
-                        /portal/invite/{u.token}
-                      </span>
-                    ) : null}
+                    {u.status === "invited" ? <span className="block text-xs text-stone-500">Invited {u.invited_at.toLocaleDateString("en-US")}; the link went to them by email.</span> : null}
                   </td>
                   <td className="py-2 pr-4 text-right">
                     {canWrite ? (

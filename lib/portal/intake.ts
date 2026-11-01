@@ -38,6 +38,13 @@ export function readIntake(body: Record<string, unknown>): IntakePayload {
   };
 }
 
+/** A calendar day written YYYY-MM-DD that exists (no February 30th). */
+export function isRealDate(d: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+  const t = new Date(`${d}T00:00:00Z`);
+  return !Number.isNaN(t.getTime()) && t.toISOString().slice(0, 10) === d;
+}
+
 export function intakeProblems(p: IntakePayload, form: { services: { id: string }[]; ask_preferred_date: boolean }, today: string): string[] {
   const problems: string[] = [];
   if (!p.name) problems.push("Your name is needed.");
@@ -45,9 +52,10 @@ export function intakeProblems(p: IntakePayload, form: { services: { id: string 
   if (p.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(p.email)) problems.push("That email does not look right.");
   if (!p.line1) problems.push("The service address is needed.");
   if (p.state_code && !/^[A-Z]{2}$/.test(p.state_code)) problems.push("The state is its two-letter code.");
-  if (form.services.length > 0 && !form.services.some((s) => s.id === p.service_type_id)) problems.push("Pick a service from the list.");
+  if ((form.services.length > 0 && !form.services.some((s) => s.id === p.service_type_id)) || (form.services.length === 0 && p.service_type_id))
+    problems.push("Pick a service from the list.");
   if (form.ask_preferred_date && p.preferred_date) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(p.preferred_date)) problems.push("Pick a preferred day.");
+    if (!isRealDate(p.preferred_date)) problems.push("Pick a preferred day.");
     else if (p.preferred_date < today) problems.push("The preferred day has passed.");
   }
   if (!["any", "morning", "afternoon", "evening"].includes(p.arrival_window)) problems.push("Pick a time of day.");

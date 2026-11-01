@@ -123,12 +123,13 @@ async function names(tx: Sql, tenantId: string): Promise<Map<string, string>> {
 }
 
 /** One site with its maps, devices, checks in the range, history, sightings, recommendations and documents. */
-export async function loadSite(tx: Sql, tenantId: string, propertyId: string, timeZone: string, from: string, to: string): Promise<Site | null> {
+/** `staff` names who checked and changed things; a customer passes the names the portal may see (spec 16). */
+export async function loadSite(tx: Sql, tenantId: string, propertyId: string, timeZone: string, from: string, to: string, staff?: Map<string, string>): Promise<Site | null> {
   const [property] = await tx<Site["property"][]>`
     select p.id, p.normalized_address as address, p.state_code, a.id as account_id, a.name as account_name
     from public.properties p join public.accounts a on a.id = p.account_id where p.id = ${propertyId} and p.tenant_id = ${tenantId}`;
   if (!property) return null;
-  const who = await names(tx, tenantId);
+  const who = staff ?? (await names(tx, tenantId));
   const maps = await tx<SiteMapRow[]>`select id, name, file_id, width, height, position from public.site_maps where property_id = ${propertyId} and archived_at is null order by position, name`;
   const devices = (
     await tx<(Omit<DeviceRow, "x" | "y"> & { x: string | null; y: string | null })[]>`
@@ -190,10 +191,10 @@ export type BinderData = Site & {
 /** Everything rule 10 puts in the binder for a property and a range, under the caller's session. Devices and maps are
  *  as they stood at the end of the range (rule 2); applications and applicators come from the application records
  *  (spec 07) with their amendments, so the binder says what the legal record says. */
-export async function binderData(tx: Sql, tenantId: string, propertyId: string, timeZone: string, from: string, to: string): Promise<BinderData | null> {
-  const site = await loadSite(tx, tenantId, propertyId, timeZone, from, to);
+export async function binderData(tx: Sql, tenantId: string, propertyId: string, timeZone: string, from: string, to: string, staff?: Map<string, string>): Promise<BinderData | null> {
+  const site = await loadSite(tx, tenantId, propertyId, timeZone, from, to, staff);
   if (!site) return null;
-  const who = await names(tx, tenantId);
+  const who = staff ?? (await names(tx, tenantId));
   const [company] = await tx<{ name: string; legal_name: string | null }[]>`select name, legal_name from public.tenants where id = ${tenantId}`;
   const licenses = await tx<{ branch: string; number: string | null; expires: string | null }[]>`
     select name as branch, business_license_number as number, license_expires_on::text as expires from public.branches

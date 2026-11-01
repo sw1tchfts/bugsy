@@ -7,6 +7,7 @@ import { loadSite } from "@/lib/commercial/db";
 import { KIND_LABELS, type DeviceKind } from "@/lib/commercial/devices";
 import { addMonths, formatBusinessDate, formatInstantDate, isIsoDate, todayInZone } from "@/lib/dates";
 import { marksFor } from "@/lib/specialty/db";
+import { staffNames } from "@/lib/portal/db";
 import { portalDb, requirePortal } from "@/lib/portal/session";
 import { addSighting } from "../../actions";
 
@@ -22,7 +23,7 @@ export default async function PortalSite({ params, searchParams }: { params: Pro
   const to = q.to && isIsoDate(q.to) ? q.to : today;
   const from = q.from && isIsoDate(q.from) && q.from <= to ? q.from : addMonths(to, -3);
   const data = await portalDb(session, identity, async (tx) => {
-    const site = await loadSite(tx, identity.tenant_id, propertyId, tz, from, to);
+    const site = await loadSite(tx, identity.tenant_id, propertyId, tz, from, to, await staffNames(tx, identity.tenant_id));
     return site ? { site, marks: await marksFor(tx, identity.tenant_id, propertyId) } : null;
   });
   if (!data) notFound();

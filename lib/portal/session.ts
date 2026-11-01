@@ -14,6 +14,8 @@ export type PortalIdentity = {
   tenant_id: string;
   tenant_name: string;
   tenant_timezone: string;
+  /** Spec 13: a suspended company is read only, in the portal too. */
+  tenant_status: string;
   account_id: string;
   account_name: string;
   property_ids: string[] | null;

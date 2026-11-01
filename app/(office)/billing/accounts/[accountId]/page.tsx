@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PaymentFields } from "@/components/payment-fields";
 import { Badge, Button, Card, Empty, Field, Input, Notice, Select, Table, errorMessage } from "@/components/ui";
 import { can } from "@/lib/auth/permissions";
 import { dbAs, requirePermission } from "@/lib/auth/session";
 import { loadSettings, statementFor } from "@/lib/billing/db";
 import { formatBusinessDate, formatInstantDate, todayInZone } from "@/lib/dates";
 import { formatCents } from "@/lib/money";
+import { cardEntry } from "@/lib/payments";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 import { addPaymentMethodAction, recordPaymentAction, refundPaymentAction, removePaymentMethod, setAutopay, setTaxExemption } from "../../actions";
 
@@ -225,21 +227,7 @@ export default async function AccountBillingPage({ params, searchParams }: { par
         {canWrite ? (
           <form action={addPaymentMethodAction} className="mt-4 grid gap-3 sm:grid-cols-5" data-testid="add-method">
             {hidden}
-            <Field label="Kind" htmlFor="pm-kind">
-              <Select id="pm-kind" name="kind" defaultValue="card">
-                <option value="card">Card</option>
-                <option value="bank">Bank account</option>
-              </Select>
-            </Field>
-            <Field label="Number" htmlFor="pm-number" hint="Handed to the gateway, never stored.">
-              <Input id="pm-number" name="number" inputMode="numeric" autoComplete="off" required />
-            </Field>
-            <Field label="Exp. month" htmlFor="pm-month">
-              <Input id="pm-month" name="exp_month" inputMode="numeric" placeholder="MM" />
-            </Field>
-            <Field label="Exp. year" htmlFor="pm-year">
-              <Input id="pm-year" name="exp_year" inputMode="numeric" placeholder="YYYY" />
-            </Field>
+            <PaymentFields {...cardEntry(data.settings)} idPrefix="pm" allowBank />
             <div className="flex items-end gap-3">
               <label className="flex items-center gap-2 pb-2 text-sm">
                 <input type="checkbox" name="autopay" value="true" defaultChecked /> Autopay

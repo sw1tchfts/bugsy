@@ -2233,31 +2233,136 @@ describe("spec 16 rules enforced in the database", () => {
     expect(result.foreignPayment).toMatch(RLS_ERROR);
   });
 
-  it("moves a visit only inside its window with notice, and takes booking forms from anyone within the limits (rules 5 and 8)", async () => {
-    const [visit] = await admin<{ id: string; due_start: string; due_end: string }[]>`
-      select id, due_start::text, due_end::text from public.visits where account_id = ${bistroAccount} and status = 'planned' order by due_start limit 1`;
-    const [form] = await admin<{ key: string }[]>`select key from public.lead_forms where tenant_id = ${lakeshoreId} and active limit 1`;
+  it("moves a visit only inside its window with notice (rule 5)", async () => {
+    const [visit] = await admin<{ id: string }[]>`select id from public.visits where account_id = ${bistroAccount} and status = 'planned' order by due_start limit 1`;
     const result = await rolledBack(async (tx, as) => {
-      await tx`update public.visits set status = 'scheduled', scheduled_for = due_end, technician_id = (select m.user_id from public.memberships m join public.roles r on r.id = m.role_id where m.tenant_id = ${lakeshoreId} and r.key = 'technician' limit 1) where id = ${visit.id}`;
+      // A window well past the notice period, scheduled on its last day: its middle is a day the customer may pick.
+      await tx`update public.visits set due_start = current_date + 3, due_end = current_date + 12 where id = ${visit.id}`;
+      await tx`update public.visits set status = 'scheduled', scheduled_for = current_date + 12, technician_id = (select m.user_id from public.memberships m join public.roles r on r.id = m.role_id where m.tenant_id = ${lakeshoreId} and r.key = 'technician' limit 1) where id = ${visit.id}`;
       await as(bistro, bistroEmail, portalId);
-      const outside = await attempt(tx, (sp) => sp`select app.portal_move_visit(${visit.id}, (${visit.due_end}::date + 5))`);
-      const inside = await attempt(tx, (sp) => sp`select app.portal_move_visit(${visit.id}, ${visit.due_start}::date)`);
-      await tx.unsafe("reset role");
-      await tx.unsafe("set local role anon");
-      const payload = { name: "Pat Doe", email: "pat@example.com", line1: "1 Main St", service_type_id: "" };
-      const [{ services }] = await tx<{ services: { id: string }[] }[]>`select services from app.lead_form(${form.key}::uuid)`;
-      payload.service_type_id = services[0]?.id ?? "";
-      const outcomes: string[] = [];
-      for (let i = 0; i < 6; i += 1) outcomes.push(await attempt(tx, (sp) => sp`select app.intake_lead(${form.key}::uuid, ${sp.json(payload)}, 'rls-test-hash')`));
-      // Anonymous visitors write through the intake only; they read no leads.
-      const [{ n: directLead }] = await tx<{ n: number }[]>`select count(*)::int as n from public.leads`;
-      return { outside, inside, outcomes, directLead };
+      const outside = await attempt(tx, (sp) => sp`select app.portal_move_visit(${visit.id}, current_date + 20)`);
+      const tooSoon = await attempt(tx, (sp) => sp`select app.portal_move_visit(${visit.id}, current_date)`);
+      const inside = await attempt(tx, (sp) => sp`select app.portal_move_visit(${visit.id}, current_date + 6)`);
+      return { outside, tooSoon, inside };
     });
     expect(result.outside).toMatch(/pick a day/);
-    // The window's first day may be inside the notice period; either way, the database decided by its own rules.
-    expect(result.inside).toMatch(/^ok|notice/);
-    expect(result.outcomes.slice(0, 5).every((o) => o === "ok 1")).toBe(true);
-    expect(result.outcomes[5]).toMatch(/too many requests/);
+    expect(result.tooSoon).toMatch(/pick a day|notice/);
+    expect(result.inside).toBe("ok 1");
+  });
+
+  it("takes booking forms within the limits, across forms, and logs what it refuses (rule 8)", async () => {
+    const [form] = await admin<{ key: string; id: string }[]>`select key, id from public.lead_forms where tenant_id = ${lakeshoreId} and active limit 1`;
+    const result = await rolledBack(async (tx) => {
+      const [second] = await tx<{ key: string }[]>`insert into public.lead_forms (tenant_id, name) values (${lakeshoreId}, 'Second form') returning key`;
+      await tx.unsafe("set local role anon");
+      const [{ services }] = await tx<{ services: { id: string }[] }[]>`select services from app.lead_form(${form.key}::uuid)`;
+      const payload = { name: "Pat Doe", email: "pat@example.com", line1: "1 Main St", service_type_id: services[0]?.id ?? "" };
+      const send = async (key: string, body: Record<string, unknown>, hash: string) =>
+        (await tx<{ r: { ok: boolean; status: number; error?: string } }[]>`select app.intake_lead(${key}::uuid, ${tx.json(body as never)}, ${hash}) as r`)[0].r;
+      const outcomes: number[] = [];
+      for (let i = 0; i < 4; i += 1) outcomes.push((await send(form.key, payload, "rls-test-hash")).status);
+      // The fifth from the same address goes to the other form: the limit is the address's, not the form's.
+      outcomes.push((await send(second.key, { name: "Pat Doe", email: "pat@example.com", line1: "1 Main St" }, "rls-test-hash")).status);
+      const limited = await send(form.key, payload, "rls-test-hash");
+      const badDate = await send(form.key, { ...payload, preferred_date: "2027-02-30" }, "rls-other-hash");
+      const badService = await send(form.key, { ...payload, service_type_id: "not-a-uuid" }, "rls-other-hash");
+      const [{ n: directLead }] = await tx<{ n: number }[]>`select count(*)::int as n from public.leads`;
+      await tx.unsafe("reset role");
+      const log = await tx<{ result: string; n: number }[]>`
+        select result, count(*)::int as n from public.intake_log where ip_hash in ('rls-test-hash', 'rls-other-hash') group by result order by result`;
+      const [source] = await tx<{ key: string }[]>`
+        select s.key from public.leads l join public.lead_sources s on s.id = l.source_id where l.form_id = ${form.id} order by l.created_at desc limit 1`;
+      return { outcomes, limited, badDate, badService, directLead, log: Object.fromEntries(log.map((l) => [l.result, l.n])), source: source?.key };
+    });
+    expect(result.outcomes).toEqual([201, 201, 201, 201, 201]);
+    expect(result.limited).toMatchObject({ ok: false, status: 429 });
+    expect(result.badDate).toMatchObject({ ok: false, status: 422 });
+    expect(result.badService).toMatchObject({ ok: false, status: 422 });
+    // Anonymous visitors write through the intake only; they read no leads.
     expect(result.directLead).toBe(0);
+    expect(result.log).toEqual({ accepted: 5, limited: 1, refused: 2 });
+    expect(result.source).toBe("website_form");
+  });
+
+  it("keeps the invitation link from staff, and accepts it only for its own confirmed address (rule 1)", async () => {
+    const tech = await userId(techEmail);
+    const ownerEmail = seedUserEmail(lakeshore, "owner");
+    const result = await rolledBack(async (tx, as) => {
+      const [forOther] = await tx<{ token: string }[]>`
+        insert into public.portal_users (tenant_id, account_id, email) values (${lakeshoreId}, ${bistroAccount}, 'someone-else@example.com') returning token`;
+      const [forTech] = await tx<{ token: string }[]>`
+        insert into public.portal_users (tenant_id, account_id, email) values (${lakeshoreId}, ${bistroAccount}, ${techEmail}) returning token`;
+      await as(lakeshoreOwner, ownerEmail);
+      const readToken = await attempt(tx, (sp) => sp`select token from public.portal_users`);
+      const [{ n: rows }] = await tx<{ n: number }[]>`select count(*)::int as n from public.portal_users where account_id = ${bistroAccount}`;
+      const activate = await attempt(tx, (sp) => sp`
+        insert into public.portal_users (tenant_id, account_id, email, status, user_id, accepted_at) values (${lakeshoreId}, ${bistroAccount}, 'x@example.com', 'active', ${tech}, now())`);
+      const repoint = await attempt(tx, (sp) => sp`update public.portal_users set user_id = ${tech}, status = 'active' where email = ${techEmail} and tenant_id = ${lakeshoreId}`);
+      const readdress = await attempt(tx, (sp) => sp`update public.portal_users set email = ${ownerEmail} where email = ${techEmail} and tenant_id = ${lakeshoreId}`);
+      // The customer (bistro) cannot take an invitation sent to another address.
+      await as(bistro, bistroEmail);
+      const wrongAddress = await attempt(tx, (sp) => sp`select app.accept_portal_invitation(${forOther.token}::uuid)`);
+      // The invited address must be confirmed by the auth provider first.
+      await tx.unsafe("reset role");
+      await tx`update auth.users set email_confirmed_at = null where id = ${tech}`;
+      await as(tech, techEmail);
+      const unconfirmed = await attempt(tx, (sp) => sp`select app.accept_portal_invitation(${forTech.token}::uuid)`);
+      await tx.unsafe("reset role");
+      await tx`update auth.users set email_confirmed_at = now() where id = ${tech}`;
+      await as(tech, techEmail);
+      const confirmed = await attempt(tx, (sp) => sp`select app.accept_portal_invitation(${forTech.token}::uuid)`);
+      await tx.unsafe("reset role");
+      const [audit] = await tx<{ n: number }[]>`select count(*)::int as n from public.audit_log where table_name = 'portal_users' and (before ? 'token' or after ? 'token')`;
+      return { readToken, rows, activate, repoint, readdress, wrongAddress, unconfirmed, confirmed, auditTokens: audit.n };
+    });
+    expect(result.readToken).toMatch(/permission denied/);
+    expect(result.rows).toBeGreaterThan(1);
+    expect(result.activate).toMatch(/only the customer accepts/);
+    expect(result.repoint).toMatch(/only the invited person/);
+    expect(result.readdress).toMatch(/keeps its account, address and link/);
+    expect(result.wrongAddress).toMatch(/another address/);
+    expect(result.unconfirmed).toMatch(/confirm your email/);
+    expect(result.confirmed).toBe("ok 1");
+    expect(result.auditTokens).toBe(0);
+  });
+
+  it("limits an identity to its properties and its people's notices, and requests to when the office takes them (rules 2 and 4)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      const [contact] = await tx<{ id: string }[]>`select id from public.contacts where account_id = ${bistroAccount} limit 1`;
+      const [foreignContact] = await tx<{ id: string }[]>`select id from public.contacts where tenant_id = ${lakeshoreId} and account_id <> ${bistroAccount} limit 1`;
+      const notice = (kind: string, contactId: string | null, channel: string, key: string) =>
+        tx`insert into public.notices (tenant_id, kind, dedupe_key, property_id, recipient_contact_id, recipient_name, channel, status, sent_at)
+           values (${lakeshoreId}, ${kind}, ${key}, ${bistroProperty}, ${contactId}, 'Someone', ${channel}, 'sent', now())`;
+      await notice("post_application", contact?.id ?? null, "email", "rls-own");
+      await notice("registry_advance", null, "mail", "rls-registry");
+      await notice("resident_notice", foreignContact?.id ?? null, "email", "rls-neighbor");
+      await notice("posting_sign", null, "posted", "rls-sign");
+      await as(bistro, bistroEmail, portalId);
+      const seen = (await tx<{ dedupe_key: string }[]>`select dedupe_key from public.notices where dedupe_key like 'rls-%' order by dedupe_key`).map((n) => n.dedupe_key);
+      await tx.unsafe("reset role");
+      await tx`update public.portal_settings set allow_requests = false where tenant_id = ${lakeshoreId}`;
+      await as(bistro, bistroEmail, portalId);
+      const requestWhenOff = await attempt(tx, (sp) => sp`
+        insert into public.service_requests (tenant_id, account_id, property_id, portal_user_id, kind, details)
+        values (${lakeshoreId}, ${bistroAccount}, ${bistroProperty}, ${portalId}, 'reservice', 'Ants')`);
+      await tx.unsafe("reset role");
+      // An identity limited to another property sees none of this one's visits, devices, notices or payments.
+      await tx`update public.portal_users set property_ids = array[gen_random_uuid()] where id = ${portalId}`;
+      await as(bistro, bistroEmail, portalId);
+      const count = async (sqlText: string) => (await tx.unsafe<{ n: number }[]>(sqlText))[0].n;
+      const limited = {
+        visits: await count("select count(*)::int as n from public.visits"),
+        devices: await count("select count(*)::int as n from public.devices"),
+        notices: await count("select count(*)::int as n from public.notices"),
+        propertyInvoices: await count("select count(*)::int as n from public.invoices where property_id is not null"),
+        propertyPayments: await count(
+          "select count(*)::int as n from public.payments p where exists (select 1 from public.payment_allocations a join public.invoices i on i.id = a.invoice_id where a.payment_id = p.id and i.property_id is not null)",
+        ),
+      };
+      return { seen, hasContact: Boolean(contact), requestWhenOff, limited };
+    });
+    expect(result.seen).toEqual(result.hasContact ? ["rls-own", "rls-sign"] : ["rls-sign"]);
+    expect(result.requestWhenOff).toMatch(RLS_ERROR);
+    expect(result.limited).toEqual({ visits: 0, devices: 0, notices: 0, propertyInvoices: 0, propertyPayments: 0 });
   });
 });

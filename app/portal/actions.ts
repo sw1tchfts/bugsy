@@ -9,6 +9,7 @@ import { type ArrivalWindow, type CrewMember, type StateRuleInput, checkAssignme
 import { errorCode } from "@/lib/db";
 import { isIsoDate, todayInZone } from "@/lib/dates";
 import { gatewayFor } from "@/lib/payments";
+import { paymentToken } from "@/lib/payments/token";
 import { rescheduleProblems } from "@/lib/portal/rules";
 import { type PortalIdentity, portalDb, portalIdentities, requirePortal, setPortalCookie } from "@/lib/portal/session";
 import { getSession } from "@/lib/auth/session";
@@ -35,6 +36,7 @@ export async function switchIdentity(formData: FormData) {
 
 async function run(fn: (tx: Parameters<Parameters<typeof portalDb>[2]>[0], identity: PortalIdentity) => Promise<unknown>): Promise<string | null> {
   const { session, identity } = await requirePortal();
+  if (identity.tenant_status !== "active") return "read-only";
   try {
     await portalDb(session, identity, (tx) => fn(tx, identity));
     return null;
@@ -43,16 +45,25 @@ async function run(fn: (tx: Parameters<Parameters<typeof portalDb>[2]>[0], ident
   }
 }
 
-/** Rule 3: a card or bank account, tokenized by the company's gateway; only brand, last four and expiry are kept. */
+/** Rule 3: a card, tokenized by the company's gateway (Stripe's field in the browser); only brand, last four and expiry are kept. */
 export async function addCard(formData: FormData) {
-  const number = str(formData, "number").replace(/\s+/g, "");
-  const month = str(formData, "exp_month");
-  const year = str(formData, "exp_year");
   const to = pathOf(formData, "/portal/billing");
-  if (!/^\d{12,19}$/.test(number) || !/^\d{1,2}$/.test(month) || !/^\d{4}$/.test(year)) back(to, { error: "Enter the card number and its expiry." });
-  const error = await run((tx, identity) =>
-    addPaymentMethod(tx, identity.tenant_id, { account_id: identity.account_id, token: `card:${number}:${month}:${year}`, autopay: formData.get("autopay") === "on", added_by: null }),
-  );
+  let refused: string | null = null;
+  const error = await run(async (tx, identity) => {
+    const settings = await loadSettings(tx, identity.tenant_id);
+    const t = paymentToken(gatewayFor(settings).kind, {
+      number: opt(formData, "number"),
+      month: opt(formData, "exp_month"),
+      year: opt(formData, "exp_year"),
+      token: opt(formData, "payment_token"),
+    });
+    if (!t.ok || !t.token) {
+      refused = t.ok ? "Enter the card number and its expiry." : t.error;
+      return;
+    }
+    await addPaymentMethod(tx, identity.tenant_id, { account_id: identity.account_id, token: t.token, autopay: formData.get("autopay") === "on", added_by: null });
+  });
+  if (refused) back(to, { error: refused });
   back(to, error ? { error } : { note: "Card saved." });
 }
 
@@ -95,12 +106,19 @@ export async function payInvoice(formData: FormData) {
   back(to, failure ? { error: `The payment did not go through: ${String(failure).replace(/_/g, " ")}.` } : { note: "Paid. Thank you." });
 }
 
+/** Rule 4: requests go in only while the company takes them (the database checks it too). */
+async function assertRequestsOpen(tx: Parameters<Parameters<typeof portalDb>[2]>[0], tenantId: string): Promise<void> {
+  const [s] = await tx<{ allow_requests: boolean }[]>`select allow_requests from public.portal_settings where tenant_id = ${tenantId}`;
+  if (s && !s.allow_requests) throw Object.assign(new Error("The office is not taking requests online right now; call them instead."), { code: "23514" });
+}
+
 /** Rule 4: a re-service request needs the property's active agreement and what the customer is seeing. */
 export async function requestReservice(formData: FormData) {
   const propertyId = str(formData, "property_id");
   const details = str(formData, "details").trim();
   if (!details) back("/portal/requests", { error: "Say what you are seeing and where." });
   const error = await run(async (tx, identity) => {
+    await assertRequestsOpen(tx, identity.tenant_id);
     const [g] = await tx<{ id: string }[]>`
       select id from public.agreements where tenant_id = ${identity.tenant_id} and property_id = ${propertyId} and status = 'active' order by starts_on desc limit 1`;
     if (!g) throw Object.assign(new Error("There is no active plan at that property; ask for a booking instead."), { code: "23514" });
@@ -195,7 +213,9 @@ export async function requestReschedule(formData: FormData) {
   const visitId = str(formData, "visit_id");
   const date = str(formData, "date");
   const to = `/portal/visits/${visitId}`;
+  if (!isIsoDate(date) || date < todayInZone((await requirePortal()).identity.tenant_timezone)) back(to, { error: "Pick a day from today on." });
   const error = await run(async (tx, identity) => {
+    await assertRequestsOpen(tx, identity.tenant_id);
     const [v] = await tx<{ property_id: string; agreement_id: string | null }[]>`select property_id, agreement_id from public.visits where id = ${visitId} and account_id = ${identity.account_id}`;
     if (!v) throw Object.assign(new Error("That visit is not on this account."), { code: "23514" });
     await tx`insert into public.service_requests (tenant_id, account_id, property_id, portal_user_id, kind, visit_id, agreement_id, preferred_date, details)

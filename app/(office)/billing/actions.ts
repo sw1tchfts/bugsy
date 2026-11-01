@@ -4,13 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { can } from "@/lib/auth/permissions";
 import { dbAs, requirePermission } from "@/lib/auth/session";
-import { addPaymentMethod, chargeInvoice, createInvoice, ensureSettings, issueInvoice, recordPayment, refundPayment, runBilling, voidInvoice } from "@/lib/billing/db";
+import { addPaymentMethod, chargeInvoice, createInvoice, ensureSettings, issueInvoice, loadSettings, recordPayment, refundPayment, runBilling, voidInvoice } from "@/lib/billing/db";
 import { intOrNull, opt, str } from "@/lib/customers/forms";
 import { fromTenantLocal, isIsoDate, todayInZone } from "@/lib/dates";
 import { errorCode } from "@/lib/db";
 import { parseDollarsToCents } from "@/lib/money";
 import { gatewayFor } from "@/lib/payments";
 import { stripeConfigured } from "@/lib/payments/stripe";
+import { paymentToken } from "@/lib/payments/token";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 
 const HOME = "/billing";
@@ -159,25 +160,29 @@ export async function refundPaymentAction(formData: FormData) {
   go(returnTo, { error });
 }
 
-/** A card or bank account for the customer: the office form's digits become a gateway token and are never stored. */
+/** A card or bank account for the customer: Stripe's field hands over a payment method id; the local gateway takes the digits. */
 export async function addPaymentMethodAction(formData: FormData) {
   const tenantId = str(formData, "tenant_id");
   const accountId = str(formData, "account_id");
-  const kind = str(formData, "kind") === "bank" ? "bank" : "card";
-  const number = str(formData, "number").replace(/\s+/g, "");
-  const month = str(formData, "exp_month");
-  const year = str(formData, "exp_year");
   const autopay = formData.get("autopay") === "true";
   const { session } = await requirePermission(tenantId, "billing.write");
   let error: string | null = null;
-  if (number.replace(/\D/g, "").length < 4) error = "Enter the card or account number.";
-  else {
-    const token = kind === "bank" ? `bank:${number}` : `card:${number}:${month}:${year}`;
-    try {
-      await dbAs(session, (tx) => addPaymentMethod(tx, tenantId, { account_id: accountId, token, autopay, added_by: session.userId }));
-    } catch (err) {
-      error = errorCode(err);
-    }
+  try {
+    await dbAs(session, async (tx) => {
+      const settings = await loadSettings(tx, tenantId);
+      const t = paymentToken(gatewayFor(settings).kind, {
+        kind: opt(formData, "kind"),
+        number: opt(formData, "number"),
+        month: opt(formData, "exp_month"),
+        year: opt(formData, "exp_year"),
+        token: opt(formData, "payment_token"),
+      });
+      if (!t.ok) throw Object.assign(new Error(t.error), { code: "23514" });
+      if (!t.token) throw Object.assign(new Error("Enter the card or account."), { code: "23514" });
+      await addPaymentMethod(tx, tenantId, { account_id: accountId, token: t.token, autopay, added_by: session.userId });
+    });
+  } catch (err) {
+    error = errorCode(err);
   }
   go(accountPage(accountId), { error });
 }

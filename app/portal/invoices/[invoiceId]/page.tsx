@@ -22,7 +22,7 @@ export default async function PortalInvoice({ params, searchParams }: { params: 
   if (!data) notFound();
   const { invoice, methods } = data;
   const open = invoice.total_cents - invoice.paid_cents;
-  const payable = ["issued", "partially_paid", "past_due"].includes(invoice.status) && open > 0;
+  const payable = identity.tenant_status === "active" && ["issued", "partially_paid", "past_due"].includes(invoice.status) && open > 0;
   return (
     <>
       <p className="text-sm text-stone-500">

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { intakeProblems, readIntake } from "@/lib/portal/intake";
+import { paymentToken } from "@/lib/payments/token";
+import { intakeProblems, isRealDate, readIntake } from "@/lib/portal/intake";
 import { rescheduleDays, rescheduleProblems } from "@/lib/portal/rules";
 
 const settings = { allow_reschedule: true, reschedule_notice_hours: 24, max_stops_per_day: 3 };
@@ -53,5 +54,31 @@ describe("the booking form's intake (spec 16 rule 8)", () => {
     const p = readIntake({ ...good, message: "x".repeat(5000), name: "y".repeat(500) });
     expect(p.message.length).toBe(2000);
     expect(p.name.length).toBe(200);
+  });
+
+  it("refuses a day that does not exist and a service on a form that offers none", () => {
+    expect(isRealDate("2027-02-28")).toBe(true);
+    expect(isRealDate("2028-02-29")).toBe(true);
+    expect(isRealDate("2027-02-30")).toBe(false);
+    expect(isRealDate("2027-13-01")).toBe(false);
+    expect(intakeProblems(readIntake({ ...good, preferred_date: "2027-02-30" }), form, "2027-01-07")).toContain("Pick a preferred day.");
+    expect(intakeProblems(readIntake({ ...good, service_type_id: "anything" }), { services: [], ask_preferred_date: false }, "2027-03-07")).toContain("Pick a service from the list.");
+  });
+});
+
+describe("card tokens (spec 16 rule 3)", () => {
+  it("takes only a Stripe payment method id when the company uses Stripe, never a typed number", () => {
+    expect(paymentToken("stripe", { token: "pm_1Qabcdefghijkl" })).toEqual({ ok: true, token: "pm_1Qabcdefghijkl" });
+    expect(paymentToken("stripe", { number: "4242 4242 4242 4242", token: "pm_1Qabcdefghijkl" })).toMatchObject({ ok: false });
+    expect(paymentToken("stripe", { token: "card:4242424242424242:12:2030" })).toMatchObject({ ok: false });
+    expect(paymentToken("stripe", {})).toEqual({ ok: true, token: null });
+  });
+
+  it("builds the local gateway's token from the typed card or bank account", () => {
+    expect(paymentToken("local", { number: "4242 4242 4242 4242", month: "06", year: "2030" })).toEqual({ ok: true, token: "card:4242424242424242:6:2030" });
+    expect(paymentToken("local", { kind: "bank", number: "000123456789" })).toEqual({ ok: true, token: "bank:000123456789" });
+    expect(paymentToken("local", { number: "4242", month: "6", year: "2030" })).toMatchObject({ ok: false });
+    expect(paymentToken("local", { number: "4242424242424242", month: "13", year: "2030" })).toMatchObject({ ok: false });
+    expect(paymentToken("local", { number: "" })).toEqual({ ok: true, token: null });
   });
 });

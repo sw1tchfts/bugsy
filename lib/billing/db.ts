@@ -435,8 +435,15 @@ async function gatewayCustomer(tx: Sql, tenantId: string, accountId: string, set
   return id;
 }
 
+/** Spec 13: a suspended or archived company takes no money and saves no cards; refuse before the gateway is called. */
+async function assertTenantActive(tx: Sql, tenantId: string): Promise<void> {
+  const [t] = await tx<{ status: string }[]>`select status from public.tenants where id = ${tenantId}`;
+  if (!t || t.status !== "active") throw Object.assign(new Error("this company is read only"), { code: "42501" });
+}
+
 /** Saves a tokenized card or bank account on the customer; the token never reaches the database. */
 export async function addPaymentMethod(tx: Sql, tenantId: string, input: { account_id: string; token: string; autopay: boolean; added_by: string | null }): Promise<string> {
+  await assertTenantActive(tx, tenantId);
   const settings = await ensureSettings(tx, tenantId);
   const gateway = gatewayFor(settings);
   const customer = await gatewayCustomer(tx, tenantId, input.account_id, settings);
@@ -471,6 +478,8 @@ export async function chargeInvoice(
   invoiceId: string,
   options: { payment_method_id?: string | null; idempotency_key: string; recorded_by: string | null; post?: boolean },
 ): Promise<ChargeOutcome> {
+  const [tenant] = await tx<{ status: string }[]>`select status from public.tenants where id = ${tenantId}`;
+  if (!tenant || tenant.status !== "active") return { ok: false, payment_id: null, error: "this company is read only" };
   const settings = await ensureSettings(tx, tenantId);
   const gateway = gatewayFor(settings);
   const [inv] = await tx<{ id: string; number: number | null; account_id: string; status: string; kind: string; total_cents: string | number; paid_cents: string | number }[]>`

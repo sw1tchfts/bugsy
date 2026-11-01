@@ -70,6 +70,7 @@ export async function portalProperties(tx: Sql, identity: PortalIdentity): Promi
     from public.properties p
       left join lateral (select a.id, a.number from public.agreements a where a.property_id = p.id and a.status = 'active' order by a.starts_on desc limit 1) g on true
     where p.tenant_id = ${identity.tenant_id} and p.account_id = ${identity.account_id} and p.archived_at is null
+      and (${identity.property_ids}::uuid[] is null or p.id = any(${identity.property_ids}::uuid[]))
     order by p.created_at`;
 }
 
@@ -77,16 +78,19 @@ export async function overview(tx: Sql, identity: PortalIdentity): Promise<Overv
   const t = identity.tenant_id;
   const today = todayInZone(identity.tenant_timezone);
   const properties = await portalProperties(tx, identity);
+  // Row level security already limits a portal identity; these filters keep the page right for a customer who is also staff.
+  const ids = properties.map((p) => p.id);
   const upcoming = await tx<PortalVisit[]>`
-    ${VISIT_COLUMNS(tx)} where v.tenant_id = ${t} and v.account_id = ${identity.account_id} and v.status in ('planned', 'scheduled', 'en_route', 'in_progress') and v.due_end >= ${today}
+    ${VISIT_COLUMNS(tx)} where v.tenant_id = ${t} and v.account_id = ${identity.account_id} and v.property_id = any(${ids}::uuid[]) and v.status in ('planned', 'scheduled', 'en_route', 'in_progress') and v.due_end >= ${today}
     order by coalesce(v.scheduled_for, v.due_start), v.sequence limit 12`;
   const recent = await tx<PortalVisit[]>`
-    ${VISIT_COLUMNS(tx)} where v.tenant_id = ${t} and v.account_id = ${identity.account_id} and v.status = 'completed' and not v.imported
+    ${VISIT_COLUMNS(tx)} where v.tenant_id = ${t} and v.account_id = ${identity.account_id} and v.property_id = any(${ids}::uuid[]) and v.status = 'completed' and not v.imported
     order by v.completed_at desc limit 12`;
   const invoices = (
     await tx<(Omit<PortalInvoice, "total_cents" | "paid_cents"> & { total_cents: string; paid_cents: string })[]>`
       select id, number, status, issued_on::text, due_on::text, total_cents, paid_cents, property_id from public.invoices
-      where tenant_id = ${t} and account_id = ${identity.account_id} and kind = 'invoice' and status <> 'void'
+      where tenant_id = ${t} and account_id = ${identity.account_id} and kind = 'invoice' and status not in ('void', 'draft')
+        and (property_id is null or property_id = any(${ids}::uuid[]))
       order by issued_on desc nulls last, number desc limit 40`
   ).map((i) => ({ ...i, total_cents: Number(i.total_cents), paid_cents: Number(i.paid_cents) }));
   const open = invoices.filter((i) => ["issued", "partially_paid", "past_due"].includes(i.status) && i.total_cents > i.paid_cents);
@@ -94,8 +98,11 @@ export async function overview(tx: Sql, identity: PortalIdentity): Promise<Overv
     select id, kind, brand, last4, exp_month, exp_year, autopay, is_default from public.payment_methods
     where tenant_id = ${t} and account_id = ${identity.account_id} and status = 'active' order by is_default desc, created_at desc`;
   const notices = await tx<PortalNotice[]>`
-    select id, kind, channel, status, sent_at, created_at, property_id from public.notices
-    where tenant_id = ${t} and status = 'sent' order by coalesce(sent_at, created_at) desc limit 12`;
+    select n.id, n.kind, n.channel, n.status, n.sent_at, n.created_at, n.property_id from public.notices n
+    where n.tenant_id = ${t} and n.status = 'sent' and n.kind <> 'registry_advance' and n.property_id = any(${ids}::uuid[])
+      and (exists (select 1 from public.contacts c where c.id = n.recipient_contact_id and c.account_id = ${identity.account_id})
+           or (n.recipient_contact_id is null and n.channel = 'posted'))
+    order by coalesce(n.sent_at, n.created_at) desc limit 12`;
   const requests = await tx<PortalRequest[]>`
     select r.id, r.kind, r.status, r.property_id, r.details, r.preferred_date::text, r.response, r.created_at, st.name as service
     from public.service_requests r left join public.service_types st on st.id = r.service_type_id

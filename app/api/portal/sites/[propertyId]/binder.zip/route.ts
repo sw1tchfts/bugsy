@@ -18,11 +18,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ prop
   const from = url.searchParams.get("from") || addMonths(to, -12);
   if (!isIsoDate(from) || !isIsoDate(to) || from > to) return new NextResponse("from and to are dates, from first", { status: 400 });
   const out = await portalDb(session, identity, async (tx) => {
-    const data = await binderData(tx, identity.tenant_id, propertyId, identity.tenant_timezone, from, to);
-    if (!data) return null;
-    // A customer reads no staff list: the visits name who served them from the names the portal may see.
+    // A customer reads no staff list: technicians are named from the names the portal may see.
     const names = await staffNames(tx, identity.tenant_id);
-    const [rows] = [await tx<{ id: string; technician_id: string | null }[]>`select id, technician_id from public.visits where id = any(${data.visits.map((v) => v.id)}::uuid[])`];
+    const data = await binderData(tx, identity.tenant_id, propertyId, identity.tenant_timezone, from, to, names);
+    if (!data) return null;
+    const rows = await tx<{ id: string; technician_id: string | null }[]>`select id, technician_id from public.visits where id = any(${data.visits.map((v) => v.id)}::uuid[])`;
     const tech = new Map(rows.map((r) => [r.id, r.technician_id]));
     data.visits = data.visits.map((v) => ({ ...v, technician: names.get(tech.get(v.id) ?? "") ?? v.technician }));
     const images = new Map<string, { type: string; base64: string }>();

@@ -7,9 +7,9 @@ import { acceptPortalInvitation, createPortalLogin, previewInvitation } from "./
 export const metadata: Metadata = { title: "Your invitation" };
 
 /** A customer's portal invitation (spec 16 rule 1): set a password, or sign in with the invited address, and accept. */
-export default async function PortalInvite({ params, searchParams }: { params: Promise<{ token: string }>; searchParams: Promise<{ error?: string }> }) {
+export default async function PortalInvite({ params, searchParams }: { params: Promise<{ token: string }>; searchParams: Promise<{ error?: string; sent?: string }> }) {
   const { token } = await params;
-  const { error } = await searchParams;
+  const { error, sent } = await searchParams;
   const preview = await previewInvitation(token);
   const session = await getSession();
   if (!preview || preview.status === "disabled") {
@@ -25,7 +25,9 @@ export default async function PortalInvite({ params, searchParams }: { params: P
   return (
     <Card title={title} description={`Your account online: your visits, what was applied, your invoices and cards, and requests. This invitation was sent to ${preview.email}.`}>
       {error ? <Notice kind="error">{error}</Notice> : null}
-      {session ? (
+      {sent && !session ? (
+        <Notice kind="success">We sent a message to {preview.email}. Open the link in it to confirm your address and finish.</Notice>
+      ) : session ? (
         session.email.toLowerCase() === preview.email ? (
           <form action={acceptPortalInvitation}>
             <input type="hidden" name="token" value={token} />
