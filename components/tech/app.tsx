@@ -112,23 +112,34 @@ export function TechApp({ tenantId, userId, locale, today: serverToday, timezone
     }
     syncing.current = true;
     try {
-      let sent = 0;
+      let again = false;
       do {
-        syncAgain.current = false;
-        const all = await techStore.listChanges();
-        const result = await pushPending(all, async (batch) => {
-          const res = await fetch("/api/tech/sync", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ changes: batch }) });
-          if (!res.ok) throw Object.assign(new Error(String(res.status)), { status: res.status });
-          return ((await res.json()) as { results: SyncResult[] }).results;
-        });
-        await techStore.putChanges(result.changes);
-        setSyncNote(result.failed ? t("app.syncError", { message: "offline" }) : null);
-        sent += result.sent;
-        if (result.failed) break;
-      } while (syncAgain.current);
-      // The store holds everything, including changes queued mid-sync; the screen shows the store.
-      setChanges(await techStore.listChanges());
-      if (sent > 0) await refresh();
+        let sent = 0;
+        let failed = false;
+        do {
+          syncAgain.current = false;
+          const all = await techStore.listChanges();
+          const result = await pushPending(all, async (batch) => {
+            const res = await fetch("/api/tech/sync", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ changes: batch }) });
+            if (!res.ok) throw Object.assign(new Error(String(res.status)), { status: res.status });
+            return ((await res.json()) as { results: SyncResult[] }).results;
+          });
+          // Only the changes the server answered go back, and only those still in the store: a rejection the
+          // technician dismissed while the sync ran stays dismissed.
+          const before = new Map(all.map((c) => [c.id, c.status]));
+          const answered = result.changes.filter((c) => c.status !== before.get(c.id));
+          const still = new Set((await techStore.listChanges()).map((c) => c.id));
+          await techStore.putChanges(answered.filter((c) => still.has(c.id)));
+          setSyncNote(result.failed ? t("app.syncError", { message: "offline" }) : null);
+          sent += result.sent;
+          failed = result.failed;
+        } while (!failed && syncAgain.current);
+        // The store holds everything, including changes queued mid-sync; the screen shows the store.
+        setChanges(await techStore.listChanges());
+        if (sent > 0) await refresh();
+        // Checked after the last await, so a change queued at any point of this pass gets another pass.
+        again = !failed && syncAgain.current;
+      } while (again);
     } finally {
       syncing.current = false;
     }

@@ -2,7 +2,7 @@ import { strFromU8 } from "fflate";
 import { describe, expect, it } from "vitest";
 import { binderFiles, esc } from "@/lib/commercial/binder";
 import type { BinderData } from "@/lib/commercial/db";
-import { checkProblems, hasActivity, hotDevices, trend, uncheckedDevices, validPosition } from "@/lib/commercial/devices";
+import { checkProblems, devicesAsOf, hasActivity, hotDevices, trend, uncheckedDevices, validPosition } from "@/lib/commercial/devices";
 import { floorPlan, imageInfo } from "@/lib/commercial/image";
 import { devicesLeft, gapsFor } from "@/lib/tech/gaps";
 import type { RouteVisit } from "@/lib/tech/route-types";
@@ -39,6 +39,13 @@ describe("device activity and hot devices (spec 14 rule 5)", () => {
       check("c", "2027-04-10", { count: 1 }),
     ];
     expect([...hotDevices(checks)].sort()).toEqual(["a"]);
+    // The last three checks count however far apart they are.
+    const sparse = [
+      { device_id: "z", checked_at: "2027-03-01T10:00:00Z", status: "checked", activity: "low", count: null, bait_consumed_pct: null },
+      { device_id: "z", checked_at: "2026-12-01T10:00:00Z", status: "checked", activity: "none", count: null, bait_consumed_pct: null },
+      { device_id: "z", checked_at: "2026-08-01T10:00:00Z", status: "checked", activity: "none", count: 3, bait_consumed_pct: null },
+    ];
+    expect(hotDevices(sparse).has("z")).toBe(true);
   });
 });
 
@@ -90,17 +97,54 @@ describe("the device gate (spec 14 rule 4)", () => {
 });
 
 describe("the trend (spec 14 rule 6)", () => {
-  it("sums checks, activity and captures per month and kind", () => {
+  it("counts devices checked and devices with activity per month and kind, with the captures", () => {
     const rows = trend([
-      { month: "2027-01", kind: "multi_catch", status: "checked", activity: "none", count: 0, bait_consumed_pct: null },
-      { month: "2027-01", kind: "multi_catch", status: "checked", activity: "low", count: 2, bait_consumed_pct: null },
-      { month: "2027-01", kind: "multi_catch", status: "inaccessible", activity: null, count: null, bait_consumed_pct: null },
-      { month: "2027-02", kind: "insect_light_trap", status: "checked", activity: "none", count: 7, bait_consumed_pct: null },
+      { month: "2027-01", kind: "multi_catch", device_id: "a", status: "checked", activity: "none", count: 0, bait_consumed_pct: null },
+      { month: "2027-01", kind: "multi_catch", device_id: "b", status: "checked", activity: "low", count: 2, bait_consumed_pct: null },
+      { month: "2027-01", kind: "multi_catch", device_id: "c", status: "inaccessible", activity: null, count: null, bait_consumed_pct: null },
+      { month: "2027-02", kind: "insect_light_trap", device_id: "i", status: "checked", activity: "none", count: 7, bait_consumed_pct: null },
     ]);
     expect(rows).toEqual([
       { month: "2027-01", kind: "multi_catch", checked: 2, active: 1, rate: 0.5, captures: 2 },
       { month: "2027-02", kind: "insect_light_trap", checked: 1, active: 1, rate: 1, captures: 7 },
     ]);
+  });
+
+  it("counts a device checked every week once in its month", () => {
+    const weekly = (device_id: string, active: number[]) =>
+      [0, 1, 2, 3].map((w) => ({ month: "2027-03", kind: "multi_catch", device_id, status: "checked", activity: active.includes(w) ? "low" : "none", count: active.includes(w) ? 1 : 0, bait_consumed_pct: null }));
+    const [row] = trend([...weekly("a", [2]), ...weekly("b", [])]);
+    expect(row).toEqual({ month: "2027-03", kind: "multi_catch", checked: 2, active: 1, rate: 0.5, captures: 1 });
+  });
+});
+
+describe("devices as they stood on a date (spec 14 rule 2)", () => {
+  const base = { barcode: null, kind: "bait_station", zone: "exterior", removed_reason: null };
+  const devices = [
+    { ...base, id: "s1", number: "1", location: "North fence", map_id: "m", x: 0.9, y: 0.1, status: "active", installed_on: "2026-01-05", removed_on: null },
+    { ...base, id: "s7", number: "7", location: "Dock", map_id: "m", x: 0.5, y: 0.5, status: "removed", installed_on: "2026-01-05", removed_on: "2026-06-10", removed_reason: "Dock rebuilt" },
+    { ...base, id: "s9", number: "9", location: "Gate", map_id: "m", x: 0.2, y: 0.2, status: "active", installed_on: "2026-07-01", removed_on: null },
+  ];
+  const events = [
+    { device_id: "s1", kind: "installed", on: "2026-11-01", after: { number: "1", location: "West wall", zone: "exterior", map_id: "m", x: 0.1, y: 0.4 } },
+    { device_id: "s7", kind: "installed", on: "2026-11-01", after: { number: "7", location: "Dock", zone: "exterior", map_id: "m", x: 0.5, y: 0.5 } },
+    { device_id: "s1", kind: "moved", on: "2026-04-02", after: { number: "1", location: "North fence", zone: "exterior", map_id: "m", x: 0.9, y: 0.1 } },
+    { device_id: "s7", kind: "removed", on: "2026-06-10", after: { status: "removed" } },
+    { device_id: "s9", kind: "installed", on: "2026-11-01", after: { number: "9", location: "Gate", zone: "exterior", map_id: "m", x: 0.2, y: 0.2 } },
+  ].sort((a, b) => (a.kind === "installed" ? -1 : 1) - (b.kind === "installed" ? -1 : 1));
+
+  it("shows the first quarter's stations at their first-quarter places, before later changes", () => {
+    const q1 = devicesAsOf(devices, events, "2026-01-01", "2026-03-31");
+    expect(q1.map((d) => d.id)).toEqual(["s1", "s7"]);
+    expect(q1.find((d) => d.id === "s1")).toMatchObject({ location: "West wall", x: 0.1, y: 0.4, status: "active" });
+    expect(q1.find((d) => d.id === "s7")).toMatchObject({ status: "active", removed_on: null });
+  });
+
+  it("marks a device removed in the range and leaves out one removed before it", () => {
+    const q2 = devicesAsOf(devices, events, "2026-04-01", "2026-06-30");
+    expect(q2.find((d) => d.id === "s7")).toMatchObject({ status: "removed", removed_on: "2026-06-10" });
+    expect(q2.find((d) => d.id === "s1")).toMatchObject({ location: "North fence" });
+    expect(devicesAsOf(devices, events, "2026-07-01", "2026-09-30").map((d) => d.id)).toEqual(["s1", "s9"]);
   });
 });
 
@@ -131,10 +175,11 @@ describe("the audit binder (spec 14 rule 10)", () => {
     hot: new Set(["d1"]),
     trend: [{ month: "2027-03", kind: "multi_catch", checked: 1, active: 1, rate: 1, captures: 2 }],
     company: { name: "Northwind", legal_name: "Northwind Pest Control LLC", licenses: [{ branch: "Main", number: "BL-1", expires: null }] },
-    applicators: [{ name: "Sam Rivera", cert_number: "OH-1042", license_number: null, categories: ["7A"], expires: "2028-01-01" }],
+    applicators: [{ name: "Sam Rivera", cert_number: "OH-1042", categories: ["7A"], expires: "2028-01-01" }],
     applications: [{ business_date: "2027-03-10", product: "Bait block", epa_reg_no: "12455-1", amount: "2", unit: "oz", site_treated: "bait stations", target_pests: ["house mouse"], applicator: "Sam Rivera" }],
     visits: [{ id: "v", date: "2027-03-10", service: "Commercial device service", technician: "Sam Rivera" }],
     range: { from: "2027-01-01", to: "2027-03-31" },
+    time_zone: "America/Chicago",
     made_at: new Date("2027-04-01T12:00:00Z"),
   } as unknown as BinderData;
 
@@ -150,6 +195,8 @@ describe("the audit binder (spec 14 rule 10)", () => {
     expect(strFromU8(files["devices.csv"]).split("\r\n")[2]).toContain("Dock rebuilt");
     expect(strFromU8(files["device_checks.csv"])).toContain("house mouse");
     expect(strFromU8(files["applications.csv"])).toContain("12455-1");
+    // Times print in the company's zone: 15:00 UTC on March 10, 2027 is 09:00 in Chicago (standard time until March 14).
+    expect(strFromU8(files["device_checks.csv"])).toContain("2027-03-10 09:00 CST");
     expect(esc(`"'`)).toBe("&quot;&#39;");
   });
 });

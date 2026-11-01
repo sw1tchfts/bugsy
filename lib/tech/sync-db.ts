@@ -185,6 +185,13 @@ async function applySiteChange(tx: Sql, actor: Actor, change: QueuedChange, payl
   await tx`select set_config('app.visit_id', ${visitId}, true)`;
   const device = async (id: string) =>
     (await tx<{ id: string; status: string }[]>`select id, status from public.devices where id = ${id} and tenant_id = ${tenantId} and property_id = ${visit.property_id}`)[0] ?? null;
+  // A place on a map counts only on one of this site's maps still in use; a map archived while the phone was offline
+  // leaves the device unmapped, with its location text, rather than losing the change (rules 3 and 7).
+  const place = async (p: { map_id: string | null; x: number | null; y: number | null }) => {
+    if (!p.map_id) return { map_id: null, x: null, y: null };
+    const [map] = await tx`select id from public.site_maps where id = ${p.map_id} and tenant_id = ${tenantId} and property_id = ${visit.property_id} and archived_at is null`;
+    return map ? { map_id: p.map_id, x: p.x, y: p.y } : { map_id: null, x: null, y: null };
+  };
 
   switch (payload.kind) {
     case "device_check": {
@@ -207,11 +214,12 @@ async function applySiteChange(tx: Sql, actor: Actor, change: QueuedChange, payl
       if (!(ZONES as readonly string[]).includes(payload.zone)) return rejected(change.id, "pick interior, exterior or perimeter");
       if (!payload.number.trim() || !payload.location.trim()) return rejected(change.id, "a device needs a number and a location");
       if (!validPosition(payload.x, payload.y) || (payload.x !== null && !payload.map_id)) return rejected(change.id, "the map position is not on the map");
+      const at = await place(payload);
       try {
         await tx.savepoint((sp) => sp`
           insert into public.devices (id, tenant_id, property_id, number, barcode, kind, zone, location, map_id, x, y, installed_on, client_id)
           values (${payload.device_id}, ${tenantId}, ${visit.property_id}, ${payload.number.trim()}, ${payload.barcode?.trim() || null}, ${payload.device_kind}, ${payload.zone},
-                  ${payload.location.trim()}, ${payload.map_id}, ${payload.x}, ${payload.y}, ${dateInZone(instant(payload.at), visit.timezone)}, ${change.id})`);
+                  ${payload.location.trim()}, ${at.map_id}, ${at.x}, ${at.y}, ${dateInZone(instant(payload.at), visit.timezone)}, ${change.id})`);
       } catch (err) {
         if ((err as { code?: string }).code === "23505") return rejected(change.id, "sync.deviceNumberTaken");
         throw err;
@@ -223,7 +231,8 @@ async function applySiteChange(tx: Sql, actor: Actor, change: QueuedChange, payl
       if (!d || d.status !== "active") return rejected(change.id, "sync.deviceUnknown");
       if (!payload.location.trim() || !(ZONES as readonly string[]).includes(payload.zone)) return rejected(change.id, "a device needs a location");
       if (!validPosition(payload.x, payload.y) || (payload.x !== null && !payload.map_id)) return rejected(change.id, "the map position is not on the map");
-      await tx`update public.devices set zone = ${payload.zone}, location = ${payload.location.trim()}, map_id = ${payload.map_id}, x = ${payload.x}, y = ${payload.y} where id = ${d.id}`;
+      const at = await place(payload);
+      await tx`update public.devices set zone = ${payload.zone}, location = ${payload.location.trim()}, map_id = ${at.map_id}, x = ${at.x}, y = ${at.y} where id = ${d.id}`;
       return { id: change.id, result: "applied" };
     }
     case "device_remove": {

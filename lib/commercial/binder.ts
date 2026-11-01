@@ -10,7 +10,13 @@ export function esc(v: unknown): string {
 }
 
 const kindLabel = (k: string) => KIND_LABELS[k as DeviceKind] ?? k;
-const iso = (d: Date | string | null) => (d ? new Date(d).toISOString().replace("T", " ").slice(0, 16) + " UTC" : "");
+/** A moment in the company's time zone with the zone's abbreviation (CLAUDE.md: business times are the tenant's). */
+export function stamp(d: Date | string | null, timeZone: string): string {
+  if (!d) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "short" }).formatToParts(new Date(d));
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")} ${get("timeZoneName")}`;
+}
 const pct = (v: number | null) => (v === null ? "no data" : `${(v * 100).toFixed(0)}%`);
 
 function table(headers: string[], rows: unknown[][]): string {
@@ -37,6 +43,7 @@ function mapFigure(data: BinderData, mapId: string, image: { type: string; base6
 
 /** The binder's files: binder.html for print and one CSV per section. */
 export function binderFiles(data: BinderData, images: Map<string, { type: string; base64: string }>): Record<string, Uint8Array> {
+  const iso = (d: Date | string | null) => stamp(d, data.time_zone);
   const active = data.devices.filter((d) => d.status === "active");
   const deviceRows = data.devices.map((d) => [d.number, kindLabel(d.kind), d.zone, d.location, d.barcode ?? "", d.status, d.installed_on, d.removed_on ?? "", d.removed_reason ?? "", data.hot.has(d.id) ? "hot" : ""]);
   const checkRows = data.checks.map((c) => [
@@ -76,7 +83,7 @@ figcaption{font-size:12px;color:#57534e}.meta{color:#57534e;font-size:13px}@medi
 <p>${esc(data.company.legal_name ?? data.company.name)}</p>
 ${table(["Branch", "Business license", "Expires"], data.company.licenses.map((l) => [l.branch, l.number ?? "not on file", l.expires ?? ""]))}
 <h2>Applicators who serviced the site</h2>
-${table(["Name", "Certification", "License", "Categories", "Expires"], data.applicators.map((a) => [a.name, a.cert_number ?? "", a.license_number ?? "", a.categories.join(", "), a.expires ?? ""]))}
+${table(["Name", "Certification", "Categories", "Expires"], data.applicators.map((a) => [a.name, a.cert_number ?? "not on file", a.categories.join(", "), a.expires ?? ""]))}
 <h2>Device maps</h2>
 ${data.maps.length ? data.maps.map((m) => mapFigure(data, m.id, images.get(m.file_id))).join("") : `<p class="empty">No map on file.</p>`}
 <h2>Devices (${active.length} active)</h2>

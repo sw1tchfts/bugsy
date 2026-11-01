@@ -1926,4 +1926,52 @@ describe("spec 14 rules enforced in the database", () => {
     expect(result.locked).toMatch(/read only|updated 0/);
     expect(result.late).toMatch(RLS_ERROR);
   });
+
+  it("keeps checks, maps and visits tied to their own property, completed checks in place, and site items undeletable (rules 2, 3, 8 to 11)", async () => {
+    const [map] = await admin<{ id: string; property_id: string }[]>`
+      select m.id, m.property_id from public.site_maps m where m.tenant_id = ${lakeshoreId} and m.archived_at is null
+        and exists (select 1 from public.devices d where d.map_id = m.id and d.status = 'active')
+      order by m.created_at limit 1`;
+    const [device] = await admin<{ id: string }[]>`select id from public.devices where property_id = ${map.property_id} and status = 'active' order by number limit 1`;
+    const [open] = await admin<{ id: string; property_id: string }[]>`
+      select v.id, v.property_id from public.visits v where v.tenant_id = ${lakeshoreId} and v.status in ('scheduled', 'en_route', 'in_progress') and v.property_id <> ${map.property_id} order by v.scheduled_for limit 1`;
+    const [here] = await admin<{ id: string }[]>`
+      select v.id from public.visits v where v.tenant_id = ${lakeshoreId} and v.status <> 'completed' and v.property_id = ${map.property_id} order by v.due_start limit 1`;
+    expect(open && here, "the seed has a visit to come at the mapped site and an open one elsewhere").toBeTruthy();
+    const result = await rolledBack(async (tx, as) => {
+      // The site's next visit is on the schedule for this test.
+      await tx.unsafe("set local session_replication_role = replica");
+      await tx`update public.visits set status = 'scheduled', scheduled_for = current_date where id = ${here.id}`;
+      await tx.unsafe("set local session_replication_role = origin");
+      await as(lakeshoreOwner, ownerEmail);
+      const tryIt = (q: (sp: Tx) => Promise<unknown>) => tx.savepoint((sp) => q(sp as unknown as Tx)).then((r) => `ok ${(r as { count?: number }).count ?? ""}`.trim(), (e: Error) => e.message);
+      const wrongSite = await tryIt((sp) => sp`insert into public.device_checks (tenant_id, device_id, visit_id, status, activity) values (${lakeshoreId}, ${device.id}, ${open.id}, 'checked', 'high')`);
+      const wrongMap = await tryIt((sp) => sp`insert into public.devices (tenant_id, property_id, number, kind, zone, location, map_id, x, y) values (${lakeshoreId}, ${open.property_id}, 'RLS-M', 'glue_board', 'interior', 'Other site', ${map.id}, 0.5, 0.5)`);
+      const wrongVisit = await tryIt((sp) => sp`insert into public.sightings (tenant_id, property_id, seen_at, location, pest, visit_id) values (${lakeshoreId}, ${map.property_id}, now(), 'Kitchen', 'German cockroach', ${open.id})`);
+      // A check at the visit here, then the visit completes: the check can neither change nor move to another visit.
+      const [check] = await tx<{ id: string }[]>`insert into public.device_checks (tenant_id, device_id, visit_id, status, activity) values (${lakeshoreId}, ${device.id}, ${here.id}, 'checked', 'low') returning id`;
+      await tx.unsafe("reset role");
+      await tx.unsafe("set local session_replication_role = replica");
+      await tx`update public.visits set status = 'completed', completed_at = now() where id = ${here.id}`;
+      await tx.unsafe("set local session_replication_role = origin");
+      await as(lakeshoreOwner, ownerEmail);
+      const moved = await tryIt((sp) => sp`update public.device_checks set visit_id = ${open.id}, activity = 'none' where id = ${check.id}`);
+      const [rec] = await tx<{ id: string }[]>`select id from public.recommendations where tenant_id = ${lakeshoreId} limit 1`;
+      const deleted = await tx`delete from public.recommendations where id = ${rec.id}`;
+      const sightingsDeleted = await tx`delete from public.sightings where tenant_id = ${lakeshoreId}`;
+      const [{ still }] = await tx<{ still: number }[]>`select count(*)::int as still from public.recommendations where id = ${rec.id}`;
+      // An archived map takes no device.
+      await tx`update public.site_maps set archived_at = now() where id = ${map.id}`;
+      const onArchived = await tryIt((sp) => sp`insert into public.devices (tenant_id, property_id, number, kind, zone, location, map_id, x, y) values (${lakeshoreId}, ${map.property_id}, 'RLS-A', 'glue_board', 'interior', 'Archived plan', ${map.id}, 0.5, 0.5)`);
+      return { wrongSite, wrongMap, wrongVisit, moved, deleted: deleted.count, sightingsDeleted: sightingsDeleted.count, still, onArchived };
+    });
+    expect(result.wrongSite).toMatch(/device at that visit's property/);
+    expect(result.wrongMap).toMatch(/foreign key/);
+    expect(result.wrongVisit).toMatch(/not at this property/);
+    expect(result.moved).toMatch(/read only/);
+    expect(result.deleted).toBe(0);
+    expect(result.sightingsDeleted).toBe(0);
+    expect(result.still).toBe(1);
+    expect(result.onArchived).toMatch(/archived/);
+  });
 });

@@ -137,6 +137,8 @@ export function DevicesSection({ visit, t, onQueue, disabled }: Props) {
     setNotFound(null);
     setOpen(d.id);
     setMode("check");
+    // A move from here starts from this device's own place, not the last one looked at.
+    setForm((f) => ({ ...f, zone: d.zone, location: d.location }));
     if (d.map_id) setMapId(d.map_id);
   }
 

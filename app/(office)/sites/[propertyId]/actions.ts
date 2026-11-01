@@ -15,13 +15,13 @@ import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 type Ctx = Awaited<ReturnType<typeof requireMembership>> & { tenantId: string; propertyId: string; timeZone: string; page: string };
 
 /** The signed-in member allowed to write this site from the office (rule 11), or a redirect. */
-async function writer(formData: FormData, need: "site" | "documents" = "site"): Promise<Ctx> {
+async function writer(formData: FormData): Promise<Ctx> {
   const tenantId = str(formData, "tenant_id");
   const propertyId = str(formData, "property_id");
   const ctx = await requireMembership(tenantId);
   const { active } = await requireActiveTenant();
   const page = `/sites/${propertyId}`;
-  const ok = need === "documents" ? can(ctx.membership.permissions, "customers.write") : can(ctx.membership.permissions, "customers.write") || can(ctx.membership.permissions, "dispatch.write");
+  const ok = can(ctx.membership.permissions, "customers.write") || can(ctx.membership.permissions, "dispatch.write");
   if (!ok) redirect(`${page}?error=forbidden`);
   return { ...ctx, tenantId, propertyId, timeZone: active.tenantTimezone, page };
 }
@@ -76,8 +76,12 @@ export async function archiveMap(formData: FormData) {
   await run(
     ctx,
     async (tx) => {
-      await tx`update public.devices set map_id = null, x = null, y = null where map_id = ${mapId} and status = 'active'`;
-      await tx`update public.site_maps set archived_at = now() where id = ${mapId} and property_id = ${ctx.propertyId}`;
+      // Only this site's own map: archive it first, then unmap its devices.
+      const archived = await tx`update public.site_maps set archived_at = now()
+                                where id = ${mapId} and tenant_id = ${ctx.tenantId} and property_id = ${ctx.propertyId} and archived_at is null returning id`;
+      if (archived.length === 0) throw Object.assign(new Error("That floor plan is not on this site."), { code: "23514" });
+      await tx`update public.devices set map_id = null, x = null, y = null
+               where map_id = ${mapId} and tenant_id = ${ctx.tenantId} and property_id = ${ctx.propertyId} and status = 'active'`;
     },
     "Floor plan archived; its devices are unmapped until placed again.",
     "#maps",
@@ -124,7 +128,11 @@ export async function placeDevice(formData: FormData) {
   if (!mapId || !validPosition(x, y) || x === null) back(ctx, { error: "Pick a device, then tap the map where it is." }, "#maps");
   await run(
     ctx,
-    (tx) => tx`update public.devices set map_id = ${mapId}, x = ${x}, y = ${y} where id = ${str(formData, "device_id")} and property_id = ${ctx.propertyId} and status = 'active'`,
+    async (tx) => {
+      const [map] = await tx`select id from public.site_maps where id = ${mapId} and tenant_id = ${ctx.tenantId} and property_id = ${ctx.propertyId} and archived_at is null`;
+      if (!map) throw Object.assign(new Error("That floor plan is not in use at this site."), { code: "23514" });
+      await tx`update public.devices set map_id = ${mapId}, x = ${x}, y = ${y} where id = ${str(formData, "device_id")} and property_id = ${ctx.propertyId} and status = 'active'`;
+    },
     "Device placed on the map.",
     "#maps",
   );
@@ -228,7 +236,7 @@ function documentType(bytes: Uint8Array): string {
 }
 
 export async function uploadDocument(formData: FormData) {
-  const ctx = await writer(formData, "documents");
+  const ctx = await writer(formData);
   const title = str(formData, "title").trim();
   const file = formData.get("file");
   if (!title || !(file instanceof File) || file.size === 0) back(ctx, { error: "A document needs a title and a file." }, "#documents");

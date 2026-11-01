@@ -1,7 +1,8 @@
 // Commercial programs (spec 14): the sites list, one site's detail, and what the audit binder holds. Every query runs on
 // the caller's connection, so row level security decides what a member sees.
 import type postgres from "postgres";
-import { type TrendInput, type TrendRow, hasActivity, hotDevices, trend } from "./devices";
+import { type Amendment, type RecordSnapshot, applyAmendments } from "@/lib/compliance/records";
+import { type CheckLike, type TrendRow, devicesAsOf, hasActivity, hotDevices, trend } from "./devices";
 
 type Sql = postgres.Sql | postgres.TransactionSql;
 
@@ -36,11 +37,20 @@ export async function listSites(tx: Sql, tenantId: string, today: string): Promi
     where p.tenant_id = ${tenantId} and p.archived_at is null
       and (exists (select 1 from public.devices d where d.property_id = p.id) or exists (select 1 from public.site_maps m where m.property_id = p.id))
     order by a.name, p.normalized_address`;
-  const recent = await tx<(TrendInput & { device_id: string; checked_at: Date; property_id: string })[]>`
-    select c.device_id, c.checked_at, c.status, c.activity, c.count, c.bait_consumed_pct, d.property_id, d.kind, '' as month
-    from public.device_checks c join public.devices d on d.id = c.device_id
-    where c.tenant_id = ${tenantId} and d.status = 'active' and c.checked_at > now() - interval '180 days'`;
+  const recent = await lastChecks(tx, tenantId, null, null, null);
   return rows.map((r) => ({ ...r, hot: hotDevices(recent.filter((c) => c.property_id === r.property_id)).size }));
+}
+
+/** Rule 5: each active device's last three checks, however old, through a business date when one is given. */
+async function lastChecks(tx: Sql, tenantId: string, propertyId: string | null, timeZone: string | null, through: string | null): Promise<(CheckLike & { property_id: string })[]> {
+  return tx<(CheckLike & { property_id: string })[]>`
+    select device_id, checked_at, status, activity, count, bait_consumed_pct, property_id from (
+      select c.device_id, c.checked_at, c.status, c.activity, c.count, c.bait_consumed_pct, d.property_id,
+             row_number() over (partition by c.device_id order by c.checked_at desc) as n
+      from public.device_checks c join public.devices d on d.id = c.device_id
+      where c.tenant_id = ${tenantId} and d.status = 'active' and (${propertyId}::uuid is null or d.property_id = ${propertyId})
+        and (${through}::date is null or (c.checked_at at time zone ${timeZone ?? "UTC"})::date <= ${through}::date)
+    ) x where n <= 3`;
 }
 
 export type SiteMapRow = { id: string; name: string; file_id: string; width: number; height: number; position: number };
@@ -137,19 +147,19 @@ export async function loadSite(tx: Sql, tenantId: string, propertyId: string, ti
       select e.id, d.number, e.kind, e.before, e.after, e.at, e.by, e.visit_id from public.device_events e join public.devices d on d.id = e.device_id
       where d.property_id = ${propertyId} and (e.at at time zone ${timeZone})::date between ${from} and ${to} order by e.at desc`
   ).map((e) => ({ ...e, by_name: e.by ? (who.get(e.by) ?? "Member") : null }));
+  // Open now, or open at some point of the range (raised by its end and not closed before its start).
   const sightings = await tx<SightingRow[]>`
     select id, seen_at, location, pest, count, reported_by, source, notes, resolved_at, resolution from public.sightings
-    where property_id = ${propertyId} and (resolved_at is null or (seen_at at time zone ${timeZone})::date between ${from} and ${to} or (resolved_at at time zone ${timeZone})::date between ${from} and ${to})
+    where property_id = ${propertyId}
+      and (resolved_at is null or ((seen_at at time zone ${timeZone})::date <= ${to} and (resolved_at at time zone ${timeZone})::date >= ${from}))
     order by seen_at desc`;
   const recommendations = await tx<RecommendationRow[]>`
     select id, created_at, category, description, responsibility, priority, owner_name, due_on::text, status, closed_on::text, closed_note, visit_id from public.recommendations
-    where property_id = ${propertyId} and (status <> 'closed' or (created_at at time zone ${timeZone})::date between ${from} and ${to} or closed_on between ${from} and ${to})
+    where property_id = ${propertyId} and (status <> 'closed' or ((created_at at time zone ${timeZone})::date <= ${to} and closed_on >= ${from}))
     order by status = 'closed', due_on nulls last, created_at desc`;
   const documents = await tx<DocumentRow[]>`select id, file_id, title, kind, valid_until::text, shared, created_at from public.site_documents where property_id = ${propertyId} order by kind, title`;
   // Hot is about the latest checks whenever they were; the trend is the range's.
-  const latest = await tx<{ device_id: string; checked_at: Date; status: string; activity: string | null; count: number | null; bait_consumed_pct: number | null }[]>`
-    select c.device_id, c.checked_at, c.status, c.activity, c.count, c.bait_consumed_pct from public.device_checks c join public.devices d on d.id = c.device_id
-    where d.property_id = ${propertyId} and d.status = 'active' and c.checked_at > now() - interval '180 days'`;
+  const latest = await lastChecks(tx, tenantId, propertyId, null, null);
   const month = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit" }).format(d).slice(0, 7);
   return {
     property,
@@ -161,20 +171,23 @@ export async function loadSite(tx: Sql, tenantId: string, propertyId: string, ti
     recommendations,
     documents,
     hot: hotDevices(latest),
-    trend: trend(checks.map((c) => ({ month: month(new Date(c.checked_at)), kind: c.kind, status: c.status, activity: c.activity, count: c.count, bait_consumed_pct: c.bait_consumed_pct }))),
+    trend: trend(checks.map((c) => ({ month: month(new Date(c.checked_at)), kind: c.kind, device_id: c.device_id, status: c.status, activity: c.activity, count: c.count, bait_consumed_pct: c.bait_consumed_pct }))),
   };
 }
 
 export type BinderData = Site & {
   company: { name: string; legal_name: string | null; licenses: { branch: string; number: string | null; expires: string | null }[] };
-  applicators: { name: string; cert_number: string | null; license_number: string | null; categories: string[]; expires: string | null }[];
+  applicators: { name: string; cert_number: string | null; categories: string[]; expires: string | null }[];
   applications: { business_date: string; product: string; epa_reg_no: string; amount: string; unit: string; site_treated: string; target_pests: string[]; applicator: string | null }[];
   visits: { id: string; date: string | null; service: string; technician: string | null }[];
   range: { from: string; to: string };
+  time_zone: string;
   made_at: Date;
 };
 
-/** Everything rule 10 puts in the binder for a property and a range, under the caller's session. */
+/** Everything rule 10 puts in the binder for a property and a range, under the caller's session. Devices and maps are
+ *  as they stood at the end of the range (rule 2); applications and applicators come from the application records
+ *  (spec 07) with their amendments, so the binder says what the legal record says. */
 export async function binderData(tx: Sql, tenantId: string, propertyId: string, timeZone: string, from: string, to: string): Promise<BinderData | null> {
   const site = await loadSite(tx, tenantId, propertyId, timeZone, from, to);
   if (!site) return null;
@@ -183,31 +196,64 @@ export async function binderData(tx: Sql, tenantId: string, propertyId: string, 
   const licenses = await tx<{ branch: string; number: string | null; expires: string | null }[]>`
     select name as branch, business_license_number as number, license_expires_on::text as expires from public.branches
     where tenant_id = ${tenantId} and archived_at is null and state_code = ${site.property.state_code} order by name`;
+
+  const events = await tx<{ device_id: string; kind: string; on: string; after: Record<string, unknown> | null }[]>`
+    select e.device_id, e.kind, (e.at at time zone ${timeZone})::date::text as on, e.after
+    from public.device_events e join public.devices d on d.id = e.device_id
+    where d.property_id = ${propertyId} order by e.at, e.created_at`;
+  const devices = devicesAsOf(site.devices, events, from, to);
+  const maps = await tx<SiteMapRow[]>`
+    select id, name, file_id, width, height, position from public.site_maps
+    where property_id = ${propertyId} and (archived_at is null or (archived_at at time zone ${timeZone})::date >= ${from}) order by position, name`;
+  const hot = hotDevices(await lastChecks(tx, tenantId, propertyId, timeZone, to));
+
   const visits = await tx<{ id: string; date: string | null; service: string; technician_id: string | null }[]>`
     select v.id, (v.completed_at at time zone ${timeZone})::date::text as date, st.name as service, v.technician_id
     from public.visits v join public.service_types st on st.id = v.service_type_id
     where v.property_id = ${propertyId} and v.status = 'completed' and not v.imported and (v.completed_at at time zone ${timeZone})::date between ${from} and ${to}
     order by v.completed_at`;
-  const crew = [...new Set((await tx<{ user_id: string }[]>`select distinct c.user_id from public.visit_crew c where c.visit_id = any(${visits.map((v) => v.id)}::uuid[])`).map((r) => r.user_id))];
-  const applicators = (
-    await tx<{ user_id: string; cert_number: string | null; license_number: string | null; categories: string[] | null; expires: string | null }[]>`
-      select user_id, cert_number, license_number, categories, cert_expires_on::text as expires from public.applicator_credentials
-      where tenant_id = ${tenantId} and user_id = any(${crew}::uuid[]) and state_code = ${site.property.state_code} and archived_at is null`
-  ).map((c) => ({ name: who.get(c.user_id) ?? "Member", cert_number: c.cert_number, license_number: c.license_number, categories: c.categories ?? [], expires: c.expires }));
-  const applications = (
-    await tx<{ business_date: string; product: string; epa_reg_no: string; amount: string; unit: string; site_treated: string; target_pests: string[]; applied_by: string | null }[]>`
-      select (v.completed_at at time zone ${timeZone})::date::text as business_date, pr.name as product, pr.epa_reg_no, vp.amount::text, vp.amount_unit as unit, vp.site_treated, vp.target_pests, vp.applied_by
-      from public.visit_products vp join public.visits v on v.id = vp.visit_id join public.products pr on pr.id = vp.product_id
-      where v.property_id = ${propertyId} and v.status = 'completed' and (v.completed_at at time zone ${timeZone})::date between ${from} and ${to}
-      order by v.completed_at, vp.recorded_at`
-  ).map((a) => ({ ...a, applicator: a.applied_by ? (who.get(a.applied_by) ?? "Member") : null }));
+  const records = await tx<{ id: string; business_date: string; snapshot: RecordSnapshot }[]>`
+    select r.id, r.business_date::text, r.snapshot from public.application_records r join public.visits v on v.id = r.visit_id
+    where r.tenant_id = ${tenantId} and v.property_id = ${propertyId} and r.business_date between ${from} and ${to}
+    order by r.business_date, r.created_at`;
+  const amendments = records.length
+    ? await tx<(Amendment & { record_id: string })[]>`
+        select record_id, changed_fields from public.application_record_amendments where tenant_id = ${tenantId} and record_id = any(${records.map((r) => r.id)}::uuid[]) order by created_at`
+    : [];
+  const current = records.map((r) => ({
+    business_date: r.business_date,
+    snapshot: applyAmendments(r.snapshot as unknown as Record<string, unknown>, amendments.filter((a) => a.record_id === r.id)) as unknown as RecordSnapshot,
+  }));
+  const applications = current.flatMap((r) =>
+    (r.snapshot.products ?? []).map((p) => ({
+      business_date: r.business_date,
+      product: p.product_name,
+      epa_reg_no: p.epa_reg_no,
+      amount: String(p.amount),
+      unit: p.amount_unit,
+      site_treated: p.site_treated,
+      target_pests: p.target_pests ?? [],
+      applicator: p.applied_by?.name ?? null,
+    })),
+  );
+  // The crew's credentials as each record holds them, latest record first, once per person.
+  const applicators = new Map<string, BinderData["applicators"][number]>();
+  for (const r of [...current].reverse()) {
+    for (const m of r.snapshot.crew ?? []) {
+      if (!applicators.has(m.user_id)) applicators.set(m.user_id, { name: m.name, cert_number: m.cert_number, categories: m.categories ?? [], expires: m.cert_expires_on });
+    }
+  }
   return {
     ...site,
+    maps,
+    devices,
+    hot,
     company: { name: company.name, legal_name: company.legal_name, licenses },
-    applicators,
+    applicators: [...applicators.values()],
     applications,
     visits: visits.map((v) => ({ id: v.id, date: v.date, service: v.service, technician: v.technician_id ? (who.get(v.technician_id) ?? "Member") : null })),
     range: { from, to },
+    time_zone: timeZone,
     made_at: new Date(),
   };
 }
