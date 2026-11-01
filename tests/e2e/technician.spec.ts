@@ -192,10 +192,13 @@ test("a technician works a stop offline, syncs it, the office sees the record, a
     from public.payments p left join public.payment_allocations a on a.payment_id = p.id left join public.invoices i on i.id = a.invoice_id
     where p.visit_id = ${visitId}`;
   // The completion sent Maria the visit summary (spec 11 rule 8); its page carries what was applied.
-  const [summary] = await sql<{ status: string; channel: string; token: string }[]>`select status, channel, token from public.messages where visit_id = ${visitId} and purpose = 'summary'`;
+  const [summary] = await sql<{ status: string; channel: string; token: string; held: boolean }[]>`
+    select status, channel, token, send_after > now() as held from public.messages where visit_id = ${visitId} and purpose = 'summary'`;
   await sql.end();
   expect(cash).toMatchObject({ method: "cash", amount_cents: "19900", allocated: "19900", source_key: `visit:${visitId}`, invoice_status: "paid" });
-  expect(summary?.status).toBe("delivered");
+  // Delivered at once, or, as a text after the company's texting hours, held for the morning (rule 4).
+  if (summary?.status === "queued") expect(summary).toMatchObject({ channel: "sms", held: true });
+  else expect(summary?.status).toBe("delivered");
   const summaryPage = await page.request.get(`/m/${summary.token}`);
   expect(summaryPage.status()).toBe(200);
   expect(await summaryPage.text()).toContain("100-1066");

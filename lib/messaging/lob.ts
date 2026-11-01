@@ -1,4 +1,5 @@
 // Lob for printed and mailed letters (spec 11): paper notices for customers without electronic consent.
+import { providerSignal } from "./http";
 import type { LetterOut, MessagingProvider, SendResult } from "./providers";
 
 /** Splits "line1, city ST 12345" into Lob's fields; the last comma separates the city line. */
@@ -17,6 +18,7 @@ export function lobProvider(apiKey: string): MessagingProvider {
       const body = new URLSearchParams({ ...prefix(lobAddress(letter.to.name, letter.to.address), "to"), ...prefix(lobAddress(letter.from.name, letter.from.address ?? ""), "from"), file: `<html><body>${letter.html}</body></html>`, color: "false", use_type: "operational" });
       const res = await fetch("https://api.lob.com/v1/letters", {
         method: "POST",
+        signal: providerSignal(),
         headers: { authorization: `Basic ${Buffer.from(`${apiKey}:`).toString("base64")}`, "content-type": "application/x-www-form-urlencoded", "idempotency-key": letter.message_id },
         body,
       });

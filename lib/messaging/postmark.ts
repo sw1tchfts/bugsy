@@ -1,4 +1,5 @@
 // Postmark for email (spec 11): send, and read its delivery, bounce and complaint webhooks.
+import { providerSignal } from "./http";
 import type { EmailOut, MessagingProvider, SendResult } from "./providers";
 
 export type PostmarkEvent = { RecordType?: string; MessageID?: string; Email?: string; Recipient?: string; Type?: string; Description?: string };
@@ -24,6 +25,7 @@ export function postmarkProvider(serverToken: string): MessagingProvider {
     async sendEmail(email: EmailOut): Promise<SendResult> {
       const res = await fetch("https://api.postmarkapp.com/email", {
         method: "POST",
+        signal: providerSignal(),
         headers: { "x-postmark-server-token": serverToken, accept: "application/json", "content-type": "application/json" },
         body: JSON.stringify({ From: email.from, To: email.to, ReplyTo: email.reply_to ?? undefined, Subject: email.subject, TextBody: email.text, HtmlBody: email.html ?? undefined, MessageStream: "outbound", Metadata: { bugsy_message_id: email.message_id } }),
       });

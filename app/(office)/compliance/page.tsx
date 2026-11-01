@@ -16,6 +16,7 @@ const KIND_LABELS: Record<string, string> = {
   license_expiring: "Business license expiring",
   record_incomplete: "Incomplete record",
   notice_overdue: "Notice overdue",
+  notice_undelivered: "Notice not delivered",
   registry_notice_due: "Registry notice due",
 };
 

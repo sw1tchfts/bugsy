@@ -270,13 +270,17 @@ export async function refreshAlertTasks(tx: Sql, tenantId: string, today: string
 /** Tasks for required notices past due and for scheduled registry matches without a sent advance notice. */
 export async function refreshNoticeTasks(tx: Sql, tenantId: string, timeZone: string, now: Date): Promise<number> {
   let created = 0;
-  const overdue = await tx<{ id: string; kind: string; due_by: string; recipient_name: string }[]>`
-    select id, kind, due_by, recipient_name from public.notices
-    where tenant_id = ${tenantId} and status = 'due' and required and due_by is not null and due_by < ${now}`;
+  // A required notice is a task once it is past due, or at once when messaging could not send it (spec 11 rule 9).
+  const overdue = await tx<{ id: string; kind: string; status: string; due_by: string | null; recipient_name: string; error: string | null }[]>`
+    select id, kind, status, due_by, recipient_name, proof->>'error' as error from public.notices
+    where tenant_id = ${tenantId} and required and ((status = 'due' and due_by is not null and due_by < ${now}) or status = 'failed')`;
   for (const n of overdue) {
+    const dueOn = n.due_by ? dateInZone(n.due_by, timeZone) : dateInZone(now, timeZone);
+    const what = `${n.kind.replace(/_/g, " ")} to ${n.recipient_name}`;
+    const title = n.status === "failed" ? `${what} could not be sent${n.error ? ` (${n.error})` : ""}; send it another way and record the proof` : `${what} was due ${dueOn}`;
     const result = await tx`
       insert into public.compliance_tasks (tenant_id, kind, subject_table, subject_id, due_on, title)
-      values (${tenantId}, 'notice_overdue', 'notices', ${n.id}, ${dateInZone(n.due_by, timeZone)}, ${`${n.kind.replace(/_/g, " ")} to ${n.recipient_name} was due ${dateInZone(n.due_by, timeZone)}`})
+      values (${tenantId}, 'notice_overdue', 'notices', ${n.id}, ${dueOn}, ${title})
       on conflict (tenant_id, kind, subject_id, due_on) do nothing`;
     created += result.count;
   }
@@ -311,7 +315,7 @@ export async function refreshNoticeTasks(tx: Sql, tenantId: string, timeZone: st
   await tx`
     update public.compliance_tasks set status = 'done', done_at = now(), note = 'notice sent or waived'
     where tenant_id = ${tenantId} and status = 'open' and kind = 'notice_overdue'
-      and not exists (select 1 from public.notices n where n.id = compliance_tasks.subject_id and n.status = 'due')`;
+      and not exists (select 1 from public.notices n where n.id = compliance_tasks.subject_id and n.status in ('due', 'failed'))`;
   return created;
 }
 

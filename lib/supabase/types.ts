@@ -67,6 +67,9 @@ export type Database = {
 "next_number":
 { Args: { "counter_key": string,"tenant": string }; Returns: number
                            },
+"on_crew":
+{ Args: { "p_visit": string }; Returns: boolean
+                           },
 "phone_digits":
 { Args: { "phone": string }; Returns: string
                            },
@@ -119,6 +122,9 @@ export type Database = {
 { Args: { "p_visit": string }; Returns: {
               "agreement_number": number,"billing_mode": string
             }[]
+                           },
+"visit_contact_address":
+{ Args: { "p_channel": string,"p_tenant": string,"p_to": string,"p_visit": string }; Returns: boolean
                            }
           }
           Enums: {

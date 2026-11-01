@@ -21,6 +21,17 @@ export interface MessagingProvider {
 
 export type ProviderSettings = { email_provider: string; sms_provider: string; mail_provider: string };
 
+/** A provider call that cannot throw: a network error, a timeout or a bug in an adapter becomes a failed result, so one
+ *  bad call never rolls back the messages already handed to a provider in the same run (rule 1). */
+export async function attempt(call: () => Promise<SendResult>): Promise<SendResult> {
+  try {
+    return await call();
+  } catch (err) {
+    const e = err as { name?: string; message?: string };
+    return { provider_message_id: null, status: "failed", error: e?.name === "TimeoutError" ? "the provider did not answer in time" : `provider call failed: ${e?.message ?? String(err)}`.slice(0, 300) };
+  }
+}
+
 /** The provider for a channel: the company's choice when its keys are set, else the local one. */
 export function providerFor(settings: ProviderSettings, channel: Channel): MessagingProvider {
   if (channel === "email" && settings.email_provider === "postmark" && process.env.POSTMARK_SERVER_TOKEN) return postmarkProvider(process.env.POSTMARK_SERVER_TOKEN);

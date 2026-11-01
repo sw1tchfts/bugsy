@@ -5,12 +5,13 @@
 import { randomBytes } from "node:crypto";
 import type postgres from "postgres";
 import type { NoticeKind } from "@/lib/compliance/notices";
-import { addDays, todayInZone } from "@/lib/dates";
+import { addDays, dateInZone, todayInZone } from "@/lib/dates";
 import { formatCents } from "@/lib/money";
 import { loadRouteVisit } from "@/lib/tech/route-db";
 import { type CompanyFacts, noticeHtml, noticeText, summaryHtml, summaryText } from "./content";
-import { providerFor } from "./providers";
+import { attempt, providerFor } from "./providers";
 import { type Channel, chooseChannel, e164, keyword, nextAllowed, normalizeAddress, smsSegments, withinQuietHours } from "./rules";
+import { safely } from "./safely";
 import { type TemplateKey, checkTemplate, render, templateFor, textToHtml } from "./templates";
 
 type Sql = postgres.Sql | postgres.TransactionSql;
@@ -144,14 +145,16 @@ type Compose = {
   tokenValue?: string;
 };
 
+/** The channel rule 7 picks for a recipient: their preference when usable, else SMS with consent, else email. */
+async function channelFor(tx: Sql, tenantId: string, recipient: Recipient): Promise<"sms" | "email" | null> {
+  const sms = await optedOut(tx, tenantId, "sms", recipient.phone);
+  const email = await optedOut(tx, tenantId, "email", recipient.email);
+  return chooseChannel(recipient, { sms: sms.out, email: email.out && email.reason !== "unsubscribe" });
+}
+
 /** Renders the template for the recipient's channel and queues it; null when no channel or template fits (rule 7). */
 async function composeAndQueue(tx: Sql, tenantId: string, settings: MessagingSettings, c: Compose): Promise<string | null> {
-  let channel: Channel | null = c.channel ?? null;
-  if (!channel) {
-    const sms = await optedOut(tx, tenantId, "sms", c.recipient.phone);
-    const email = await optedOut(tx, tenantId, "email", c.recipient.email);
-    channel = chooseChannel(c.recipient, { sms: sms.out, email: email.out && email.reason !== "unsubscribe" });
-  }
+  const channel: Channel | null = c.channel ?? (await channelFor(tx, tenantId, c.recipient));
   if (!channel) return null;
   const template = templateFor(c.key, channel, await overrides(tx, tenantId));
   if (!template) return null;
@@ -243,22 +246,34 @@ export async function sendQueued(tx: Sql, tenantId: string, now: Date, timeZone:
       counts.suppressed += 1;
       continue;
     }
-    if (m.channel === "sms" && !["keyword", "reply"].includes(m.purpose) && !withinQuietHours(now, timeZone, window)) {
+    if (m.channel === "sms" && !withinQuietHours(now, timeZone, window) && !(await quietHoursExempt(tx, tenantId, m, now))) {
       await tx`select app.defer_message(${tenantId}, ${m.id}, ${nextAllowed(now, timeZone, window)})`;
       counts.deferred += 1;
       continue;
     }
     const provider = providerFor(settings, m.channel);
-    const result =
+    const result = await attempt(() =>
       m.channel === "email"
-        ? await provider.sendEmail!({ message_id: m.id, to: m.to_address, from: `${settings.sender_name ?? "Bugsy"} <${fromEmail()}>`, reply_to: settings.reply_to_email, subject: m.subject ?? "", text: m.body, html: m.body_html })
+        ? provider.sendEmail!({ message_id: m.id, to: m.to_address, from: `${settings.sender_name ?? "Bugsy"} <${fromEmail()}>`, reply_to: settings.reply_to_email, subject: m.subject ?? "", text: m.body, html: m.body_html })
         : m.channel === "sms"
-          ? await provider.sendSms!({ message_id: m.id, to: m.to_address, from: settings.sms_number, body: m.body, status_callback: `${appUrl()}/api/messaging/twilio` })
-          : await provider.sendLetter!({ message_id: m.id, to: { name: m.recipient_name ?? "", address: m.to_address }, from: { name: settings.sender_name ?? "", address: null }, html: m.body_html ?? textToHtml(m.body) });
-    await tx`select app.record_message_status(${tenantId}, ${m.id}, ${result.status}, ${provider.name}, ${result.provider_message_id}, ${result.error}, ${m.segments})`;
-    counts[result.status] += 1;
+          ? provider.sendSms!({ message_id: m.id, to: m.to_address, from: settings.sms_number, body: m.body, status_callback: `${appUrl()}/api/messaging/twilio` })
+          : provider.sendLetter!({ message_id: m.id, to: { name: m.recipient_name ?? "", address: m.to_address }, from: { name: settings.sender_name ?? "", address: null }, html: m.body_html ?? textToHtml(m.body) }),
+    );
+    // Each outcome is recorded on its own: a refusal here keeps the claim and every message sent before it in this run.
+    const recorded = await safely(tx, `status of message ${m.id}`, (sp) => sp`select app.record_message_status(${tenantId}, ${m.id}, ${result.status}, ${provider.name}, ${result.provider_message_id}, ${result.error}, ${m.segments})`);
+    if (recorded) counts[result.status] += 1;
   }
   return counts;
+}
+
+/** Rule 4's two exceptions: a keyword's confirmation, and a reply while the customer's own text is under a day old. */
+async function quietHoursExempt(tx: Sql, tenantId: string, m: QueuedRow, now: Date): Promise<boolean> {
+  if (m.purpose === "keyword") return true;
+  if (m.purpose !== "reply") return false;
+  const [row] = await tx<{ live: boolean }[]>`
+    select exists (select 1 from public.messages where tenant_id = ${tenantId} and direction = 'inbound' and channel = 'sms' and from_address = ${m.to_address}
+                   and created_at > ${now}::timestamptz - interval '24 hours') as live`;
+  return row.live;
 }
 
 /** A provider's later word on a message, by its id (webhooks; idempotent). */
@@ -409,25 +424,22 @@ export async function queueVisitSummary(tx: Sql, tenantId: string, visitId: stri
   const lead = visit.crew.find((c) => c.role === "lead") ?? visit.crew[0];
   let summaryId: string | null = null;
   if (settings.summary_enabled) {
-    const [notice] = await tx<{ id: string; channel: Channel; contact_id: string }[]>`
-      select n.id, n.channel, n.recipient_contact_id as contact_id from public.notices n
-      where n.tenant_id = ${tenantId} and n.visit_id = ${visitId} and n.kind = 'post_application' and n.status = 'due' and n.channel in ('email', 'sms') and n.recipient_contact_id is not null
-        and not exists (select 1 from public.messages m where m.notice_id = n.id)
-      limit 1`;
-    let recipient = await visitRecipient(tx, tenantId, visitId);
-    let channel: Channel | undefined;
-    if (notice) {
-      const [c] = await tx<Recipient[]>`
-        select c.id as contact_id, c.name, c.email, c.phone, null::text as address, c.sms_opt_in, c.preferred_channel, ${visit.account.id}::uuid as account_id, ${visit.property.id}::uuid as property_id
-        from public.contacts c where c.id = ${notice.contact_id}`;
-      if (c) {
-        recipient = c;
-        channel = notice.channel;
-      }
-    }
-    if (recipient) {
+    // Rule 7 picks who gets the summary and how; the post-application notice rides along only when it is due to that
+    // same person on that same channel (rule 8). Otherwise the notice goes on its own from the messaging job.
+    const recipient = await visitRecipient(tx, tenantId, visitId);
+    const channel = recipient ? await channelFor(tx, tenantId, recipient) : null;
+    const [notice] =
+      recipient && channel
+        ? await tx<{ id: string }[]>`
+            select n.id from public.notices n
+            where n.tenant_id = ${tenantId} and n.visit_id = ${visitId} and n.kind = 'post_application' and n.status = 'due'
+              and n.channel = ${channel} and n.recipient_contact_id = ${recipient.contact_id}
+              and not exists (select 1 from public.messages m where m.notice_id = n.id)
+            limit 1`
+        : [];
+    if (recipient && channel) {
       const t = token();
-      const day = (visit.captured.departed_at ?? visit.captured.completed_at ?? new Date().toISOString()).slice(0, 10);
+      const day = dateInZone(visit.captured.departed_at ?? visit.captured.completed_at ?? new Date(), timeZone);
       summaryId = await composeAndQueue(tx, tenantId, settings, {
         key: "summary",
         purpose: "summary",
@@ -442,7 +454,7 @@ export async function queueVisitSummary(tx: Sql, tenantId: string, visitId: stri
           summary_text: summaryText(visit, timeZone),
         },
         dedupe_key: `summary:${visitId}`,
-        ids: { visit_id: visitId, notice_id: notice && channel ? notice.id : null },
+        ids: { visit_id: visitId, notice_id: notice?.id ?? null },
         pageHtml: summaryHtml(visit, timeZone, company),
         tokenValue: t,
       });
@@ -657,9 +669,10 @@ export async function reply(tx: Sql, tenantId: string, inboundId: string, body: 
   return id;
 }
 
-export async function usage(tx: Sql, tenantId: string, monthStart: string, nextMonthStart: string): Promise<{ channel: string; status: string; messages: number; segments: number }[]> {
+export async function usage(tx: Sql, tenantId: string, monthStart: string, nextMonthStart: string, timeZone: string): Promise<{ channel: string; status: string; messages: number; segments: number }[]> {
   return tx<{ channel: string; status: string; messages: number; segments: number }[]>`
     select channel, status, count(*)::int as messages, coalesce(sum(segments), 0)::int as segments from public.messages
-    where tenant_id = ${tenantId} and direction = 'outbound' and created_at >= ${monthStart}::date and created_at < ${nextMonthStart}::date
+    where tenant_id = ${tenantId} and direction = 'outbound'
+      and created_at >= (${monthStart}::date::timestamp at time zone ${timeZone}) and created_at < (${nextMonthStart}::date::timestamp at time zone ${timeZone})
     group by channel, status order by channel, status`;
 }

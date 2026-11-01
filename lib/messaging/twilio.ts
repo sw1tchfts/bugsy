@@ -1,5 +1,6 @@
 // Twilio for SMS (spec 11): send with a status callback, verify webhook signatures, read inbound messages and statuses.
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { providerSignal } from "./http";
 import type { MessagingProvider, SendResult, SmsOut } from "./providers";
 
 /** Twilio's request signature: HMAC-SHA1 of the full URL followed by each POST parameter's name and value, sorted by
@@ -33,6 +34,7 @@ export function twilioProvider(accountSid: string, authToken: string): Messaging
       if (sms.status_callback) body.set("StatusCallback", sms.status_callback);
       const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
         method: "POST",
+        signal: providerSignal(),
         headers: { authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString("base64")}`, "content-type": "application/x-www-form-urlencoded" },
         body,
       });

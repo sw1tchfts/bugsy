@@ -7,6 +7,7 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createInvoice, voidInvoice } from "../../lib/billing/db";
+import { refreshNoticeTasks } from "../../lib/compliance/db";
 import { sweep } from "../../lib/ledger/db";
 import { PG_TYPES } from "../../lib/pg-types";
 import { buildQuery } from "../../lib/reports/builder";
@@ -1345,11 +1346,21 @@ describe("spec 11 rules enforced in the database", () => {
   });
 
   it("lets automations queue only what their event allows: the crew's on-the-way text, not a one-off message or a campaign (rule 14)", async () => {
-    const [visit] = await admin<{ id: string }[]>`select v.id from public.visits v join public.visit_crew c on c.visit_id = v.id where v.tenant_id = ${lakeshoreId} and c.user_id = ${tech} limit 1`;
-    const [{ id }] = await asUser(tech, techEmail, (tx) => tx<{ id: string }[]>`select app.queue_message(${lakeshoreId}, ${tx.json(message("on_the_way", { visit_id: visit.id }))}) as id`);
+    const [visit] = await admin<{ id: string; phone: string }[]>`
+      select v.id, c.phone from public.visits v join public.visit_crew vc on vc.visit_id = v.id
+        join public.contacts c on c.tenant_id = v.tenant_id and (c.account_id = v.account_id or c.property_id = v.property_id) and c.phone_digits is not null and c.archived_at is null
+      where v.tenant_id = ${lakeshoreId} and vc.user_id = ${tech} limit 1`;
+    const [other] = await admin<{ id: string }[]>`
+      select v.id from public.visits v where v.tenant_id = ${lakeshoreId} and not exists (select 1 from public.visit_crew vc where vc.visit_id = v.id and vc.user_id = ${tech}) limit 1`;
+    const own = (extra: Record<string, unknown> = {}) => message("on_the_way", { visit_id: visit.id, to_address: visit.phone, ...extra });
+    const [{ id }] = await asUser(tech, techEmail, (tx) => tx<{ id: string }[]>`select app.queue_message(${lakeshoreId}, ${tx.json(own())}) as id`);
     expect(id).toBeTruthy();
+    // Not a stop of theirs, and not someone at their stop: the crew sends only to their own customers.
+    await expect(asUser(tech, techEmail, (tx) => tx`select app.queue_message(${lakeshoreId}, ${tx.json(own({ visit_id: other.id }))})`)).rejects.toThrow(/messages\.send/);
+    await expect(asUser(tech, techEmail, (tx) => tx`select app.queue_message(${lakeshoreId}, ${tx.json(own({ to_address: "+16145550199" }))})`)).rejects.toThrow(/messages\.send/);
+    await expect(asUser(tech, techEmail, (tx) => tx`select app.queue_message(${lakeshoreId}, ${tx.json(message("summary", { visit_id: other.id, to_address: visit.phone }))})`)).rejects.toThrow(/messages\.send/);
     await expect(asUser(tech, techEmail, (tx) => tx`select app.queue_message(${lakeshoreId}, ${tx.json(message("other"))})`)).rejects.toThrow(/messages\.send/);
-    await expect(asUser(tech, techEmail, (tx) => tx`select app.queue_message(${northwindId}, ${tx.json(message("on_the_way", { visit_id: visit.id }))})`)).rejects.toThrow(/not a member/);
+    await expect(asUser(tech, techEmail, (tx) => tx`select app.queue_message(${northwindId}, ${tx.json(own())})`)).rejects.toThrow(/not a member/);
     const [{ id: officeId }] = await asUser(office, officeEmail, (tx) => tx<{ id: string }[]>`select app.queue_message(${lakeshoreId}, ${tx.json(message("other"))}) as id`);
     expect(officeId).toBeTruthy();
     await expect(asUser(office, officeEmail, (tx) => tx`insert into public.messages (tenant_id, direction, channel, purpose, to_address, body, status) values (${lakeshoreId}, 'outbound', 'sms', 'other', '+16145550100', 'direct', 'delivered')`)).rejects.toThrow(/row-level security/);
@@ -1368,6 +1379,60 @@ describe("spec 11 rules enforced in the database", () => {
     const [m] = await admin<{ notice_id: string | null }[]>`select notice_id from public.messages where id = ${n.proof.message_id ?? null}`;
     expect(n.proof.method).toBe("mail");
     expect(m.notice_id).toBeTruthy();
+  });
+
+  it("keeps a sent notice's proof through a later receipt or bounce, and puts a bounce and a failed notice on the task list (rule 9)", async () => {
+    const [base] = await admin<{ id: string; property_id: string; visit_id: string | null }[]>`select id, property_id, visit_id from public.notices where tenant_id = ${lakeshoreId} limit 1`;
+    const notice = async (status: string) =>
+      (
+        await admin<{ id: string }[]>`
+          insert into public.notices (tenant_id, kind, rule_key, required, dedupe_key, property_id, visit_id, recipient_name, channel, status)
+          values (${lakeshoreId}, 'post_application', 'default', true, ${`rls:${status}:${Date.now()}:${Math.random()}`}, ${base.property_id}, ${base.visit_id}, 'RLS Resident', 'email', ${status})
+          returning id`
+      )[0].id;
+    const carry = async (noticeId: string) =>
+      (await admin<{ id: string }[]>`select app.queue_message(${lakeshoreId}, ${admin.json(message("notice", { channel: "email", to_address: "rls@example.com", notice_id: noticeId }))}) as id`)[0].id;
+    const status = async (messageId: string, s: string, error: string | null = null) => admin`select app.record_message_status(${lakeshoreId}, ${messageId}, ${s}, 'postmark', ${`pm-${messageId}`}, ${error}, null)`;
+
+    // Handed off: the notice is sent; the delivery receipt later changes the message only.
+    const sentNotice = await notice("due");
+    const m1 = await carry(sentNotice);
+    await status(m1, "sent");
+    await status(m1, "delivered");
+    const [n1] = await admin<{ status: string; proof: { message_id: string } }[]>`select status, proof from public.notices where id = ${sentNotice}`;
+    expect(n1.status).toBe("sent");
+    expect(n1.proof.message_id).toBe(m1);
+    const [d1] = await admin<{ status: string }[]>`select status from public.messages where id = ${m1}`;
+    expect(d1.status).toBe("delivered");
+
+    // A bounce after the hand-off keeps the proof and opens a task.
+    const bounced = await notice("due");
+    const m2 = await carry(bounced);
+    await status(m2, "sent");
+    await status(m2, "failed", "hard bounce");
+    const [n2] = await admin<{ status: string }[]>`select status from public.notices where id = ${bounced}`;
+    expect(n2.status).toBe("sent");
+    const tasks = await admin<{ title: string }[]>`select title from public.compliance_tasks where subject_id = ${bounced} and kind = 'notice_undelivered' and status = 'open'`;
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].title).toMatch(/not delivered \(hard bounce\)/);
+
+    // Proof recorded by hand first: the message that goes out later leaves it alone instead of failing the run.
+    const manual = await notice("due");
+    const m3 = await carry(manual);
+    await admin`update public.notices set status = 'sent', proof = '{"method": "phone"}'::jsonb where id = ${manual}`;
+    await status(m3, "sent");
+    const [n3] = await admin<{ proof: { method: string } }[]>`select proof from public.notices where id = ${manual}`;
+    expect(n3.proof.method).toBe("phone");
+
+    // Refused before the hand-off: the notice fails and the compliance job lists it at once, before it is even due.
+    const failed = await notice("due");
+    const m4 = await carry(failed);
+    await status(m4, "failed", "inactive recipient");
+    const created = await admin.begin((tx) => refreshNoticeTasks(tx, lakeshoreId, lakeshore.timezone, new Date()));
+    expect(created).toBeGreaterThan(0);
+    const [t4] = await admin<{ title: string; status: string }[]>`select title, status from public.compliance_tasks where subject_id = ${failed} and kind = 'notice_overdue'`;
+    expect(t4.status).toBe("open");
+    expect(t4.title).toMatch(/could not be sent \(inactive recipient\)/);
   });
 
   it("opts a number out for its own company only, and shows the public page by token alone (rules 3 and 13)", async () => {

@@ -20,7 +20,7 @@ export default async function MessagingSettingsPage({ searchParams }: { searchPa
   const data = await dbAs(session, async (tx) => ({
     settings: await messagingSettings(tx, active.tenantId),
     overrides: await tx<{ key: string; channel: string; subject: string | null; body: string }[]>`select key, channel, subject, body from public.message_templates where tenant_id = ${active.tenantId}`,
-    usage: await usage(tx, active.tenantId, monthStart, nextMonth),
+    usage: await usage(tx, active.tenantId, monthStart, nextMonth, active.tenantTimezone),
   }));
   const s = data.settings;
   const own = new Map(data.overrides.map((o) => [`${o.key}:${o.channel}`, o]));
