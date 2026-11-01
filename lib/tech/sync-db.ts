@@ -112,8 +112,8 @@ async function apply(tx: Sql, actor: Actor, change: QueuedChange): Promise<SyncR
       return { id: change.id, result: "applied" };
     }
     case "note": {
-      await tx`insert into public.visit_notes (tenant_id, visit_id, kind, content, client_id, recorded_at)
-               values (${tenantId}, ${visitId}, ${payload.note_kind}, ${payload.content}, ${change.id}, ${instant(payload.recorded_at)})`;
+      await tx`insert into public.visit_notes (tenant_id, visit_id, kind, content, client_id, recorded_at, ai_drafted)
+               values (${tenantId}, ${visitId}, ${payload.note_kind}, ${payload.content}, ${change.id}, ${instant(payload.recorded_at)}, ${payload.note_kind === "customer_summary" && payload.ai_drafted === true})`;
       return { id: change.id, result: "applied" };
     }
     case "photo": {

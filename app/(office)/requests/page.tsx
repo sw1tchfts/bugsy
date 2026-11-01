@@ -6,7 +6,7 @@ import { can } from "@/lib/auth/permissions";
 import { dbAs } from "@/lib/auth/session";
 import { formatBusinessDate, formatInstant, todayInZone } from "@/lib/dates";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
-import { answerRequest, bookRequestedReservice } from "./actions";
+import { answerPortalQuestion, answerRequest, bookRequestedReservice } from "./actions";
 
 export const metadata: Metadata = { title: "Requests" };
 
@@ -46,6 +46,13 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
     order by r.status = 'open' desc, r.created_at desc limit 200`);
   const today = todayInZone(active.tenantTimezone);
   const hidden = <input type="hidden" name="tenant_id" value={active.tenantId} />;
+  // Spec 21 rule 7: portal questions the assistant could not answer from the customer's records.
+  const questions = can(active.permissions, "customers.read")
+    ? await dbAs(session, (tx) => tx<{ id: string; account_id: string; account_name: string; question: string; answer: string | null; created_at: Date }[]>`
+        select q.id, q.account_id, a.name as account_name, q.question, q.answer, q.created_at
+        from public.portal_questions q join public.accounts a on a.id = q.account_id
+        where q.tenant_id = ${active.tenantId} and q.status = 'waiting' order by q.created_at limit 50`)
+    : [];
   return (
     <>
       <h1 className="text-2xl font-semibold">Customer requests</h1>
@@ -122,6 +129,37 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
               </tr>
             ))}
           </Table>
+        )}
+      </Card>
+      <Card title="Questions from the portal" description="Customers asked these in the portal and their own records did not answer them. Your answer shows in their portal.">
+        {questions.length === 0 ? (
+          <Empty>No questions waiting.</Empty>
+        ) : (
+          <ul className="grid gap-3">
+            {questions.map((x) => (
+              <li key={x.id} className="rounded border border-stone-200 p-3 text-sm" data-testid="portal-question">
+                <p>
+                  <Link href={`/customers/${x.account_id}`} className="font-medium underline">
+                    {x.account_name}
+                  </Link>{" "}
+                  <span className="text-xs text-stone-500">{formatInstant(x.created_at, active.tenantTimezone)}</span>
+                </p>
+                <p className="mt-1">{x.question}</p>
+                {canAct ? (
+                  <form action={answerPortalQuestion} className="mt-2 grid gap-2">
+                    {hidden}
+                    <input type="hidden" name="question_id" value={x.id} />
+                    <textarea name="office_answer" rows={2} required maxLength={4000} aria-label={`Answer for ${x.account_name}`} className="rounded border border-stone-300 px-2 py-1" />
+                    <div>
+                      <Button type="submit" variant="secondary">
+                        Answer
+                      </Button>
+                    </div>
+                  </form>
+                ) : null}
+              </li>
+            ))}
+          </ul>
         )}
       </Card>
     </>

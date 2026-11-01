@@ -81,6 +81,9 @@ export default async function ReportsPage() {
           <li>
             <Link href="/reports/job-costing" className="underline">Job costing</Link>
           </li>
+          <li>
+            <Link href="/reports/churn-risk" className="underline">Churn risk</Link>
+          </li>
           {d.revenue ? (
             <li>
               <Link href="/reports/revenue" className="underline">Revenue by service line</Link>

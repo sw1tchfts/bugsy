@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LabelReader } from "@/components/catalog/label-reader";
 import { ProductFields } from "@/components/catalog/product-fields";
 import { Badge, Button, Card, Empty, Field, Input, Notice, Select, Table, errorMessage } from "@/components/ui";
 import { can } from "@/lib/auth/permissions";
@@ -134,10 +135,12 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
         <Card title="Products your company added" description="Editable until the platform approves them into the master list.">
           <div className="grid gap-6">
             {own.map((p) => (
-              <form key={p.id} action={updateOwnProduct} className="grid gap-4 border-b border-stone-200 pb-6 last:border-0 last:pb-0 sm:grid-cols-2">
+              <div key={p.id} className="grid gap-3 border-b border-stone-200 pb-6 last:border-0 last:pb-0">
+              <LabelReader tenantId={tenantId} productId={p.id} target={`own-${p.id}-rates`} />
+              <form action={updateOwnProduct} className="grid gap-4 sm:grid-cols-2">
                 <input type="hidden" name="tenant_id" value={tenantId} />
                 <input type="hidden" name="product_id" value={p.id} />
-                <ProductFields prefix={`own-${p.id}`} values={p} />
+                <ProductFields prefix={`own-${p.id}`} values={p} withLabelRates />
                 <div className="flex gap-3 sm:col-span-2">
                   <Button type="submit" variant="secondary">
                     Save product
@@ -147,6 +150,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                   </Button>
                 </div>
               </form>
+              </div>
             ))}
           </div>
         </Card>
@@ -154,9 +158,12 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
 
       {canWrite ? (
         <Card title="Add a product the master list lacks" description="Enter it from the label. It is enabled for your company right away and marked unverified until a platform admin approves it.">
+          <div className="mb-4">
+            <LabelReader tenantId={tenantId} productId={null} target="new-rates" />
+          </div>
           <form action={createTenantProduct} className="grid gap-4 sm:grid-cols-2">
             <input type="hidden" name="tenant_id" value={tenantId} />
-            <ProductFields prefix="new" />
+            <ProductFields prefix="new" withLabelRates />
             <Field label="Unit you buy it in" htmlFor="new-unit">
               {unitSelect("unit", "fl_oz", "Unit")}
             </Field>

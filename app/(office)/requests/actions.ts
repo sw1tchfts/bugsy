@@ -62,3 +62,20 @@ export async function answerRequest(formData: FormData) {
   }
   back(error ? { error } : { note: status === "declined" ? "Declined." : "Marked done." });
 }
+
+/** Spec 21 rule 7: the office answers a portal question the assistant could not; the customer sees it in the portal. */
+export async function answerPortalQuestion(formData: FormData) {
+  const { session, tenantId } = await handler(formData);
+  const answer = str(formData, "office_answer").trim().slice(0, 4000);
+  if (!answer) back({ error: "Write the answer." });
+  let error: string | null = null;
+  try {
+    const r = await dbAs(session, (tx) => tx`
+      update public.portal_questions set office_answer = ${answer}, status = 'answered_by_office', answered_by = auth.uid(), answered_at = now()
+      where id = ${str(formData, "question_id")} and tenant_id = ${tenantId} and status = 'waiting'`);
+    if (r.count === 0) error = "That question was already answered.";
+  } catch (err) {
+    error = errorCode(err);
+  }
+  back(error ? { error } : { note: "Answered. The customer sees it in the portal." });
+}

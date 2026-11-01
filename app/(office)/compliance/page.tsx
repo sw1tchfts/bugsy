@@ -5,6 +5,7 @@ import { can } from "@/lib/auth/permissions";
 import { dbAs, requirePermission } from "@/lib/auth/session";
 import { formatBusinessDate, formatInstant, todayInZone } from "@/lib/dates";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
+import { amountsToReview } from "@/lib/ai/amounts-db";
 import { completeTask, dismissTask, runComplianceNow } from "./actions";
 
 export const metadata: Metadata = { title: "Compliance" };
@@ -52,6 +53,7 @@ export default async function CompliancePage({ searchParams }: { searchParams: P
     const [registry] = await tx<{ matched: number }[]>`select count(*)::int as matched from public.properties where tenant_id = ${tenantId} and archived_at is null and registry_matches <> '{}'::jsonb`;
     return { tasks, records, notices, registry };
   });
+  const amounts = await dbAs(session, (tx) => amountsToReview(tx, tenantId));
 
   return (
     <>
@@ -141,6 +143,33 @@ export default async function CompliancePage({ searchParams }: { searchParams: P
                 </tr>
               );
             })}
+          </Table>
+        )}
+      </Card>
+
+      <Card title="Amounts to review" description="Applications in the last 30 days above the label's maximum, or more than three times what the company usually uses for that product and site. A flag for you to check; it changes nothing.">
+        {amounts.length === 0 ? (
+          <Empty>Nothing unusual.</Empty>
+        ) : (
+          <Table headers={["When", "Product", "Site", "Amount", "Why", ""]}>
+            {amounts.map((a) => (
+              <tr key={a.id} data-testid="amount-flag">
+                <td className="py-2 pr-4 text-sm">{formatInstant(a.applied_at, active.tenantTimezone)}</td>
+                <td className="py-2 pr-4 text-sm">{a.product_name}</td>
+                <td className="py-2 pr-4 text-sm">{a.site.replace(/_/g, " ")}</td>
+                <td className="py-2 pr-4 text-sm tabular-nums">
+                  {a.amount} {a.unit.replace(/_/g, " ")}
+                </td>
+                <td className="py-2 pr-4 text-sm">
+                  {a.reason === "over_label" ? <Badge tone="bad">above the label</Badge> : <Badge tone="warn">{`over 3 times the usual ${Math.round((a.median ?? 0) * 100) / 100}`}</Badge>}
+                </td>
+                <td className="py-2 pr-4 text-sm">
+                  <Link href={`/dispatch/visits/${a.visit_id}`} className="underline">
+                    {a.address}
+                  </Link>
+                </td>
+              </tr>
+            ))}
           </Table>
         )}
       </Card>

@@ -127,6 +127,14 @@ test("a technician works a stop offline, syncs it, the office sees the record, a
   await notes.getByRole("button", { name: "Add note" }).click();
   await expect(notes.getByText("Trim the shrubs back from the siding.")).toBeVisible();
 
+  // Spec 21: the note for the customer. Offline, drafting says it needs a connection; the technician types the note.
+  const customerNote = page.getByTestId("customer-summary");
+  await customerNote.getByRole("button", { name: "Draft it from my notes" }).click();
+  await expect(page.getByTestId("customer-summary-note")).toContainText("Drafting needs a connection");
+  await customerNote.getByLabel("Note for the customer").fill("We treated the north foundation for ants. Trim the shrubs back from the siding.");
+  await customerNote.getByRole("button", { name: "Save the note" }).click();
+  await expect(customerNote.getByTestId("customer-summary-saved")).toContainText("We treated the north foundation");
+
   const conditions = page.getByTestId("conditions");
   await conditions.getByLabel("Temperature (F)").fill("68");
   await conditions.getByLabel("Wind (mph)").fill("5");
@@ -192,16 +200,20 @@ test("a technician works a stop offline, syncs it, the office sees the record, a
     from public.payments p left join public.payment_allocations a on a.payment_id = p.id left join public.invoices i on i.id = a.invoice_id
     where p.visit_id = ${visitId}`;
   // The completion sent Maria the visit summary (spec 11 rule 8); its page carries what was applied.
-  const [summary] = await sql<{ status: string; channel: string; token: string; held: boolean }[]>`
-    select status, channel, token, send_after > now() as held from public.messages where visit_id = ${visitId} and purpose = 'summary'`;
+  const [summary] = await sql<{ status: string; channel: string; token: string; held: boolean; body: string }[]>`
+    select status, channel, token, send_after > now() as held, body from public.messages where visit_id = ${visitId} and purpose = 'summary'`;
   await sql.end();
   expect(cash).toMatchObject({ method: "cash", amount_cents: "19900", allocated: "19900", source_key: `visit:${visitId}`, invoice_status: "paid" });
   // Delivered at once, or, as a text after the company's texting hours, held for the morning (rule 4).
   if (summary?.status === "queued") expect(summary).toMatchObject({ channel: "sms", held: true });
   else expect(summary?.status).toBe("delivered");
+  // Spec 21 rule 3: the technician's note leads the summary (in an email's body; a text links to the page that has it).
+  if (summary.channel === "email") expect(summary.body).toContain("We treated the north foundation for ants.");
   const summaryPage = await page.request.get(`/m/${summary.token}`);
   expect(summaryPage.status()).toBe(200);
-  expect(await summaryPage.text()).toContain("100-1066");
+  const summaryHtml = await summaryPage.text();
+  expect(summaryHtml).toContain("100-1066");
+  expect(summaryHtml).toContain("We treated the north foundation for ants.");
   expect(lakeshoreFile, "the seed stores Lakeshore files").toBeTruthy();
   const foreign = await page.request.get(`/api/files/${lakeshoreFile.id}`);
   expect(foreign.status()).toBe(404);

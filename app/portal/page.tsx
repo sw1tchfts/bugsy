@@ -7,6 +7,7 @@ import { formatCents } from "@/lib/money";
 import { headers } from "next/headers";
 import { overview, referralFor } from "@/lib/portal/db";
 import { portalDb, requirePortal } from "@/lib/portal/session";
+import { AskBox } from "@/components/portal/ask-box";
 
 export const metadata: Metadata = { title: "Your account" };
 
@@ -24,7 +25,15 @@ const NOTICE: Record<string, string> = {
 export default async function PortalHome({ searchParams }: { searchParams: Promise<{ note?: string; error?: string }> }) {
   const q = await searchParams;
   const { session, identity } = await requirePortal();
-  const [data, referral] = await portalDb(session, identity, (tx) => Promise.all([overview(tx, identity), referralFor(tx, identity)]));
+  const [data, referral, questions] = await portalDb(session, identity, (tx) =>
+    Promise.all([
+      overview(tx, identity),
+      referralFor(tx, identity),
+      tx<{ id: string; question: string; answer: string | null; status: string; office_answer: string | null; created_at: Date }[]>`
+        select id, question, answer, status, office_answer, created_at from public.portal_questions
+        where tenant_id = ${identity.tenant_id} and account_id = ${identity.account_id} order by created_at desc limit 5`,
+    ]),
+  );
   const h = await headers();
   const origin = h.get("origin") ?? (h.get("host") ? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}` : (process.env.NEXT_PUBLIC_SITE_URL ?? ""));
   const tz = identity.tenant_timezone;
@@ -44,6 +53,29 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
       </div>
       {q.note ? <Notice kind="success">{q.note}</Notice> : null}
       {errorMessage(q.error) ? <Notice kind="error">{errorMessage(q.error)}</Notice> : null}
+
+      <Card title="Ask a question" description="About your visits, what was applied, your bill or your plan. Answers come from your own records; anything else goes to our office.">
+        <AskBox />
+        {questions.length ? (
+          <ul className="mt-3 grid gap-2 text-sm" data-testid="my-questions">
+            {questions.map((x) => (
+              <li key={x.id} className="rounded border border-stone-100 p-2" data-testid="my-question">
+                <p className="font-medium">{x.question}</p>
+                {x.status === "answered_by_office" ? (
+                  <p className="mt-1">
+                    <span className="text-xs text-stone-500">From the office: </span>
+                    {x.office_answer}
+                  </p>
+                ) : x.status === "waiting" ? (
+                  <p className="mt-1 text-stone-600">Waiting for the office.</p>
+                ) : (
+                  <p className="mt-1">{x.answer}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </Card>
 
       <Card title="Next visits">
         {data.upcoming.length === 0 ? (

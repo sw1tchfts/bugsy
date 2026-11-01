@@ -504,6 +504,7 @@ function StopScreen({ route, visit, changes, userId, locale, timezone, t, onQueu
       <AreasSection visit={visit} t={t} onQueue={onQueue} disabled={done} />
       <ConditionsSection visit={visit} t={t} onQueue={onQueue} disabled={done} locale={locale} timezone={timezone} />
       <NotesSection visit={visit} t={t} onQueue={onQueue} disabled={done} />
+      <SummarySection visit={visit} t={t} onQueue={onQueue} disabled={done} locale={locale} />
       <PhotosSection visit={visit} t={t} onQueue={onQueue} disabled={done} />
       <SignatureSection visit={visit} t={t} onQueue={onQueue} disabled={done} locale={locale} timezone={timezone} />
 
@@ -849,7 +850,7 @@ function NotesSection({ visit, t, onQueue, disabled }: SectionProps) {
       <h2 className="font-semibold">{t("notes.title")}</h2>
       {visit.captured.notes.length === 0 ? <p className="text-stone-500">{t("notes.none")}</p> : null}
       <ul className="grid gap-1">
-        {visit.captured.notes.map((n) => (
+        {visit.captured.notes.filter((n) => n.kind !== "customer_summary").map((n) => (
           <li key={n.id} className="rounded border border-stone-100 p-2">
             <span className="text-xs text-stone-500">{t(`notes.kind.${n.kind}`)}</span>
             <p>{n.content}</p>
@@ -879,6 +880,87 @@ function NotesSection({ visit, t, onQueue, disabled }: SectionProps) {
           </button>
         </form>
       ) : null}
+    </section>
+  );
+}
+
+/**
+ * Spec 21 rule 3: the note for the customer. "Draft it from my notes" asks the assistant (online only) for a draft from
+ * this stop's capture; the technician edits it and saves it, and only what they saved goes with the visit summary.
+ */
+function SummarySection({ visit, t, onQueue, disabled, locale }: SectionProps & { locale: string }) {
+  const saved = [...visit.captured.notes].reverse().find((n) => n.kind === "customer_summary") ?? null;
+  const [text, setText] = useState("");
+  const [drafted, setDrafted] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  async function draft() {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setNote(t("summary.offline"));
+      return;
+    }
+    setBusy(true);
+    setNote(null);
+    try {
+      const c = visit.captured;
+      const res = await fetch("/api/tech/summary-draft", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          visit_id: visit.id,
+          language: locale === "es" ? "es" : "en",
+          capture: {
+            notes: c.notes.filter((n) => n.kind === "note").map((n) => n.content),
+            conditions: c.notes.filter((n) => n.kind === "condition_found").map((n) => n.content),
+            recommendations: c.notes.filter((n) => n.kind === "recommendation").map((n) => n.content),
+            areas: c.areas_treated.map((a) => a.replace(/_/g, " ")),
+            pests: c.target_pests,
+            products: c.products.map((p) => p.product_name),
+          },
+        }),
+      });
+      const body = (await res.json()) as { text?: string; error?: string };
+      if (body.text) {
+        setText(body.text);
+        setDrafted(true);
+        setNote(t("summary.drafted"));
+      } else setNote(body.error ?? t("summary.offline"));
+    } catch {
+      setNote(t("summary.offline"));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="rounded-lg border border-stone-200 bg-white p-3 text-sm" data-testid="customer-summary">
+      <h2 className="font-semibold">{t("summary.title")}</h2>
+      {saved ? (
+        <p className="mt-1 rounded border border-stone-100 p-2" data-testid="customer-summary-saved">
+          {saved.content}
+        </p>
+      ) : null}
+      {!disabled ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!text.trim()) return;
+            void onQueue({ kind: "note", note_kind: "customer_summary", content: text.trim(), recorded_at: new Date().toISOString(), ai_drafted: drafted });
+            setText("");
+            setDrafted(false);
+            setNote(t("summary.saved"));
+          }}
+          className="mt-2 grid gap-2"
+        >
+          <button type="button" onClick={() => void draft()} disabled={busy} className="justify-self-start rounded border border-stone-300 px-3 py-2">
+            {busy ? t("summary.drafting") : t("summary.draft")}
+          </button>
+          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder={t("summary.placeholder")} className="rounded border border-stone-300 px-2 py-2" aria-label={t("summary.title")} />
+          <button type="submit" className="justify-self-start rounded border border-emerald-800 px-3 py-2 text-emerald-900">
+            {t("summary.save")}
+          </button>
+        </form>
+      ) : null}
+      {note ? <p className="mt-1 text-xs text-stone-600" data-testid="customer-summary-note">{note}</p> : null}
     </section>
   );
 }

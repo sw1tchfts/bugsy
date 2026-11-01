@@ -12,7 +12,7 @@ import { type CompanyFacts, noticeHtml, noticeText, summaryHtml, summaryText } f
 import { attempt, providerFor } from "./providers";
 import { type Channel, chooseChannel, e164, keyword, nextAllowed, normalizeAddress, smsSegments, withinQuietHours } from "./rules";
 import { safely } from "./safely";
-import { type TemplateKey, checkTemplate, prepText, render, templateFor, textToHtml } from "./templates";
+import { type TemplateKey, checkTemplate, escapeHtml, prepText, render, templateFor, textToHtml } from "./templates";
 
 type Sql = postgres.Sql | postgres.TransactionSql;
 
@@ -485,6 +485,7 @@ export async function queueVisitSummary(tx: Sql, tenantId: string, visitId: stri
     if (recipient && channel) {
       const t = token();
       const day = dateInZone(visit.captured.departed_at ?? visit.captured.completed_at ?? new Date(), timeZone);
+      const customerNote = [...visit.captured.notes].reverse().find((n) => n.kind === "customer_summary")?.content ?? null;
       // Spec 17 rule 9: the survey link rides with the summary (imported late: growth reads messaging too).
       const { surveyLink } = await import("@/lib/growth/db");
       const survey = await safely(tx, "survey link", (t2) => surveyLink(t2, tenantId, visitId));
@@ -499,13 +500,14 @@ export async function queueVisitSummary(tx: Sql, tenantId: string, visitId: stri
           visit_date: longDate(day),
           technician_name: lead?.name ?? "Your technician",
           summary_url: `${appUrl()}/m/${t}`,
-          summary_text: summaryText(visit, timeZone),
+          // Spec 21 rule 3: the technician's note for the customer (as they saved it) above the visit's facts.
+          summary_text: [customerNote, summaryText(visit, timeZone)].filter(Boolean).join("\n\n"),
           survey_line: survey ? `\n\nHow did we do? ${survey}` : "",
         },
         required: ["survey_line"],
         dedupe_key: `summary:${visitId}`,
         ids: { visit_id: visitId, notice_id: notice?.id ?? null },
-        pageHtml: summaryHtml(visit, timeZone, company),
+        pageHtml: `${customerNote ? `<p data-note="customer">${escapeHtml(customerNote)}</p>` : ""}${summaryHtml(visit, timeZone, company)}`,
         tokenValue: t,
       });
       if (summaryId) await sendQueued(tx, tenantId, new Date(), timeZone, [summaryId]);

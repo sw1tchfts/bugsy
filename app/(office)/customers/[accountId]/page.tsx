@@ -79,6 +79,11 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
   const billing = can(active.permissions, "billing.read") ? await dbAs(session, (tx) => statementFor(tx, tenantId, accountId, todayInZone(active.tenantTimezone), active.tenantTimezone)) : null;
   const messages = await dbAs(session, (tx) => timeline(tx, tenantId, accountId));
   const calls = await dbAs(session, (tx) => callsForAccount(tx, tenantId, accountId));
+  // Spec 21 rule 6: the highest churn risk among the account's plans, with its reasons.
+  const [risk] = await dbAs(session, (tx) =>
+    tx<{ score: number; band: string; reasons: { code: string; text: string }[] }[]>`
+      select score, band, reasons from public.churn_scores where tenant_id = ${tenantId} and account_id = ${accountId} order by score desc limit 1`,
+  );
   const minutes = (s: number | null) => (s === null ? "" : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`);
   const canMessage = can(active.permissions, "messages.send");
   const here = `/customers/${accountId}`;
@@ -98,6 +103,15 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
           <p className="text-sm text-stone-600">
             {{ residential: "Residential", commercial: "Commercial", property_manager: "Property manager" }[account.type]} account since {new Date(account.created_at).toLocaleDateString("en-US")}
           </p>
+          {risk && risk.band !== "low" ? (
+            <p className="mt-1 text-sm" data-testid="churn-badge" title={risk.reasons.map((r) => r.text).join(" ")}>
+              <Badge tone={risk.band === "high" ? "bad" : "warn"}>{`Churn risk ${risk.score}`}</Badge>{" "}
+              <span className="text-stone-600">{risk.reasons[0]?.text}</span>{" "}
+              <Link href="/reports/churn-risk" className="text-xs underline">
+                Why
+              </Link>
+            </p>
+          ) : null}
         </div>
         {canQuote && !account.archived_at ? (
           <form action={createQuote}>

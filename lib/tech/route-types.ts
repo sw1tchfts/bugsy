@@ -206,7 +206,7 @@ export type ChangePayload =
   | { kind: "conditions"; conditions: Conditions }
   | { kind: "areas_pests"; areas_treated: string[]; target_pests: string[] }
   | ({ kind: "product" } & ProductPayload)
-  | { kind: "note"; note_kind: string; content: string; recorded_at: string }
+  | { kind: "note"; note_kind: string; content: string; recorded_at: string; ai_drafted?: boolean }
   | { kind: "photo"; photo_kind: string; caption: string | null; taken_at: string; data_url: string }
   | { kind: "signature"; signer_name: string; signed_at: string; data_url: string }
   | { kind: "complete"; at: string }

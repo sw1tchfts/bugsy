@@ -767,6 +767,11 @@ export async function runBilling(
   // Rule 10: referral credits for referred customers' first plans signed by staff who cannot issue credits.
   const { creditReferrals } = await import("@/lib/growth/db");
   await creditReferrals(tx, tenantId, today);
+  // Spec 21 rule 6: every active plan's churn risk, once a day (imported late: AI reads billing and messaging). A
+  // savepoint keeps a scoring failure from undoing the billing run.
+  const { scoreChurn } = await import("@/lib/ai/churn-db");
+  if ("savepoint" in tx) await tx.savepoint((sp) => scoreChurn(sp, tenantId, today)).catch((err: Error) => console.error("churn scoring failed", tenantId, err.message));
+  else await scoreChurn(tx, tenantId, today);
   return counts;
 }
 

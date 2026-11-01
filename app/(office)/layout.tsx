@@ -157,6 +157,9 @@ export default async function OfficeLayout({ children }: { children: React.React
                 <Link href="/settings/import" className="text-stone-700 hover:text-stone-900">
                   Import
                 </Link>
+                <Link href="/settings/ai" className="text-stone-700 hover:text-stone-900">
+                  AI
+                </Link>
                 {can(active.permissions, "integrations.manage") || can(active.permissions, "gl.read") ? (
                   <Link href="/settings/integrations" className="text-stone-700 hover:text-stone-900">
                     Integrations

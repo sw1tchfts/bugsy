@@ -101,3 +101,21 @@ export async function archiveOwnProduct(formData: FormData) {
   }
   back(error);
 }
+
+export type LabelReadState = { rows?: string; count?: number; note?: string | null; error?: string };
+
+/**
+ * Spec 21 rule 4: label text read into rate rows for the person to check. Nothing is saved here: the rows go into the
+ * product form's label rates, and only the person's save stores them.
+ */
+export async function readLabelAction(_prev: LabelReadState, formData: FormData): Promise<LabelReadState> {
+  const tenantId = str(formData, "tenant_id");
+  const { session } = await requirePermission(tenantId, "catalog.write");
+  const text = String(formData.get("label_text") ?? "").slice(0, 60_000);
+  if (!text.trim()) return { error: "Paste the label's directions for use." };
+  const productId = formData.get("product_id") ? str(formData, "product_id") : null;
+  const { runAi } = await import("@/lib/ai/db");
+  const outcome = await dbAs(session, (tx) => runAi(tx, tenantId, "label", productId, (p) => p.readLabel(text)));
+  if (!outcome.ok) return { error: outcome.message };
+  return { rows: JSON.stringify(outcome.value.rows), count: outcome.value.rows.length, note: outcome.value.note };
+}

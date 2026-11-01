@@ -3200,3 +3200,97 @@ describe("spec 20 review fixes enforced in the database", () => {
     expect(result.none).toBe(0);
   });
 });
+
+describe("spec 21 AI features enforced in the database", () => {
+  const ROLLBACK = "rollback: spec 21";
+  const bistroEmail = portalCustomerEmail(lakeshore);
+  async function rolledBack<T>(fn: (tx: Tx, as: (email: string, portal?: string) => Promise<void>) => Promise<T>): Promise<T> {
+    let out: T | undefined;
+    await admin
+      .begin(async (tx) => {
+        const as = async (email: string, portal?: string) => {
+          const id = await userId(email);
+          await tx.unsafe("reset role");
+          await tx.unsafe("set local role authenticated");
+          await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: id, email, role: "authenticated", ...(portal ? { portal_user: portal } : {}) })}, true)`;
+        };
+        out = await fn(tx, as);
+        throw new Error(ROLLBACK);
+      })
+      .catch((e: Error) => {
+        if (e.message !== ROLLBACK) throw e;
+      });
+    return out as T;
+  }
+  const attempt = (tx: Tx, q: (sp: Tx) => Promise<unknown>) =>
+    tx.savepoint((sp) => q(sp as unknown as Tx)).then((r) => `ok ${(r as { count?: number }).count ?? ""}`.trim(), (e: Error) => e.message);
+
+  it("lets a portal login ask and read only its own account's questions, and the office answer them (rule 7)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      const bistro = await userId(bistroEmail);
+      const [pu] = await tx<{ id: string; account_id: string }[]>`select id, account_id from public.portal_users where tenant_id = ${lakeshoreId} and user_id = ${bistro}`;
+      await as(bistroEmail, pu.id);
+      const [{ id }] = await tx<{ id: string }[]>`select app.portal_ask(${lakeshoreId}, 'Do you treat for wasps?', 'The office will answer.', true, '[]'::jsonb) as id`;
+      const [{ seen }] = await tx<{ seen: number }[]>`select count(*)::int as seen from public.portal_questions`;
+      const [{ others }] = await tx<{ others: number }[]>`select count(*)::int as others from public.portal_questions where account_id <> ${pu.account_id}`;
+      const forged = await attempt(tx, (sp) => sp`update public.portal_questions set status = 'answered' where id = ${id}`);
+      const plans = await tx<{ id: string }[]>`select id from app.portal_plans(${lakeshoreId})`;
+      const [{ theirPlans }] = await tx<{ theirPlans: number }[]>`select count(*)::int as "theirPlans" from public.agreements g where g.id = any(${plans.map((p) => p.id)}::uuid[]) and g.account_id <> ${pu.account_id}`;
+      await as(seedUserEmail(northwind, "owner"));
+      const [{ otherCompany }] = await tx<{ otherCompany: number }[]>`select count(*)::int as "otherCompany" from public.portal_questions where id = ${id}`;
+      const outsiderAsk = await attempt(tx, (sp) => sp`select app.portal_ask(${lakeshoreId}, 'hi', null, false, '[]'::jsonb)`);
+      await as(seedUserEmail(lakeshore, "office"));
+      const answered = await attempt(tx, (sp) => sp`update public.portal_questions set office_answer = 'Yes, we do.', status = 'answered_by_office', answered_at = now() where id = ${id}`);
+      return { seen, others, forged, theirPlans, otherCompany, outsiderAsk, answered };
+    });
+    expect(result.seen).toBeGreaterThan(0);
+    expect(result.others).toBe(0);
+    expect(result.forged).toBe("ok 0");
+    expect(result.theirPlans).toBe(0);
+    expect(result.otherCompany).toBe(0);
+    expect(result.outsiderAsk).toMatch(/only a portal login asks/);
+    expect(result.answered).toBe("ok 1");
+  });
+
+  it("keeps churn scores and AI runs within the company and lets only billing or customer writers score (rules 2 and 6)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      await as(seedUserEmail(northwind, "owner"));
+      const [{ theirs }] = await tx<{ theirs: number }[]>`select count(*)::int as theirs from public.churn_scores where tenant_id = ${lakeshoreId}`;
+      const [{ ownScores }] = await tx<{ ownScores: number }[]>`select count(*)::int as "ownScores" from public.churn_scores`;
+      const [{ theirRuns }] = await tx<{ theirRuns: number }[]>`select count(*)::int as "theirRuns" from public.ai_runs where tenant_id = ${lakeshoreId}`;
+      const outsiderAllowed = await attempt(tx, (sp) => sp`select app.ai_allowed(${lakeshoreId}, 'summary')`);
+      const outsiderLog = await attempt(tx, (sp) => sp`select app.log_ai_run(${lakeshoreId}, 'summary', 'local', 'local', 'ok', 0, 0, 0, null)`);
+      await as(seedUserEmail(northwind, "technician"));
+      const techScores = await attempt(tx, (sp) => sp`select app.save_churn_scores(${northwindId}, current_date, '[]'::jsonb)`);
+      const [{ techRuns }] = await tx<{ techRuns: number }[]>`select count(*)::int as "techRuns" from public.ai_runs`;
+      const [{ allowed }] = await tx<{ allowed: string }[]>`select app.ai_allowed(${northwindId}, 'summary') as allowed`;
+      const techSettings = await attempt(tx, (sp) => sp`update public.ai_settings set monthly_limit = 1 where tenant_id = ${northwindId}`);
+      return { theirs, ownScores, theirRuns, outsiderAllowed, outsiderLog, techScores, techRuns, allowed, techSettings };
+    });
+    expect(result.theirs).toBe(0);
+    expect(result.ownScores).toBeGreaterThan(0);
+    expect(result.theirRuns).toBe(0);
+    expect(result.outsiderAllowed).toMatch(/not this company/);
+    expect(result.outsiderLog).toMatch(/not this company/);
+    expect(result.techScores).toMatch(/scoring needs billing.write/);
+    expect(result.techRuns).toBe(0);
+    expect(result.allowed).toBe("ok");
+    expect(result.techSettings).toBe("ok 0");
+  });
+
+  it("stops AI calls at the month's limit and when a feature is off (rule 2)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      await tx`update public.ai_settings set monthly_limit = 1 where tenant_id = ${northwindId}`;
+      await tx`insert into public.ai_runs (tenant_id, feature, provider, model, status) values (${northwindId}, 'summary', 'claude', 'claude-opus-5-5', 'ok')`;
+      await as(seedUserEmail(northwind, "technician"));
+      const [{ limited }] = await tx<{ limited: string }[]>`select app.ai_allowed(${northwindId}, 'summary') as limited`;
+      await tx.unsafe("reset role");
+      await tx`update public.ai_settings set monthly_limit = 100, label_reading = false where tenant_id = ${northwindId}`;
+      await as(seedUserEmail(northwind, "office"));
+      const [{ off }] = await tx<{ off: string }[]>`select app.ai_allowed(${northwindId}, 'label') as off`;
+      return { limited, off };
+    });
+    expect(result.limited).toBe("limited");
+    expect(result.off).toBe("off");
+  });
+});

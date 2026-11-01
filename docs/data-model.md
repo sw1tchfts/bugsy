@@ -246,3 +246,14 @@ branches gain lat and lng, the route's start and end. The on-the-way template ga
 | calls | tenant_id, direction, from_number, to_number, account_id, contact_id, lead_id, user_id, started_at, duration_seconds, recording_url, provider_call_id unique, notes | From the phone system's signed events (matched by number) and from click to call; read with customers.read |
 
 leads, service_requests and device_checks gain api_key_id: what an API key wrote names the key, and only the API's own functions set it.
+
+## AI features
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| ai_settings | tenant_id unique, enabled, summaries, label_reading, portal_answers, churn, monthly_limit | Which AI features the company uses and how many model calls a month |
+| ai_runs | tenant_id, feature [summary, label, portal_answer], provider [claude, local], model, status [ok, refused, failed, limited], input_tokens, output_tokens, ms, subject_id | Usage only, never the prompt or the answer; the monthly limit counts Claude calls |
+| churn_scores | tenant_id, agreement_id unique, account_id, score, band [low, medium, high], reasons, computed_on | Recomputed once a day by the billing job; each reason carries its points and sentence |
+| portal_questions | tenant_id, account_id, portal_user_id, question, answer, sources, status [answered, waiting, answered_by_office], office_answer, answered_by, answered_at | Asked in the portal (at most 20 a day per login); answered from the customer's own records, or by the office |
+
+visit_notes gains the kind customer_summary (the technician's note for the customer, sent with the visit summary) and ai_drafted.
