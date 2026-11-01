@@ -5,13 +5,13 @@
 // inspection with a draft report. Idempotent. Called from seed.ts after the ledger and commercial seeds.
 import type postgres from "postgres";
 import { syncVisits } from "../lib/agreements/db";
-import { issuePrepayments } from "../lib/billing/db";
+import { invoiceForVisit, issuePrepayments } from "../lib/billing/db";
 import { ensureStateRules } from "../lib/catalog/state-rules";
 import { templateByKey } from "../lib/catalog/service-lines";
 import { floorPlan } from "../lib/commercial/image";
 import { addDays, addMonths, startOfMonth, todayInZone } from "../lib/dates";
 import { putFile } from "../lib/files";
-import { postStraightLine } from "../lib/ledger/db";
+import { postStraightLine, postVisit } from "../lib/ledger/db";
 import type { SeedTenant } from "./seed-data";
 import { seedUserEmail } from "./seed-data";
 
@@ -268,7 +268,7 @@ export async function seedSpecialty(sql: Sql, tenant: SeedTenant, tenantId: stri
     }
   }
 
-  // A real estate WDI inspection at the Maria Lopez home, on the technician's route tomorrow, with a draft report.
+  // A real estate WDI inspection at the Maria Lopez home, done yesterday by the technician, with the report in draft.
   const wd = await job(sql, tenantId, owner.id, branch?.id ?? null, {
     key: "lopez-wdi",
     account: "Maria Lopez",
@@ -279,13 +279,18 @@ export async function seedSpecialty(sql: Sql, tenant: SeedTenant, tenantId: stri
     billing_mode: "per_visit",
     initial: 12500,
     recurring: 0,
-    starts_on: addDays(today, 1),
+    starts_on: addDays(today, -1),
   });
   if (wd && tech) {
     const v = await firstVisit(sql, wd.id);
     if (v && v.status === "planned") {
       await sql`update public.visits set status = 'scheduled', scheduled_for = due_start, technician_id = ${tech.user_id}, route_position = 99 where id = ${v.id}`;
       await sql`insert into public.visit_crew (tenant_id, visit_id, user_id, role) values (${tenantId}, ${v.id}, ${tech.user_id}, 'lead') on conflict (visit_id, user_id) do nothing`;
+      await sql`update public.visits set status = 'completed', arrived_at = (due_start::timestamp + interval '14 hours'), departed_at = (due_start::timestamp + interval '16 hours'),
+                  completed_at = (due_start::timestamp + interval '16 hours') where id = ${v.id}`;
+      // The inspection fee bills per visit and the books earn it, as the completion would have.
+      await invoiceForVisit(sql, tenantId, v.id, tenant.timezone);
+      await postVisit(sql, tenantId, v.id, tenant.timezone);
     }
     if (v) {
       await sql`insert into public.wdi_reports (tenant_id, visit_id, requested_by, buyer, seller, structures)

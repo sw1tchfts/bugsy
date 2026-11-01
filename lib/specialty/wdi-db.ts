@@ -35,6 +35,15 @@ export async function loadWdi(tx: Sql, tenantId: string, visitId: string, timeZo
   const [license] = await tx<{ number: string | null }[]>`
     select business_license_number as number from public.branches where tenant_id = ${tenantId} and archived_at is null and state_code = ${visit.state_code}
     order by business_license_number nulls last, name limit 1`;
+  // An issued report prints what the database captured at issue, never what is true today (rule 7).
+  const snap = report?.status === "issued" ? report.issued_snapshot : null;
+  if (snap) {
+    return {
+      visit,
+      report,
+      ctx: { company: snap.company, property: snap.property, inspected_on: snap.inspected_on, issued_on: snap.issued_on, inspector: snap.inspector },
+    };
+  }
   return {
     visit,
     report,
@@ -43,7 +52,7 @@ export async function loadWdi(tx: Sql, tenantId: string, visitId: string, timeZo
       property: { address: visit.address, state: visit.state_code },
       inspected_on: visit.completed_at ? dateInZone(visit.completed_at, timeZone) : visit.scheduled_for,
       issued_on: report?.issued_at ? dateInZone(report.issued_at, timeZone) : null,
-      inspector: inspector ? { name: inspector.name, cert_number: inspector.cert_number, license_number: inspector.license_number } : null,
+      inspector: inspector ? { name: inspector.name, cert_number: inspector.cert_number, license_number: inspector.license_number, cert_expires_on: inspector.cert_expires_on } : null,
     },
   };
 }

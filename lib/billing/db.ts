@@ -11,7 +11,7 @@ import { settlementDocuments } from "@/lib/billing/settlement";
 import { type Statement, type StatementAllocation, type StatementInvoice, type StatementPayment, statement } from "@/lib/billing/statement";
 import { type TaxClass, type TaxRate, ratesInForce, taxClassFor, taxForLine } from "@/lib/billing/tax";
 import { addDays, addMonths, dateInZone, todayInZone } from "@/lib/dates";
-import { type LedgerCounts, type LedgerRunOptions, postInvoice, postPayment, postRefund, postVoid, runLedger, tenantTimeZone } from "@/lib/ledger/db";
+import { type LedgerCounts, type LedgerRunOptions, postInvoice, postPayment, postRefund, postStraightLineSettlement, postVoid, runLedger, tenantTimeZone } from "@/lib/ledger/db";
 import { queueInvoiceEmail } from "@/lib/messaging/db";
 import { safely } from "@/lib/messaging/safely";
 import { gatewayFor } from "@/lib/payments";
@@ -707,6 +707,8 @@ export async function settleCancellation(tx: Sql, tenantId: string, agreementId:
       }
     }
   }
+  // A warranty's books recognize exactly what the settlement says was earned (spec 15 rule 2).
+  await postStraightLineSettlement(tx, tenantId, agreementId, effectiveOn, preview.recognizedCents);
   return { invoices, refunded_cents: refunded };
 }
 

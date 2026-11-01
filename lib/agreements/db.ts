@@ -5,7 +5,7 @@ import { type BillingEvent, type Settlement, billedThrough, billingSchedule, set
 import type { BillingMode, Cadence, CadenceRule, PlanInput } from "@/lib/agreements/cadence";
 import { type IncreaseRule, increasedPrice } from "@/lib/agreements/increase";
 import { type ExistingVisit, type PlannedVisit, planVisits, regenerationPlan } from "@/lib/agreements/visits";
-import { straightLineRecognized } from "@/lib/specialty/recognition";
+import { type Term, straightLineRecognized, warrantyTerms } from "@/lib/specialty/recognition";
 import { addDays } from "@/lib/dates";
 
 type Sql = postgres.Sql | postgres.TransactionSql;
@@ -56,7 +56,7 @@ export async function loadAgreement(tx: Sql, tenantId: string, agreementId: stri
 
 async function existingVisits(tx: Sql, tenantId: string, agreementId: string): Promise<ExistingVisit[]> {
   return tx<ExistingVisit[]>`
-    select id, kind, sequence, due_start, due_end, status, price_cents, imported from public.visits
+    select id, kind, sequence, due_start, due_end, status, price_cents, imported, step_label from public.visits
     where agreement_id = ${agreementId} and tenant_id = ${tenantId} order by sequence`;
 }
 
@@ -209,15 +209,12 @@ export async function endExpiredAgreements(tx: Sql, tenantId: string, today: str
   return result.count;
 }
 
-/** An agreement's billing schedule from its live visits (the same plan settlement reads). */
-export async function agreementSchedule(tx: Sql, tenantId: string, agreementId: string): Promise<{ agreement: AgreementRow; schedule: BillingEvent[] } | null> {
+/** A straight-line agreement's terms and their fees (spec 15 rule 2), from every initial and recurring visit it sold. */
+export async function agreementTerms(tx: Sql, tenantId: string, agreementId: string): Promise<{ agreement: AgreementRow; terms: Term[] } | null> {
   const agreement = await loadAgreement(tx, tenantId, agreementId);
   if (!agreement) return null;
   const visits = await existingVisits(tx, tenantId, agreementId);
-  const plan: PlannedVisit[] = visits
-    .filter((v) => (v.kind === "initial" || v.kind === "recurring") && v.status !== "cancelled" && v.status !== "skipped")
-    .map((v) => ({ kind: v.kind as "initial" | "recurring", sequence: v.sequence, due_start: v.due_start, due_end: v.due_end, price_cents: Number(v.price_cents), interior_only: false }));
-  return { agreement, schedule: billingSchedule(agreement, plan) };
+  return { agreement, terms: warrantyTerms(agreement.starts_on, agreement.term_months, agreement.renewals, visits) };
 }
 
 export type SettlementData = Settlement & { billedCents: number; recognizedCents: number; schedule: BillingEvent[] };
@@ -234,7 +231,7 @@ export async function settlementFor(tx: Sql, tenantId: string, agreementId: stri
   // A warranty earns its fee evenly over each term (spec 15 rule 2): through the day before the cancellation takes effect.
   const recognizedCents =
     agreement.recognition === "straight_line"
-      ? straightLineRecognized(schedule.filter((e) => e.date < effectiveOn), agreement.term_months, addDays(effectiveOn, -1))
+      ? straightLineRecognized(warrantyTerms(agreement.starts_on, agreement.term_months, agreement.renewals, visits), addDays(effectiveOn, -1))
       : visits.filter((v) => v.status === "completed").reduce((sum, v) => sum + Number(v.price_cents), 0);
   // An imported agreement: the old system billed imported_billed_cents before the cutover; Bugsy billed its own schedule
   // from the cutover on, or for per-visit plans the visits completed in Bugsy (spec 10 rules 8 and 10).

@@ -42,6 +42,8 @@ export type ExistingVisit = {
   price_cents: number | string | bigint;
   /** Done before Bugsy (spec 10). */
   imported?: boolean;
+  /** The job plan step it came from (spec 15). */
+  step_label?: string | null;
 };
 
 export type RegenerationPlan = {
@@ -69,8 +71,19 @@ export function regenerationPlan(existing: readonly ExistingVisit[], planned: re
   const hasInitial = anchors.some((v) => v.kind === "initial");
   let sequence = existing.reduce((max, v) => Math.max(max, v.sequence), 0);
   const insert: PlannedVisit[] = [];
+  // A job plan's steps are matched by step (the n-th step with a label against the n-th kept visit with it), not by
+  // window: a trap check two days after the trap set overlaps it and must not be dropped (spec 15 rule 1).
+  const seen = new Map<string, number>();
   for (const visit of planned) {
     if (visit.kind === "initial" && hasInitial) continue;
+    if (visit.label) {
+      const nth = (seen.get(visit.label) ?? 0) + 1;
+      seen.set(visit.label, nth);
+      if (keep.filter((a) => a.kind !== "reservice" && a.step_label === visit.label).length >= nth) continue;
+      sequence += 1;
+      insert.push({ ...visit, sequence });
+      continue;
+    }
     if (anchors.some((a) => overlaps(a, visit))) continue;
     sequence += 1;
     insert.push({ ...visit, sequence });

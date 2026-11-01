@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { billingSchedule, settlementPreview } from "@/lib/agreements/billing";
 import { type PlanInput, jobStepIssues, planIssues } from "@/lib/agreements/cadence";
 import { parseJobSteps } from "@/lib/agreements/cadence";
-import { planVisits } from "@/lib/agreements/visits";
+import { planVisits, regenerationPlan } from "@/lib/agreements/visits";
 import { checkAssignment } from "@/lib/dispatch/checks";
 import { daysBetween } from "@/lib/dates";
 import { prepText } from "@/lib/messaging/templates";
 import { materialCents, materialLines } from "@/lib/specialty/materials";
-import { recognitionByMonth, straightLineRecognized } from "@/lib/specialty/recognition";
+import { earnedByMonth, straightLineRecognized, warrantyTerms } from "@/lib/specialty/recognition";
 import { type WdiReport, wdiHtml, wdiProblems } from "@/lib/specialty/wdi";
 import { gapsFor } from "@/lib/tech/gaps";
 import { withLocalChanges } from "@/lib/tech/local";
@@ -62,24 +62,30 @@ describe("job plans (spec 15 rule 1)", () => {
 
 describe("straight-line recognition (spec 15 rule 2)", () => {
   const fee = 29500;
-  const billed = [{ date: "2027-07-01", amount_cents: fee }];
   const year = daysBetween("2027-07-01", "2028-07-01");
+  const sold = [{ kind: "initial", due_start: "2027-07-01", price_cents: fee }];
+  const terms = warrantyTerms("2027-07-01", 12, 0, sold);
 
-  it("earns the fee evenly by day over the year it pays for, each month once", () => {
-    const months = recognitionByMonth(billed, 12, "2027-07", "2027-10");
+  it("earns each term's fee evenly by day from the term's start to the next term's start", () => {
+    expect(terms).toEqual([{ start: "2027-07-01", end: "2028-07-01", cents: fee }]);
+    const months = earnedByMonth(terms, "2027-07", "2027-10");
     expect(months.map((m) => m.month)).toEqual(["2027-07", "2027-08", "2027-09", "2027-10"]);
-    expect(months[0].cents).toBe(Math.round((fee * 31) / year));
-    // Each month is the change in the rounded running total, so the year adds up to the fee exactly.
-    const all = recognitionByMonth(billed, 12, "2027-07", "2028-07");
-    expect(all.reduce((s, m) => s + m.cents, 0)).toBe(fee);
-    expect(all[all.length - 1].cents).toBe(0);
-    expect(straightLineRecognized(billed, 12, "2027-06-30")).toBe(0);
-    expect(straightLineRecognized(billed, 12, "2028-06-30")).toBe(fee);
+    expect(months[0].earned).toBe(Math.round((fee * 31) / year));
+    // The running total reaches the fee exactly at the end of the term, and stays there.
+    expect(straightLineRecognized(terms, "2027-06-30")).toBe(0);
+    expect(straightLineRecognized(terms, "2028-06-30")).toBe(fee);
+    expect(straightLineRecognized(terms, "2028-12-31")).toBe(fee);
   });
 
-  it("starts each renewal's year on its own billing date", () => {
-    const renewed = [...billed, { date: "2028-07-01", amount_cents: 31000 }];
-    expect(straightLineRecognized(renewed, 12, "2028-07-01")).toBe(fee + Math.round(31000 / daysBetween("2028-07-01", "2029-07-01")));
+  it("earns a renewal's fee over its own term, and counts a skipped or cancelled reinspection as sold", () => {
+    const renewed = warrantyTerms("2027-07-01", 12, 1, [...sold, { kind: "recurring", due_start: "2028-07-01", price_cents: 31000 }]);
+    expect(renewed.map((t) => t.cents)).toEqual([fee, 31000]);
+    expect(straightLineRecognized(renewed, "2028-07-01")).toBe(fee + Math.round(31000 / daysBetween("2028-07-01", "2029-07-01")));
+  });
+
+  it("is the same whatever the billing mode: twelve monthly installments earn the year's fee by the year's end", () => {
+    const monthly = warrantyTerms("2026-01-01", 12, 0, Array.from({ length: 12 }, (_, i) => ({ kind: i ? "recurring" : "initial", due_start: `2026-${String(i + 1).padStart(2, "0")}-01`, price_cents: 10000 })));
+    expect(straightLineRecognized(monthly, "2026-12-31")).toBe(120000);
   });
 
   it("settles a warranty cancelled mid-year with a refund of the unearned share of a prepaid fee", () => {
@@ -88,11 +94,26 @@ describe("straight-line recognition (spec 15 rule 2)", () => {
     ]);
     expect(schedule).toEqual([expect.objectContaining({ date: "2027-07-01", amount_cents: fee })]);
     // Effective 2028-01-01: earned through the day before.
-    const earned = straightLineRecognized(schedule, 12, "2027-12-31");
+    const earned = straightLineRecognized(terms, "2027-12-31");
     expect(earned).toBe(Math.round((fee * daysBetween("2027-07-01", "2028-01-01")) / year));
     const s = settlementPreview({ billedCents: fee, recognizedCents: earned });
     expect(s.refundCents).toBe(fee - earned);
     expect(s.finalInvoiceCents).toBe(0);
+  });
+});
+
+describe("job plan regeneration (spec 15 rule 1)", () => {
+  it("keeps every step when an edit regenerates the plan after the first visit is scheduled", () => {
+    const wildlife: PlanInput = {
+      ...job,
+      cadence_rule: { steps: [{ label: "Set traps", offset_days: 0 }, { label: "Trap check", offset_days: 2 }, { label: "Trap check", offset_days: 4 }, { label: "Exclusion", offset_days: 7 }] },
+      first_visit_on: "2027-03-01",
+    };
+    const planned = planVisits(wildlife);
+    const existing = planned.map((v, i) => ({ id: `v${i}`, kind: v.kind, sequence: v.sequence, due_start: v.due_start, due_end: v.due_end, status: i === 0 ? "scheduled" : "planned", price_cents: v.price_cents, step_label: v.label ?? null }));
+    const plan = regenerationPlan(existing, planned);
+    expect(plan.keep.map((v) => v.step_label)).toEqual(["Set traps"]);
+    expect(plan.insert.map((v) => v.label)).toEqual(["Trap check", "Trap check", "Exclusion"]);
   });
 });
 
@@ -152,6 +173,8 @@ describe("the WDI report (spec 15 rule 7)", () => {
       "Sam Rivera has no credential on file for this state.",
     ]);
     expect(wdiProblems(answered, null)).toEqual(["The inspection needs an inspector on its crew."]);
+    expect(wdiProblems(answered, { ...inspector, cert_expires_on: "2027-02-28" }, { today: "2027-03-04", visit_status: "completed" })).toEqual(["Sam Rivera's credential expired on 2027-02-28."]);
+    expect(wdiProblems(answered, inspector, { visit_status: "scheduled" })).toEqual(["Issue the report once the inspection has started."]);
   });
 
   it("escapes every value in the printable report", () => {

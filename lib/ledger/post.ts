@@ -111,6 +111,15 @@ export function visitLines(event: VisitEvent): PostingLine[] {
   ]);
 }
 
+/** Straight-line recognition (spec 15 rule 2): earned revenue out of the contract balance, or back in when negative. */
+export function recognitionLines(event: { cents: number; service_line: string; agreement_id: string }): PostingLine[] {
+  if (event.cents === 0) return [];
+  return settle([
+    { account: "contract_liability", cents: -event.cents, agreement_id: event.agreement_id },
+    { account: revenueAccountFor(event.service_line), cents: event.cents },
+  ]);
+}
+
 export type ProductUseEvent = { quantity: string | number; usage_unit: string; unit_cost_cents: number; cost_unit: string };
 
 /** Quantity in the cost unit times the unit cost, half up to the cent; null when the units do not convert. */

@@ -70,11 +70,21 @@ export function AgreementFields({ prefix, values = {}, locked = false }: { prefi
       <Field label="Job steps" htmlFor={id("job-steps")} hint="Only for a job plan: one visit per line, Label @ days after the first visit (add / days for its window). Leave empty to use the service type's plan.">
         <Textarea id={id("job-steps")} name="job_steps" rows={3} defaultValue={formatJobSteps(rule.steps)} placeholder={"Treatment @ 0\nFollow-up @ 14\nFinal check @ 28"} />
       </Field>
-      <Field label="Revenue" htmlFor={id("recognition")} hint="Warranties earn their fee evenly over each year rather than at the visit.">
-        <Select id={id("recognition")} name="recognition" defaultValue={values.recognition ?? "per_visit"}>
-          <option value="per_visit">Earned at each visit</option>
-          <option value="straight_line">Earned evenly over each term (warranty)</option>
-        </Select>
+      <Field label="Revenue" htmlFor={id("recognition")} hint={locked ? "Fixed once signed: switching would count revenue twice or never." : "Warranties earn their fee evenly over each term rather than at the visit."}>
+        {locked ? (
+          <>
+            <input type="hidden" name="recognition" value={values.recognition ?? "per_visit"} />
+            <Select id={id("recognition")} defaultValue={values.recognition ?? "per_visit"} disabled>
+              <option value="per_visit">Earned at each visit</option>
+              <option value="straight_line">Earned evenly over each term (warranty)</option>
+            </Select>
+          </>
+        ) : (
+          <Select id={id("recognition")} name="recognition" defaultValue={values.recognition ?? "per_visit"}>
+            <option value="per_visit">Earned at each visit</option>
+            <option value="straight_line">Earned evenly over each term (warranty)</option>
+          </Select>
+        )}
       </Field>
       <Field label="Initial visit price ($)" htmlFor={id("initial")}>
         <Input id={id("initial")} name="initial_price" inputMode="decimal" defaultValue={dollars(values.initial_price_cents)} />

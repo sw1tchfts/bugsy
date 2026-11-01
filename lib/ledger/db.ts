@@ -4,9 +4,9 @@
 // security applies to members and the jobs run privileged.
 import type postgres from "postgres";
 import { addDays, dateInZone, todayInZone } from "@/lib/dates";
-import { agreementSchedule } from "@/lib/agreements/db";
+import { agreementTerms } from "@/lib/agreements/db";
 import { localFeeCents } from "@/lib/payments/local";
-import { recognitionByMonth } from "@/lib/specialty/recognition";
+import { earnedByMonth } from "@/lib/specialty/recognition";
 import { type CashBasisIncome, cashBasisIncome } from "./cash-basis";
 import { type AccountKey, type AccountType, CHART_TEMPLATE } from "./chart";
 import { isPeriod, lastEndedPeriod, nextPeriod, periodEnd, periodOf, periodStart, periodsBetween, prevPeriod } from "./periods";
@@ -22,6 +22,7 @@ import {
   productUseLines,
   reclassLines,
   refundLines,
+  recognitionLines,
   visitLines,
 } from "./post";
 import { type BalanceSheet, type DateRange, type IncomeStatement, type ReportAccount, type ReportLine, type RollForward, type TrialBalance, balanceSheet, incomeStatement, rollForward, trialBalance } from "./reports";
@@ -301,7 +302,7 @@ export async function contractLines(tx: Sql, tenantId: string): Promise<Contract
     order by e.posted_on, e.number`;
   return rows.map((r) => ({
     agreement_id: r.agreement_id,
-    kind: r.origin === "visit" ? "recognition" : r.origin === "reclass" || r.origin === "reclass_reversal" ? "presentation" : "billing",
+    kind: r.origin === "visit" || r.origin === "recognition" ? "recognition" : r.origin === "reclass" || r.origin === "reclass_reversal" ? "presentation" : "billing",
     debit_cents: Number(r.debit_cents),
     credit_cents: Number(r.credit_cents),
     posted_on: r.posted_on,
@@ -438,10 +439,19 @@ export async function localPayouts(tx: Sql, tenantId: string, gateway: string, t
 
 export type LedgerCounts = SweepCounts & { local_payouts: number; reclasses: number; straight_line: number };
 
+/** What the books already recognized for a straight-line agreement: its recognition entries' revenue, net. */
+async function recognizedSoFar(tx: Sql, tenantId: string, agreementId: string): Promise<number> {
+  const [row] = await tx<{ cents: string | number }[]>`
+    select coalesce(sum(l.debit_cents - l.credit_cents), 0) as cents
+    from public.journal_lines l join public.journal_entries e on e.id = l.entry_id join public.gl_accounts g on g.id = l.gl_account_id
+    where l.tenant_id = ${tenantId} and e.source_type = 'recognition' and e.source_id = ${agreementId} and g.key = 'contract_liability'`;
+  return Number(row?.cents ?? 0);
+}
+
 /**
- * Spec 15 rule 2: each straight-line agreement earns, for every month that has ended, the change in what its billed
- * terms have earned by day; one entry per agreement and month, posted on the month's last day. A cancelled agreement
- * stops the day before its cancellation took effect (settlement covers the rest).
+ * Spec 15 rule 2: each straight-line agreement earns each term's fee evenly by day. For every month that has ended, one
+ * entry per agreement and month (posted on the month's last day) brings what the books recognized up to what was earned
+ * through the month's end. A settled cancellation ends it: settlement posts the last true-up.
  */
 export async function postStraightLine(tx: Sql, tenantId: string, today: string): Promise<number> {
   const agreements = await tx<{ id: string; number: number; starts_on: string; cancelled_on: string | null; service_line: string; account_name: string }[]>`
@@ -451,22 +461,49 @@ export async function postStraightLine(tx: Sql, tenantId: string, today: string)
   const lastEnded = addDays(`${today.slice(0, 7)}-01`, -1);
   let posted = 0;
   for (const g of agreements) {
-    const loaded = await agreementSchedule(tx, tenantId, g.id);
+    const [settled] = await tx<{ id: string }[]>`select id from app.journal_entry_by_key(${tenantId}, ${`straight_line:${g.id}:settlement`})`;
+    if (settled) continue;
+    const loaded = await agreementTerms(tx, tenantId, g.id);
     if (!loaded) continue;
     const stop = g.cancelled_on ? addDays(g.cancelled_on, -1) : null;
     const until = stop && stop < lastEnded ? stop : lastEnded;
     if (until < g.starts_on) continue;
-    const billed = loaded.schedule.filter((e) => e.date <= until && (!g.cancelled_on || e.date < g.cancelled_on));
-    for (const m of recognitionByMonth(billed, loaded.agreement.term_months, g.starts_on.slice(0, 7), until.slice(0, 7), stop)) {
-      if (m.cents <= 0 || m.through > until) continue;
+    let booked = await recognizedSoFar(tx, tenantId, g.id);
+    for (const m of earnedByMonth(loaded.terms, g.starts_on.slice(0, 7), until.slice(0, 7), stop)) {
+      if (m.through > until) continue;
       const key = `straight_line:${g.id}:${m.month}`;
       const [exists] = await tx<{ id: string }[]>`select id from app.journal_entry_by_key(${tenantId}, ${key})`;
       if (exists) continue;
-      const lines = visitLines({ price_cents: m.cents, service_line: g.service_line, agreement_id: g.id });
-      if ((await postEntry(tx, tenantId, { source_type: "recognition", source_key: key, source_id: g.id, posted_on: m.through, memo: `Warranty earned for ${m.month}, agreement #${g.number}, ${g.account_name}`, lines })) !== null) posted += 1;
+      const cents = m.earned - booked;
+      if (cents === 0) continue;
+      const lines = recognitionLines({ cents, service_line: g.service_line, agreement_id: g.id });
+      if ((await postEntry(tx, tenantId, { source_type: "recognition", source_key: key, source_id: g.id, posted_on: m.through, memo: `Warranty earned for ${m.month}, agreement #${g.number}, ${g.account_name}`, lines })) !== null) {
+        posted += 1;
+        booked += cents;
+      }
     }
   }
   return posted;
+}
+
+/**
+ * Spec 15 cancellation edge case: settlement settles against the straight-line amount earned through the day before
+ * the effective date, so the books recognize exactly that, up or down, once (key straight_line:<agreement>:settlement).
+ */
+export async function postStraightLineSettlement(tx: Sql, tenantId: string, agreementId: string, effectiveOn: string, recognizedCents: number): Promise<boolean> {
+  const [g] = await tx<{ number: number; service_line: string; account_name: string; recognition: string }[]>`
+    select g.number, st.service_line, a.name as account_name, g.recognition
+    from public.agreements g join public.service_types st on st.id = g.service_type_id join public.accounts a on a.id = g.account_id
+    where g.id = ${agreementId} and g.tenant_id = ${tenantId}`;
+  if (!g || g.recognition !== "straight_line") return false;
+  const cents = recognizedCents - (await recognizedSoFar(tx, tenantId, agreementId));
+  const key = `straight_line:${agreementId}:settlement`;
+  const lines = recognitionLines({ cents, service_line: g.service_line, agreement_id: agreementId });
+  // Already exact: the monthly entries stop at the day before the effective date and add nothing more.
+  if (lines.length === 0) return false;
+  return (
+    (await postEntry(tx, tenantId, { source_type: "recognition", source_key: key, source_id: agreementId, posted_on: addDays(effectiveOn, -1), memo: `Warranty settled at cancellation effective ${effectiveOn}, agreement #${g.number}, ${g.account_name}`, lines })) !== null
+  );
 }
 
 async function earliestPeriod(tx: Sql, tenantId: string): Promise<string | null> {

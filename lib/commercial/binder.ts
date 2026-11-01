@@ -66,6 +66,7 @@ export function binderFiles(data: BinderData, images: Map<string, { type: string
   const recRows = data.recommendations.map((r) => [iso(r.created_at), r.category, r.description, r.responsibility, r.priority, r.owner_name ?? "", r.due_on ?? "", r.status, r.closed_on ?? "", r.closed_note ?? ""]);
   const appRows = data.applications.map((a) => [a.business_date, a.product, a.epa_reg_no, `${a.amount} ${a.unit}`, a.site_treated, a.target_pests.join("; "), a.applicator ?? ""]);
   const docRows = data.documents.map((d) => [d.title, d.kind, d.valid_until ?? ""]);
+  const captureRows = (data.captures ?? []).map((c) => [c.visit_date ?? "", c.species, c.count, c.disposition.replace(/_/g, " "), c.location ?? "", c.notes ?? ""]);
 
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Audit binder: ${esc(data.property.account_name)}</title>
@@ -100,7 +101,9 @@ ${table(["Seen", "Pest", "Location", "Count", "Reported by", "Source", "Notes", 
 ${table(["Raised", "Category", "What", "Who acts", "Priority", "Owner", "Due", "Status", "Closed", "Closing note"], recRows)}
 <h2>Pesticide applications</h2>
 ${table(["Date", "Product", "EPA reg. no.", "Amount", "Site", "Target pests", "Applicator"], appRows)}
-<h2>Service visits</h2>
+${captureRows.length ? `<h2>Animals caught</h2>
+${table(["Visit", "Species", "Count", "What happened", "Where", "Notes"], captureRows)}
+` : ""}<h2>Service visits</h2>
 ${table(["Date", "Service", "Technician"], data.visits.map((v) => [v.date ?? "", v.service, v.technician ?? ""]))}
 <h2>Site documents</h2>
 ${table(["Title", "Kind", "Valid until"], docRows)}
@@ -115,5 +118,6 @@ ${table(["Title", "Kind", "Valid until"], docRows)}
     "sightings.csv": strToU8(toCsv(["seen_at", "pest", "location", "count", "reported_by", "source", "notes", "resolved", "resolution"], sightingRows)),
     "recommendations.csv": strToU8(toCsv(["raised", "category", "description", "responsibility", "priority", "owner", "due_on", "status", "closed_on", "closed_note"], recRows)),
     "applications.csv": strToU8(toCsv(["date", "product", "epa_reg_no", "amount", "site_treated", "target_pests", "applicator"], appRows)),
+    "captures.csv": strToU8(toCsv(["visit_date", "species", "count", "disposition", "location", "notes"], captureRows)),
   };
 }

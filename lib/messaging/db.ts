@@ -147,6 +147,8 @@ type Compose = {
   pageHtml?: string | null;
   send_after?: Date | null;
   tokenValue?: string;
+  /** Variables the message must carry even when the company's own template leaves them out (spec 15 rule 6). */
+  required?: string[];
 };
 
 /** The channel rule 7 picks for a recipient: their preference when usable, else SMS with consent, else email. */
@@ -163,7 +165,8 @@ async function composeAndQueue(tx: Sql, tenantId: string, settings: MessagingSet
   const template = templateFor(c.key, channel, await overrides(tx, tenantId));
   if (!template) return null;
   const subject = template.subject ? render(template.subject, c.vars) : null;
-  const body = render(template.body, c.vars);
+  const missing = (c.required ?? []).filter((name) => c.vars[name] && !template.body.includes(`{{${name}}}`));
+  const body = render(template.body, c.vars) + missing.map((name) => c.vars[name]).join("");
   const html = channel === "email" ? `${textToHtml(body)}${c.pageHtml ? `\n<hr>\n${c.pageHtml}` : ""}` : (c.pageHtml ?? (channel === "mail" ? textToHtml(body) : null));
   return queueMessage(tx, tenantId, {
     channel,
@@ -390,6 +393,7 @@ export async function queueReminders(tx: Sql, tenantId: string, settings: Messag
         // Spec 15 rule 6: the customer's prep list goes out with each visit's reminder.
         prep_checklist: prepText(v.prep_checklist),
       },
+      required: ["prep_checklist"],
       dedupe_key: `reminder:${v.id}:${v.scheduled_for}`,
       ids: { visit_id: v.id },
       send_after: now,

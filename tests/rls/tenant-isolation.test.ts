@@ -2038,7 +2038,10 @@ describe("spec 15 rules enforced in the database", () => {
       const late = await attempt(tx, (sp) => sp`insert into public.visit_materials (tenant_id, visit_id, description, quantity, unit_price_cents) values (${lakeshoreId}, ${job.id}, 'Late add', 1, 100)`);
       await as(lakeshoreOwner, ownerEmail);
       const officeLate = await attempt(tx, (sp) => sp`update public.wildlife_captures set count = 3 where visit_id = ${job.id}`);
-      return { stranger, capture, material, zero, notReady, late, officeLate };
+      // The office is not the crew: it records nothing at a visit (rule 9).
+      const [{ open }] = await tx<{ open: string }[]>`select v.id as open from public.visits v join public.agreements a on a.id = v.agreement_id where a.notes = 'seed:green-wildlife' and v.status = 'planned' order by v.due_start limit 1`;
+      const office = await attempt(tx, (sp) => sp`insert into public.visit_materials (tenant_id, visit_id, description, quantity, unit_price_cents) values (${lakeshoreId}, ${open}, 'Office add', 1, 100)`);
+      return { stranger, capture, material, zero, notReady, late, officeLate, office };
     });
     expect(result.stranger).toMatch(RLS_ERROR);
     expect(result.capture).toBe("ok 1");
@@ -2046,7 +2049,8 @@ describe("spec 15 rules enforced in the database", () => {
     expect(result.zero).toMatch(/check constraint/);
     expect(result.notReady).toMatch(/prep_checks_not_ready/);
     expect(result.late).toMatch(/completed|row-level security/);
-    expect(result.officeLate).toMatch(/completed/);
+    expect(result.officeLate).toMatch(/completed|0/);
+    expect(result.office).toMatch(RLS_ERROR);
   });
 
   it("issues a WDI report only with compliance.write, and an issued report never changes (rule 7)", async () => {
@@ -2057,22 +2061,32 @@ describe("spec 15 rules enforced in the database", () => {
     expect(report, "the seed has a draft WDI report").toBeTruthy();
     const result = await rolledBack(async (tx, as) => {
       await as(tech, techEmail);
-      const draft = await attempt(tx, (sp) => sp`update public.wdi_reports set inspected_areas = 'Crawlspace, garage, attic' where id = ${report.id}`);
+      // The crew writes the draft; a number or an issuer it sets is cleared.
+      const draft = await attempt(tx, (sp) => sp`update public.wdi_reports set inspected_areas = 'Crawlspace, garage, attic', number = 1, issued_by = ${lakeshoreOwner} where id = ${report.id}`);
+      const [forged] = await tx<{ number: number | null; issued_by: string | null }[]>`select number, issued_by from public.wdi_reports where id = ${report.id}`;
       const techIssue = await attempt(tx, (sp) => sp`update public.wdi_reports set status = 'issued' where id = ${report.id}`);
       await as(manager, managerEmail);
       const wrongVisit = await attempt(tx, (sp) => sp`insert into public.wdi_reports (tenant_id, visit_id) values (${lakeshoreId}, ${other.id})`);
-      const issued = await attempt(tx, (sp) => sp`update public.wdi_reports set status = 'issued' where id = ${report.id}`);
-      const [after] = await tx<{ number: number | null; issued_at: Date | null }[]>`select number, issued_at from public.wdi_reports where id = ${report.id}`;
+      const incomplete = await attempt(tx, (sp) => sp`update public.wdi_reports set status = 'issued' where id = ${report.id}`);
+      const findings = { live_insects: { seen: false, where: "" }, dead_insects: { seen: false, where: "" }, damage: { seen: false, where: "" }, evidence: { seen: true, where: "Garage sill" }, previous_treatment: { seen: false, where: "" } };
+      const issued = await attempt(tx, (sp) => sp`
+        update public.wdi_reports set status = 'issued', inaccessible_areas = 'None', findings = ${sp.json(findings)}, treatment_recommended = false where id = ${report.id}`);
+      const [after] = await tx<{ number: number | null; issued_at: Date | null; issued_by: string | null; snapshot: { inspector: { cert_number: string | null } } | null }[]>`
+        select number, issued_at, issued_by, issued_snapshot as snapshot from public.wdi_reports where id = ${report.id}`;
       const changed = await attempt(tx, (sp) => sp`update public.wdi_reports set notes = 'edited after issue' where id = ${report.id}`);
       const removed = await attempt(tx, (sp) => sp`delete from public.wdi_reports where id = ${report.id}`);
-      return { draft, techIssue, wrongVisit, issued, after, changed, removed };
+      return { draft, forged, techIssue, wrongVisit, incomplete, issued, after, changed, removed };
     });
     expect(result.draft).toBe("ok 1");
+    expect(result.forged).toEqual({ number: null, issued_by: null });
     expect(result.techIssue).toMatch(/compliance\.write/);
     expect(result.wrongVisit).toMatch(/inspection or WDI visit/);
+    expect(result.incomplete).toMatch(/areas|finding/);
     expect(result.issued).toBe("ok 1");
     expect(result.after.number).toBeGreaterThan(0);
     expect(result.after.issued_at).not.toBeNull();
+    expect(result.after.issued_by).toBe(manager);
+    expect(result.after.snapshot?.inspector.cert_number).toBeTruthy();
     expect(result.changed).toMatch(/kept as issued/);
     expect(result.removed).toMatch(/kept as issued/);
   });
@@ -2090,10 +2104,12 @@ describe("spec 15 rules enforced in the database", () => {
       ];
       const forged = await attempt(tx, (sp) => sp`select app.post_entry(${lakeshoreId}, ${sp.json({ source_type: "recognition", source_id: perVisit.id, source_key: "forged:recognition", posted_on: "2026-01-31" })}, ${sp.json(lines)}, ${sp.json([])})`);
       const noSteps = await attempt(tx, (sp) => sp`update public.agreements set cadence = 'job_plan', cadence_rule = '{}'::jsonb where id = ${perVisit.id}`);
-      return { forged, noSteps };
+      const switched = await attempt(tx, (sp) => sp`update public.agreements set recognition = 'straight_line' where id = ${perVisit.id} and status <> 'draft'`);
+      return { forged, noSteps, switched };
     });
     expect(posted, "the seed posts the warranty's ended months").toBeGreaterThan(0);
     expect(result.forged).toMatch(/needs its source row/);
     expect(result.noSteps).toMatch(/agreements_job_plan_steps|check constraint/);
+    expect(result.switched).toMatch(/fixed once the agreement is signed/);
   });
 });

@@ -6,6 +6,7 @@ import { can } from "@/lib/auth/permissions";
 import { dbAs, requireMembership } from "@/lib/auth/session";
 import { opt, str } from "@/lib/customers/forms";
 import { errorCode } from "@/lib/db";
+import { todayInZone } from "@/lib/dates";
 import { wdiInspector } from "@/lib/specialty/db";
 import { FINDINGS, type Findings, wdiProblems } from "@/lib/specialty/wdi";
 import { WDI_JOB_KINDS } from "@/lib/specialty/wdi-db";
@@ -56,7 +57,8 @@ export async function saveWdi(formData: FormData) {
       if (!visit || !(WDI_JOB_KINDS as readonly string[]).includes(visit.job_kind)) throw Object.assign(new Error("A WDI report belongs to an inspection or WDI visit."), { code: "23514" });
       const inspector = await wdiInspector(tx, tenantId, visitId);
       if (issue) {
-        problems = wdiProblems({ ...r, number: null, status: "draft", issued_at: null }, inspector);
+        const [v] = await tx<{ status: string; timezone: string }[]>`select v.status, t.timezone from public.visits v join public.tenants t on t.id = v.tenant_id where v.id = ${visitId}`;
+        problems = wdiProblems({ ...r, number: null, status: "draft", issued_at: null }, inspector, { today: todayInZone(v?.timezone ?? "UTC"), visit_status: v?.status });
         if (problems.length) return;
       }
       const row = { ...r, findings: tx.json(r.findings), inspector_id: inspector?.user_id ?? null, ...(issue ? { status: "issued" } : {}) };

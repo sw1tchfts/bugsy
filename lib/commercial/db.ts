@@ -180,6 +180,8 @@ export type BinderData = Site & {
   applicators: { name: string; cert_number: string | null; categories: string[]; expires: string | null }[];
   applications: { business_date: string; product: string; epa_reg_no: string; amount: string; unit: string; site_treated: string; target_pests: string[]; applicator: string | null }[];
   visits: { id: string; date: string | null; service: string; technician: string | null }[];
+  /** Spec 15 rule 4: animals caught at the site's visits in the range, by visit. */
+  captures: { visit_date: string | null; species: string; count: number; disposition: string; location: string | null; notes: string | null }[];
   range: { from: string; to: string };
   time_zone: string;
   made_at: Date;
@@ -243,11 +245,17 @@ export async function binderData(tx: Sql, tenantId: string, propertyId: string, 
       if (!applicators.has(m.user_id)) applicators.set(m.user_id, { name: m.name, cert_number: m.cert_number, categories: m.categories ?? [], expires: m.cert_expires_on });
     }
   }
+  const captures = await tx<BinderData["captures"]>`
+    select (coalesce(v.completed_at, c.created_at) at time zone ${timeZone})::date::text as visit_date, c.species, c.count, c.disposition, c.location, c.notes
+    from public.wildlife_captures c join public.visits v on v.id = c.visit_id
+    where v.property_id = ${propertyId} and (c.created_at at time zone ${timeZone})::date between ${from} and ${to}
+    order by c.created_at`;
   return {
     ...site,
     maps,
     devices,
     hot,
+    captures,
     company: { name: company.name, legal_name: company.legal_name, licenses },
     applicators: [...applicators.values()],
     applications,

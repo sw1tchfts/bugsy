@@ -356,7 +356,7 @@ export async function recordAuthorization(formData: FormData) {
   const agreementId = str(formData, "agreement_id");
   const ctx = await requireMembership(tenantId);
   const perms = ctx.membership.permissions;
-  if (!(can(perms, "customers.write") || can(perms, "agreements.write") || can(perms, "dispatch.write"))) back(detail(agreementId), "forbidden");
+  if (!(can(perms, "customers.write") || can(perms, "dispatch.write"))) back(detail(agreementId), "forbidden");
   const signer = str(formData, "signer_name").trim();
   const relationship = str(formData, "relationship");
   const signedOn = str(formData, "signed_on");

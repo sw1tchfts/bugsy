@@ -67,19 +67,31 @@ export async function marksFor(tx: Sql, tenantId: string, propertyId: string): P
   return rows.map((r) => ({ ...r, x: Number(r.x), y: Number(r.y) }));
 }
 
-export type WdiRow = WdiReport & { id: string; visit_id: string; inspector_id: string | null };
+export type WdiSnapshot = {
+  company: { name: string; legal_name: string | null; license: string | null };
+  property: { address: string; state: string };
+  inspected_on: string | null;
+  issued_on: string;
+  inspector: { name: string; cert_number: string | null; license_number: string | null; cert_expires_on: string | null };
+};
+export type WdiRow = WdiReport & { id: string; visit_id: string; inspector_id: string | null; issued_snapshot: WdiSnapshot | null };
 
 export async function wdiFor(tx: Sql, tenantId: string, visitId: string): Promise<WdiRow | null> {
   const [row] = await tx<(Omit<WdiRow, "findings"> & { findings: Findings | null })[]>`
-    select id, visit_id, number, requested_by, buyer, seller, structures, inspected_areas, inaccessible_areas, findings, treatment_recommended, notes, inspector_id, status, issued_at
+    select id, visit_id, number, requested_by, buyer, seller, structures, inspected_areas, inaccessible_areas, findings, treatment_recommended, notes, inspector_id, status, issued_at,
+           issued_snapshot
     from public.wdi_reports where tenant_id = ${tenantId} and visit_id = ${visitId}`;
   return row ? { ...row, findings: row.findings ?? {} } : null;
 }
 
 /** The inspector on the visit's crew (its lead) and their credential for the property's state. */
-export async function wdiInspector(tx: Sql, tenantId: string, visitId: string): Promise<{ user_id: string; name: string; cert_number: string | null; license_number: string | null } | null> {
-  const [row] = await tx<{ user_id: string; name: string | null; cert_number: string | null; license_number: string | null }[]>`
-    select c.user_id, m.display_name as name, cr.cert_number, cr.license_number
+export async function wdiInspector(
+  tx: Sql,
+  tenantId: string,
+  visitId: string,
+): Promise<{ user_id: string; name: string; cert_number: string | null; license_number: string | null; cert_expires_on: string | null } | null> {
+  const [row] = await tx<{ user_id: string; name: string | null; cert_number: string | null; license_number: string | null; cert_expires_on: string | null }[]>`
+    select c.user_id, m.display_name as name, cr.cert_number, cr.license_number, cr.cert_expires_on::text
     from public.visit_crew c join public.visits v on v.id = c.visit_id join public.properties p on p.id = v.property_id
       left join public.memberships m on m.tenant_id = c.tenant_id and m.user_id = c.user_id
       left join public.applicator_credentials cr on cr.tenant_id = c.tenant_id and cr.user_id = c.user_id and cr.state_code = p.state_code and cr.archived_at is null

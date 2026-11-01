@@ -106,7 +106,7 @@ export default async function AgreementPage({ params, searchParams }: { params: 
   if (!data) notFound();
   const { agreement, detail, visits, changes, contacts, reasons, settlement, authorizations, records } = data;
   const wildlife = (WILDLIFE_JOB_KINDS as readonly string[]).includes(detail.job_kind);
-  const canAuthorize = can(active.permissions, "customers.write") || canWrite || can(active.permissions, "dispatch.write");
+  const canAuthorize = can(active.permissions, "customers.write") || can(active.permissions, "dispatch.write");
   const wdiKind = detail.job_kind === "inspection" || detail.job_kind === "wdi_report";
   const sequenceOf = new Map(visits.map((v) => [v.id, v.sequence]));
 

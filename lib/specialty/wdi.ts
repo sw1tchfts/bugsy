@@ -29,7 +29,11 @@ export type WdiReport = {
 };
 
 /** What must be answered before the report is issued. */
-export function wdiProblems(r: WdiReport, inspector: { name: string; cert_number: string | null } | null): string[] {
+export function wdiProblems(
+  r: WdiReport,
+  inspector: { name: string; cert_number: string | null; cert_expires_on?: string | null } | null,
+  context: { today?: string; visit_status?: string } = {},
+): string[] {
   const problems: string[] = [];
   if (!r.inspected_areas?.trim()) problems.push("Say which areas were inspected.");
   if (!r.inaccessible_areas?.trim()) problems.push("Say which areas could not be inspected (or none).");
@@ -41,6 +45,8 @@ export function wdiProblems(r: WdiReport, inspector: { name: string; cert_number
   if (r.treatment_recommended === null) problems.push("Say whether treatment is recommended.");
   if (!inspector) problems.push("The inspection needs an inspector on its crew.");
   else if (!inspector.cert_number) problems.push(`${inspector.name} has no credential on file for this state.`);
+  else if (inspector.cert_expires_on && context.today && inspector.cert_expires_on < context.today) problems.push(`${inspector.name}'s credential expired on ${inspector.cert_expires_on}.`);
+  if (context.visit_status && !["in_progress", "completed"].includes(context.visit_status)) problems.push("Issue the report once the inspection has started.");
   return problems;
 }
 
@@ -52,7 +58,7 @@ export type WdiContext = {
   inspected_on: string | null;
   /** The issue date in the company's time zone. */
   issued_on: string | null;
-  inspector: { name: string; cert_number: string | null; license_number: string | null } | null;
+  inspector: { name: string; cert_number: string | null; license_number: string | null; cert_expires_on?: string | null } | null;
 };
 
 /** The printable report. Every value is escaped. */

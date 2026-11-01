@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { Badge, Button, Card, Field, Input, Notice, Select, Textarea, errorMessage } from "@/components/ui";
 import { can } from "@/lib/auth/permissions";
 import { dbAs } from "@/lib/auth/session";
-import { formatBusinessDate } from "@/lib/dates";
+import { formatBusinessDate, todayInZone } from "@/lib/dates";
 import { FINDINGS, wdiProblems } from "@/lib/specialty/wdi";
 import { WDI_JOB_KINDS, loadWdi } from "@/lib/specialty/wdi-db";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
@@ -27,7 +27,7 @@ export default async function WdiPage({ params, searchParams }: { params: Promis
   const issued = report?.status === "issued";
   const canIssue = can(active.permissions, "compliance.write");
   const canDraft = canIssue || can(active.permissions, "visits.write");
-  const problems = report && !issued ? wdiProblems(report, ctx.inspector) : [];
+  const problems = report && !issued ? wdiProblems(report, ctx.inspector, { today: todayInZone(active.tenantTimezone), visit_status: visit.status }) : [];
   const r = report;
   return (
     <>
