@@ -54,7 +54,7 @@ export default async function RoutingSettings({ searchParams }: { searchParams: 
           ) : null}
         </form>
       </Card>
-      <Card title="Branches on the map" description="Each route starts and ends at its branch.">
+      <Card title="Branches on the map" description="Each route starts and ends at its branch. Leave both blank and save to find the point from the branch address.">
         <Table headers={["Branch", "Latitude", "Longitude", ""]}>
           {data.branches.map((b) => (
             <tr key={b.id}>

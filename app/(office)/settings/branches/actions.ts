@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { dbAs, requirePermission } from "@/lib/auth/session";
 import { errorCode } from "@/lib/db";
+import { branchPoint } from "@/lib/routing/branch-point";
 
 const page = "/settings/branches";
 
@@ -17,11 +18,14 @@ export async function createBranch(formData: FormData) {
   const yearRaw = String(formData.get("license_year") ?? "").trim();
   const licenseYear = yearRaw ? Number.parseInt(yearRaw, 10) : null;
 
+  // Spec 19: the route starts and ends at the branch, so its address is geocoded when the provider can.
+  const point = address && stateCode ? await branchPoint(address, stateCode) : null;
+
   let error: string | null = null;
   try {
     await dbAs(session, (tx) =>
-      tx`insert into public.branches (tenant_id, name, address, state_code, business_license_number, license_year)
-         values (${tenantId}, ${name}, ${address}, ${stateCode}, ${license}, ${licenseYear})`,
+      tx`insert into public.branches (tenant_id, name, address, state_code, business_license_number, license_year, lat, lng)
+         values (${tenantId}, ${name}, ${address}, ${stateCode}, ${license}, ${licenseYear}, ${point?.lat ?? null}, ${point?.lng ?? null})`,
     );
   } catch (err) {
     error = errorCode(err);

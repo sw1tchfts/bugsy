@@ -131,7 +131,7 @@ export async function runCheck(tx: Sql, tenantId: string, visit: DispatchVisit, 
 
 const CLEAR: CheckResult = { ok: true, blockers: [], warnings: [] };
 
-function withLead(spec: readonly CrewSpec[], technicianId: string): CrewSpec[] {
+export function withLead(spec: readonly CrewSpec[], technicianId: string): CrewSpec[] {
   return [{ user_id: technicianId, role: "lead" as const }, ...spec.filter((s) => s.user_id !== technicianId && s.role !== "lead")];
 }
 

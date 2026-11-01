@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { dbAs, requirePermission } from "@/lib/auth/session";
 import { opt, str } from "@/lib/customers/forms";
 import { errorCode } from "@/lib/db";
+import { branchPoint } from "@/lib/routing/branch-point";
 
 function back(params: Record<string, string | null>): never {
   revalidatePath("/settings/routing");
@@ -40,13 +41,27 @@ export async function saveRouteSettings(formData: FormData) {
 export async function saveBranchPoint(formData: FormData) {
   const tenantId = str(formData, "tenant_id");
   const { session } = await requirePermission(tenantId, "settings.write");
-  const lat = opt(formData, "lat");
-  const lng = opt(formData, "lng");
+  const typedLat = opt(formData, "lat");
+  const typedLng = opt(formData, "lng");
+  const branchId = str(formData, "branch_id");
   let error: string | null = null;
+  let note = "Branch location saved.";
   try {
-    await dbAs(session, (tx) => tx`update public.branches set lat = ${lat === null ? null : Number(lat)}, lng = ${lng === null ? null : Number(lng)} where id = ${str(formData, "branch_id")} and tenant_id = ${tenantId}`);
+    await dbAs(session, async (tx) => {
+      let lat = typedLat === null ? null : Number(typedLat);
+      let lng = typedLng === null ? null : Number(typedLng);
+      // Left blank: found from the branch's address when the geocoder can (spec 19 Data: geocoded, or typed).
+      if (lat === null || lng === null) {
+        const [b] = await tx<{ address: string; state_code: string }[]>`select address, state_code from public.branches where id = ${branchId} and tenant_id = ${tenantId}`;
+        const found = b ? await branchPoint(b.address, b.state_code) : null;
+        lat = found?.lat ?? null;
+        lng = found?.lng ?? null;
+        note = found ? "Branch location found from its address." : "Branch location cleared: the address could not be placed on the map, so type the coordinates.";
+      }
+      await tx`update public.branches set lat = ${lat}, lng = ${lng} where id = ${branchId} and tenant_id = ${tenantId}`;
+    });
   } catch (err) {
     error = errorCode(err);
   }
-  back(error ? { error } : { note: "Branch location saved." });
+  back(error ? { error } : { note });
 }

@@ -9,6 +9,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createInvoice, voidInvoice } from "../../lib/billing/db";
 import { refreshNoticeTasks } from "../../lib/compliance/db";
 import { sweep } from "../../lib/ledger/db";
+import { fromTenantLocal, todayInZone } from "../../lib/dates";
+import { applyAssign, applyOptimize, arrivalRange, proposeAssign, proposeOptimize, purgePositions } from "../../lib/routing/db";
+import { routingDemoDay } from "../../scripts/seed-routing";
 import { PG_TYPES } from "../../lib/pg-types";
 import { buildQuery } from "../../lib/reports/builder";
 import { arAging, salesBySource, technicianReport } from "../../lib/reports/db";
@@ -2805,5 +2808,125 @@ describe("spec 19 rules enforced in the database", () => {
     expect(result.officeSeen).toBe(0);
     expect(result.dispatchSeen).toBeGreaterThan(0);
     expect(result.officeRun).toMatch(RLS_ERROR);
+  });
+});
+
+describe("spec 19 suggestions apply only as previewed, estimates and the purge", () => {
+  const dispatcherEmail = seedUserEmail(northwind, "dispatcher");
+  const techEmail = seedUserEmail(northwind, "technician");
+  let dispatcher = "";
+  let tech = "";
+  let day = "";
+  const ROLLBACK = "rollback: spec 19 fixes";
+
+  async function rolledBack<T>(fn: (tx: Tx, as: (id: string, email: string) => Promise<void>, asJob: () => Promise<void>) => Promise<T>): Promise<T> {
+    let out: T | undefined;
+    await admin
+      .begin(async (tx) => {
+        const as = async (id: string, email: string) => {
+          await tx.unsafe("reset role");
+          await tx.unsafe("set local role authenticated");
+          await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: id, email, role: "authenticated" })}, true)`;
+        };
+        const asJob = async () => {
+          await tx.unsafe("reset role");
+          await tx`select set_config('request.jwt.claims', '', true)`;
+        };
+        out = await fn(tx, as, asJob);
+        throw new Error(ROLLBACK);
+      })
+      .catch((e: Error) => {
+        if (e.message !== ROLLBACK) throw e;
+      });
+    return out as T;
+  }
+  const refusal = (tx: Tx, q: (sp: Tx) => Promise<unknown>) => tx.savepoint((sp) => q(sp as unknown as Tx)).then(() => "ok", (e: Error) => e.message);
+
+  /** The seeded zigzag back as it was, and the nearby due visit back in the pool. */
+  async function zigzag(tx: Tx) {
+    for (let n = 1; n <= 4; n += 1) {
+      await tx`update public.visits set status = 'scheduled' where tenant_id = ${northwindId} and dispatch_notes = ${`seed:route ${n}`} and status = 'en_route'`;
+      await tx`update public.visits set route_position = ${n} where tenant_id = ${northwindId} and dispatch_notes = ${`seed:route ${n}`}`;
+    }
+    await tx`update public.visits set status = 'planned' where tenant_id = ${northwindId} and dispatch_notes = 'seed:route due' and status = 'scheduled'`;
+  }
+
+  beforeAll(async () => {
+    dispatcher = await userId(dispatcherEmail);
+    tech = await userId(techEmail);
+    day = routingDemoDay(todayInZone(northwind.timezone));
+  });
+
+  it("refuses an order when the day changed after the preview, and a second apply of the same day (rule 6)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      await zigzag(tx);
+      await as(dispatcher, dispatcherEmail);
+      const first = await proposeOptimize(tx, northwindId, tech, day);
+      const second = await proposeOptimize(tx, northwindId, tech, day);
+      const applied = await refusal(tx, (sp) => applyOptimize(sp, northwindId, first));
+      const again = await refusal(tx, (sp) => applyOptimize(sp, northwindId, first));
+      const stale = await refusal(tx, (sp) => applyOptimize(sp, northwindId, second));
+      // Someone moves a stop after a fresh preview.
+      const third = await proposeOptimize(tx, northwindId, tech, day);
+      await tx`update public.visits set arrival_window = 'evening' where tenant_id = ${northwindId} and dispatch_notes = 'seed:route 2'`;
+      const changed = await refusal(tx, (sp) => applyOptimize(sp, northwindId, third));
+      const [run] = await tx<{ applied: boolean }[]>`select applied_at is not null as applied from public.route_runs where id = ${first}`;
+      return { applied, again, stale, changed, recorded: run.applied };
+    });
+    expect(result.applied).toBe("ok");
+    expect(result.again).toMatch(/already applied/);
+    expect(result.stale).toMatch(/The day changed; preview again/);
+    expect(result.changed).toMatch(/The day changed; preview again/);
+    expect(result.recorded).toBe(true);
+  });
+
+  it("refuses an assignment when a visit it placed was scheduled by someone else (rule 6, two dispatchers)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      await zigzag(tx);
+      const [due] = await tx<{ id: string; branch_id: string }[]>`select id, branch_id from public.visits where tenant_id = ${northwindId} and dispatch_notes = 'seed:route due'`;
+      await as(dispatcher, dispatcherEmail);
+      const today = todayInZone(northwind.timezone);
+      const run = await proposeAssign(tx, northwindId, due.branch_id, day, today);
+      const [r] = await tx<{ after: { placements: { visit_id: string }[]; unplaced: { visit_id: string; account_name: string; reason: string }[] } }[]>`select after from public.route_runs where id = ${run}`;
+      // The other dispatcher puts the visit on another day first.
+      await tx`update public.visits set status = 'scheduled', scheduled_for = ${day}::date + 1, technician_id = ${tech} where id = ${due.id}`;
+      const refused = await refusal(tx, (sp) => applyAssign(sp, northwindId, run, today, [due.id]));
+      const [after] = await tx<{ scheduled_for: string }[]>`select scheduled_for::text from public.visits where id = ${due.id}`;
+      return { placed: r.after.placements.map((p) => p.visit_id), unplaced: r.after.unplaced, refused, kept: after.scheduled_for };
+    });
+    expect(result.placed).toContain(await admin<{ id: string }[]>`select id from public.visits where tenant_id = ${northwindId} and dispatch_notes = 'seed:route due'`.then((r) => r[0].id));
+    // The other-state visit is listed with the dispatch check's reason, naming who was checked.
+    expect(result.unplaced.some((u) => /STATELINE/.test(u.account_name) && /^[^:]+: /.test(u.reason))).toBe(true);
+    expect(result.refused).toMatch(/The day changed; preview again/);
+    expect(result.kept).not.toBe(day);
+  });
+
+  it("estimates arrival from a fresh position, else from the day and never in the past; the job purges old positions (rules 7 and 8)", async () => {
+    const result = await rolledBack(async (tx, as, asJob) => {
+      await zigzag(tx);
+      const [stop] = await tx<{ id: string; lat: number; lng: number }[]>`
+        select v.id, p.lat, p.lng from public.visits v join public.properties p on p.id = v.property_id where v.tenant_id = ${northwindId} and v.dispatch_notes = 'seed:route 4'`;
+      await tx`delete from public.technician_positions where tenant_id = ${northwindId} and user_id = ${tech}`;
+      const late = fromTenantLocal(`${day}T15:30`, northwind.timezone) as Date;
+      await as(dispatcher, dispatcherEmail);
+      const fromDay = await arrivalRange(tx, northwindId, stop.id, late, northwind.timezone);
+      await asJob();
+      // About ten miles north, two minutes ago.
+      await tx`insert into public.technician_positions (tenant_id, user_id, lat, lng, recorded_at) values (${northwindId}, ${tech}, ${Number(stop.lat) + 0.14}, ${stop.lng}, ${new Date(late.getTime() - 120_000)})`;
+      await as(dispatcher, dispatcherEmail);
+      const fromPosition = await arrivalRange(tx, northwindId, stop.id, late, northwind.timezone);
+      await asJob();
+      const [{ days }] = await tx<{ days: number }[]>`select coalesce((select position_days from public.route_settings where tenant_id = ${northwindId}), 30) as days`;
+      await tx`insert into public.technician_positions (tenant_id, user_id, lat, lng, recorded_at) values (${northwindId}, ${tech}, 40, -83, now() - make_interval(days => ${days + 1}))`;
+      const purged = await purgePositions(tx, northwindId);
+      const [{ old, kept }] = await tx<{ old: number; kept: number }[]>`
+        select count(*) filter (where recorded_at < now() - make_interval(days => ${days}))::int as old, count(*)::int as kept from public.technician_positions where tenant_id = ${northwindId} and user_id = ${tech}`;
+      return { fromDay, fromPosition, purged, old, kept };
+    });
+    expect(result.fromDay).toBe("3:30 PM to 3:45 PM");
+    expect(result.fromPosition).toBe("3:54 PM to 4:09 PM");
+    expect(result.purged).toBeGreaterThan(0);
+    expect(result.old).toBe(0);
+    expect(result.kept).toBeGreaterThan(0);
   });
 });
