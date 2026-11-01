@@ -12,7 +12,7 @@ type Sql = postgres.Sql;
 
 /** Stand-in images: a photo of the treated perimeter and the customer's signature, both tiny SVGs. */
 const DEMO_PHOTO = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240"><rect width="320" height="240" fill="#d6d3d1"/><rect y="150" width="320" height="90" fill="#78716c"/><rect x="40" y="60" width="240" height="100" fill="#f5f5f4" stroke="#57534e" stroke-width="3"/><text x="160" y="215" font-family="sans-serif" font-size="16" text-anchor="middle" fill="#fafaf9">Perimeter, north foundation</text></svg>`;
-const DEMO_SIGNATURE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 80"><path d="M10 55 C 30 10, 50 70, 80 40 S 130 10, 150 50 S 200 60, 230 25" fill="none" stroke="#1c1917" stroke-width="2.5" stroke-linecap="round"/></svg>`;
+export const DEMO_SIGNATURE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 80"><path d="M10 55 C 30 10, 50 70, 80 40 S 130 10, 150 50 S 200 60, 230 25" fill="none" stroke="#1c1917" stroke-width="2.5" stroke-linecap="round"/></svg>`;
 
 /** The product master gets a demo UPC per EPA number so the scanner has something to find. */
 export async function seedProductUpcs(sql: Sql): Promise<void> {

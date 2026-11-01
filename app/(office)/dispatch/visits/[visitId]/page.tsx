@@ -12,6 +12,7 @@ import { listMembers, listTechnicians, loadCrew, loadVisit, runCheck } from "@/l
 import { loadRouteVisit } from "@/lib/tech/route-db";
 import { formatCents } from "@/lib/money";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
+import { recordRegistryNotice } from "@/app/(office)/compliance/actions";
 import { addCrewMember, removeCrewMember, scheduleVisit, setArrivalWindow, setDispatchNotes, skipVisit, unscheduleVisit } from "../../actions";
 
 export const metadata: Metadata = { title: "Visit" };
@@ -64,10 +65,14 @@ export default async function DispatchVisitPage({ params, searchParams }: { para
     const technicians = await listTechnicians(tx, tenantId);
     const check: CheckResult | null = visit.scheduled_for && visit.status !== "planned" ? await runCheck(tx, tenantId, visit, visit.scheduled_for, crew, today, visit.route_position) : null;
     const captured = ["en_route", "in_progress", "completed"].includes(visit.status) ? await loadRouteVisit(tx, tenantId, visitId) : null;
-    return { visit, detail, crew, members, technicians, check, captured };
+    const registryNotices = await tx<{ id: string; for_scheduled_for: string | null; recipient_name: string; channel: string; status: string; sent_at: string | null }[]>`
+      select id, for_scheduled_for, recipient_name, channel, status, sent_at from public.notices
+      where tenant_id = ${tenantId} and visit_id = ${visitId} and kind = 'registry_advance' order by for_scheduled_for desc, created_at`;
+    return { visit, detail, crew, members, technicians, check, captured, registryNotices };
   });
   if (!data) notFound();
-  const { visit, detail, crew, members, technicians, check, captured } = data;
+  const { visit, detail, crew, members, technicians, check, captured, registryNotices } = data;
+  const registryMatchCount = Object.values((visit.registry_matches as Record<string, string[]> | null) ?? {}).flat().length;
   const nameOf = (userId: string) => members.find((m) => m.user_id === userId)?.name ?? "Unknown member";
   const here = `/dispatch/visits/${visit.id}`;
   const open = ["planned", "scheduled"].includes(visit.status);
@@ -152,6 +157,56 @@ export default async function DispatchVisitPage({ params, searchParams }: { para
             </p>
           ))}
         </Card>
+      ) : null}
+
+      {registryMatchCount > 0 ? (
+        <div id="registry">
+          <Card
+            title="Notification registry"
+            description={`This address matches ${registryMatchCount} registry entr${registryMatchCount === 1 ? "y" : "ies"} in ${visit.property_state}. The advance notice must be recorded for the visit date before the visit is scheduled (spec 07).`}
+          >
+            {registryNotices.length === 0 ? (
+              <Empty>No advance notice recorded yet.</Empty>
+            ) : (
+              <Table headers={["For", "Recipient", "Channel", "Status", "Sent"]}>
+                {registryNotices.map((n) => (
+                  <tr key={n.id} data-testid="registry-notice">
+                    <td className="py-2 pr-4">{n.for_scheduled_for ? formatBusinessDate(n.for_scheduled_for) : ""}</td>
+                    <td className="py-2 pr-4">{n.recipient_name}</td>
+                    <td className="py-2 pr-4">{n.channel}</td>
+                    <td className="py-2 pr-4">{n.status}</td>
+                    <td className="py-2 pr-4">{n.sent_at ? formatInstant(n.sent_at, active.tenantTimezone) : ""}</td>
+                  </tr>
+                ))}
+              </Table>
+            )}
+            {canWrite ? (
+              <form action={recordRegistryNotice} className="mt-3 grid gap-3 sm:grid-cols-4">
+                {hidden}
+                <Field label="Visit date" htmlFor="registry-date">
+                  <Input id="registry-date" name="for_date" type="date" defaultValue={visit.scheduled_for ?? today} required />
+                </Field>
+                <Field label="How it went out" htmlFor="registry-channel">
+                  <Select id="registry-channel" name="channel" defaultValue="mail">
+                    <option value="mail">Mailed</option>
+                    <option value="phone">Called</option>
+                    <option value="email">Emailed</option>
+                    <option value="print">Printed and delivered</option>
+                  </Select>
+                </Field>
+                <Field label="Spoke with" htmlFor="registry-spoke">
+                  <Input id="registry-spoke" name="spoke_with" />
+                </Field>
+                <Field label="Note" htmlFor="registry-note">
+                  <Input id="registry-note" name="note" />
+                </Field>
+                <div className="sm:col-span-4">
+                  <Button type="submit">Record advance notice</Button>
+                </div>
+              </form>
+            ) : null}
+          </Card>
+        </div>
       ) : null}
 
       <Card title="Crew" description="The lead is the scheduled technician. Applicators apply product; a supervisor covers trainees; helpers need no credential.">

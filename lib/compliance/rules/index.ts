@@ -31,8 +31,35 @@ export type StateRules = {
   "registry.advanceNoticeHours"?: RuleValue<number>;
   /** Record field keys the state requires beyond the federal floor, for example "conditions.wind_mph". */
   "records.requiredFields"?: RuleValue<string[]>;
+  /** When the application record must be complete and locked. Without it: the end of the business day. */
+  "records.completeBy"?: RuleValue<{ kind: "hours_after_departure"; hours: number } | { kind: "end_of_day" }>;
+  /** How many years the record is kept. Without it: kept until a pack says otherwise. */
+  "records.retentionYears"?: RuleValue<number>;
+  /** Post-application information to the customer: within how many days, by which channels. */
+  "notice.postApplication"?: RuleValue<{ withinDays: number; channels: NoticeChannel[] }>;
+  /** The offer of advance notice on continuing contracts, so many days before the first application. */
+  "notice.preApplicationOffer"?: RuleValue<{ beforeFirstApplicationDays: number }>;
+  /** Whether email or text delivery needs prior written consent. Without it: consent is needed. */
+  "notice.electronicNeedsConsent"?: RuleValue<boolean>;
+  /** Notices to residents and occupants, for the property types the state names. */
+  "notice.resident"?: RuleValue<{ propertyTypes: string[]; channels: NoticeChannel[] }>;
+  /** Posting a sign when a product carries a restricted entry interval. */
+  "sign.restrictedEntry"?: RuleValue<{ when: "before" | "after"; removeAfterHours: number | null }>;
+  /** Mail lead time for registry notices, in business days. */
+  "registry.mailLeadBusinessDays"?: RuleValue<number>;
+  /** The registry lists the state keeps, by the names used as `registry_kind`. */
+  "registry.kinds"?: RuleValue<string[]>;
+  /** The state's registry file layout: header names for the importer. */
+  "registry.fileFormat"?: RuleValue<Record<string, string>>;
+  /** Whether every business location needs its own license, and when it expires. */
+  "business.licensePerLocation"?: RuleValue<boolean>;
+  "business.licenseExpires"?: RuleValue<string>;
+  /** The state's own report layout, when one exists; the generic bundle applies otherwise. */
+  "report.format"?: RuleValue<string>;
   [key: string]: RuleValue<unknown> | undefined;
 };
+
+export type NoticeChannel = "email" | "sms" | "print" | "mail" | "phone" | "posted";
 
 /** The blackout ranges a pack defines for a job kind (`blackout.<jobKind>`), or none. */
 export function blackoutRanges(pack: StatePack | undefined, jobKind: JobKind): MonthDayRange[] {

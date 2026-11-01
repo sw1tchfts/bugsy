@@ -42,6 +42,10 @@ export type CheckVisit = {
   property_state: string;
   registry_matches: unknown;
   branch_id: string | null;
+  /** Whether a registry advance notice for this visit and date is already sent (spec 07); absent means not. */
+  registry_notice_sent?: boolean;
+  /** The branch's business license, when the visit has a branch (spec 07): null when none is on file. */
+  branch_license?: { expires_on: string | null } | null;
 };
 
 export type StateRuleInput = { required_cert_categories: readonly string[]; pack_version: string | null; confirmed_at: string | null } | null;
@@ -148,12 +152,32 @@ export function checkAssignment(input: CheckInput): CheckResult {
     }
   }
 
+  // A registry match blocks until the advance notice for this date is sent. A pack narrows it to the work it names;
+  // without a pack every match blocks (the conservative default, spec 07 rule 7).
   const triggers = pack?.rules["registry.triggers"]?.value;
-  if (triggers && hasRegistryMatches(visit.registry_matches)) {
-    const byArea = (triggers.treatmentAreas ?? []).some((a) => visit.treatment_areas.includes(a));
-    const byKind = (triggers.jobKinds ?? []).includes(visit.job_kind);
-    if (byArea || byKind) {
-      blockers.push({ code: "registry_notice_due", message: `This address is on the ${state} notification registry; the advance notice must be recorded before this work is scheduled (compliance, spec 07).` });
+  if (hasRegistryMatches(visit.registry_matches) && !visit.registry_notice_sent) {
+    const byArea = (triggers?.treatmentAreas ?? []).some((a) => visit.treatment_areas.includes(a));
+    const byKind = (triggers?.jobKinds ?? []).includes(visit.job_kind);
+    if (!pack || byArea || byKind) {
+      blockers.push({
+        code: "registry_notice_due",
+        message: `This address is on the ${state} notification registry; the advance notice for ${date} must be recorded before this work is scheduled.`,
+        href: input.visitId ? `/dispatch/visits/${input.visitId}#registry` : undefined,
+      });
+    }
+  }
+
+  // The branch's business license: an expired one on file blocks; none on file is a warning until a pack confirms
+  // the state licenses each location (spec 07, decisions).
+  if (visit.branch_id && visit.branch_license !== undefined) {
+    const perLocation = pack?.rules["business.licensePerLocation"]?.value;
+    if (visit.branch_license?.expires_on && visit.branch_license.expires_on < date) {
+      blockers.push({ code: "branch_license_expired", message: `The branch's business license expired on ${visit.branch_license.expires_on}.` });
+    } else if (!visit.branch_license?.expires_on) {
+      warnings.push({
+        code: perLocation ? "branch_license_unknown" : "branch_license_unconfirmed",
+        message: perLocation ? `${state} licenses each business location and this branch has none on file.` : "No business license is on file for this branch.",
+      });
     }
   }
 

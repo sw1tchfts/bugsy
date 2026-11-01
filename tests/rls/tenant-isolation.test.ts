@@ -785,7 +785,7 @@ describe("spec 06 rules enforced in the database", () => {
     const [{ had }] = await admin<{ had: boolean }[]>`select exists (select 1 from public.tenant_products where tenant_id = ${lakeshoreId} and product_id = ${rup}) as had`;
     await admin`insert into public.tenant_products (tenant_id, product_id, enabled, unit, unit_cost_cents) values (${lakeshoreId}, ${rup}, true, 'lb', 0) on conflict (tenant_id, product_id) do update set enabled = true`;
     const [credential] = await admin<{ cert_expires_on: string | null }[]>`select cert_expires_on from public.applicator_credentials where tenant_id = ${lakeshoreId} and user_id = ${tech} and archived_at is null`;
-    await admin`update public.applicator_credentials set cert_expires_on = current_date - 1 where tenant_id = ${lakeshoreId} and user_id = ${tech} and archived_at is null`;
+    await admin`update public.applicator_credentials set cert_expires_on = (select scheduled_for - 1 from public.visits where id = ${visitId}) where tenant_id = ${lakeshoreId} and user_id = ${tech} and archived_at is null`;
     try {
       await expect(
         asUser(tech, techEmail, (tx) => tx`insert into public.visit_products (tenant_id, visit_id, product_id, applied_by, site_treated, amount, amount_unit, target_pests)
@@ -802,5 +802,110 @@ describe("spec 06 rules enforced in the database", () => {
       asUser(tech, techEmail, (tx) => tx`insert into public.visit_products (tenant_id, visit_id, product_id, applied_by, site_treated, amount, amount_unit, target_pests)
         values (${lakeshoreId}, ${visitId}, ${demand}, ${tech}, 'perimeter', 0.5, 'fl_oz', '{}')`),
     ).rejects.toThrow(/visit_products_target_pests/);
+  });
+});
+
+describe("spec 07 rules enforced in the database", () => {
+  const managerEmail = seedUserEmail(lakeshore, "compliance_manager");
+  const officeEmail = seedUserEmail(lakeshore, "office");
+  const techEmail = seedUserEmail(lakeshore, "technician");
+  let manager = "";
+  let office = "";
+  let tech = "";
+  let recordId = "";
+  let visitId = "";
+
+  beforeAll(async () => {
+    manager = await userId(managerEmail);
+    office = await userId(officeEmail);
+    tech = await userId(techEmail);
+    const [record] = await admin<{ id: string; visit_id: string }[]>`
+      select r.id, r.visit_id from public.application_records r join public.visits v on v.id = r.visit_id
+      where r.tenant_id = ${lakeshoreId} and r.status = 'locked' and r.complete and v.technician_id = ${tech} order by r.business_date limit 1`;
+    if (!record) throw new Error("the seed locks one complete Lakeshore record for the technician; run npm run seed");
+    recordId = record.id;
+    visitId = record.visit_id;
+  });
+
+  it("never changes a locked record (rule 3)", async () => {
+    await expect(asUser(manager, managerEmail, (tx) => tx`update public.application_records set complete = false where id = ${recordId}`)).rejects.toThrow(/locked records change only by amendment/);
+    await expect(admin`delete from public.application_records where id = ${recordId}`).rejects.toThrow(/locked records change only by amendment/);
+  });
+
+  it("takes amendments only from compliance.write, with a reason, and never edits them (rule 4)", async () => {
+    const insert = (who: string, email: string, reason: string) =>
+      asUser(who, email, (tx) => tx<{ id: string }[]>`insert into public.application_record_amendments (tenant_id, record_id, changed_fields, reason, author_id)
+        values (${lakeshoreId}, ${recordId}, ${tx.json({ "conditions.sky": { from: "clear", to: "overcast" } })}, ${reason}, ${who}) returning id`);
+    await expect(insert(office, officeEmail, "office tried")).rejects.toThrow(RLS_ERROR);
+    await expect(insert(manager, managerEmail, " ")).rejects.toThrow(/reason|check constraint/);
+    const [made] = await insert(manager, managerEmail, "rls suite");
+    try {
+      // No update policy exists, so a member's update touches nothing; the trigger refuses even the superuser.
+      const touched = await asUser(manager, managerEmail, (tx) => tx`update public.application_record_amendments set reason = 'changed' where id = ${made.id}`);
+      expect(touched.count).toBe(0);
+      await expect(admin`update public.application_record_amendments set reason = 'changed' where id = ${made.id}`).rejects.toThrow(/append only/);
+      await expect(admin`delete from public.application_record_amendments where id = ${made.id}`).rejects.toThrow(/append only/);
+      const [row] = await admin<{ author_id: string }[]>`select author_id from public.application_record_amendments where id = ${made.id}`;
+      expect(row.author_id).toBe(manager);
+    } finally {
+      await admin`alter table public.application_record_amendments disable trigger amendments_check`;
+      await admin`delete from public.application_record_amendments where id = ${made.id}`;
+      await admin`alter table public.application_record_amendments enable trigger amendments_check`;
+    }
+  });
+
+  it("keeps a sent notice's proof, and keeps proof writes with compliance and dispatch (rules 8 and 11)", async () => {
+    const [sent] = await admin<{ id: string }[]>`select id from public.notices where tenant_id = ${lakeshoreId} and status = 'sent' limit 1`;
+    expect(sent, "the seed prints one Lakeshore notice").toBeTruthy();
+    await expect(asUser(manager, managerEmail, (tx) => tx`update public.notices set proof = '{}'::jsonb where id = ${sent.id}`)).rejects.toThrow(/kept as proof/);
+    await expect(asUser(manager, managerEmail, (tx) => tx`update public.notices set status = 'waived', waived_reason = 'x' where id = ${sent.id}`)).rejects.toThrow(/kept as proof/);
+    // The office (agreements.read) reads notices but cannot write proof: its update touches nothing.
+    const [due] = await admin<{ id: string }[]>`select id from public.notices where tenant_id = ${lakeshoreId} and status = 'due' limit 1`;
+    expect(due, "the seed leaves Lakeshore notices due").toBeTruthy();
+    const seen = await asUser(office, officeEmail, (tx) => tx`select id from public.notices where id = ${due.id}`);
+    expect(seen.length).toBe(1);
+    const byOffice = await asUser(office, officeEmail, (tx) => tx`update public.notices set status = 'sent', sent_at = now() where id = ${due.id}`);
+    expect(byOffice.count).toBe(0);
+  });
+
+  it("shows a technician the records of their own visits and nothing else (rule 11)", async () => {
+    const own = await asUser(tech, techEmail, (tx) => tx`select id from public.application_records where id = ${recordId}`);
+    expect(own.length).toBe(1);
+    const otherTech = await userId(seedUserEmail(northwind, "technician"));
+    const notMine = await asUser(otherTech, seedUserEmail(northwind, "technician"), (tx) => tx`select id from public.application_records where id = ${recordId}`);
+    expect(notMine.length).toBe(0);
+    const [other] = await admin<{ id: string }[]>`select id from public.application_records where tenant_id = ${lakeshoreId} and visit_id <> ${visitId} and not exists (select 1 from public.visit_crew c where c.visit_id = application_records.visit_id and c.user_id = ${tech}) limit 1`;
+    if (other) {
+      const notOnCrew = await asUser(tech, techEmail, (tx) => tx`select id from public.application_records where id = ${other.id}`);
+      expect(notOnCrew.length).toBe(0);
+    }
+    const foreignRegistry = await asUser(await userId(seedUserEmail(northwind, "office")), seedUserEmail(northwind, "office"), (tx) => tx`select id from public.notification_registries where tenant_id = ${lakeshoreId}`);
+    expect(foreignRegistry.length).toBe(0);
+  });
+
+  it("matches properties to the registry on save and on re-match (rule 9)", async () => {
+    const [entry] = await admin<{ normalized_address: string; state_code: string; registry_kind: string; id: string }[]>`select id, normalized_address, state_code, registry_kind from public.notification_registries where tenant_id = ${lakeshoreId} limit 1`;
+    expect(entry, "the seed imports one Lakeshore registry row").toBeTruthy();
+    const [property] = await admin<{ id: string; registry_matches: Record<string, string[]> }[]>`select id, registry_matches from public.properties where tenant_id = ${lakeshoreId} and normalized_address = ${entry.normalized_address} and state_code = ${entry.state_code} limit 1`;
+    expect(property.registry_matches[entry.registry_kind]).toContain(entry.id);
+    // Saving a property with a different address clears the match; saving it back restores it.
+    await admin`update public.properties set normalized_address = ${`${entry.normalized_address} X`} where id = ${property.id}`;
+    try {
+      const [moved] = await admin<{ registry_matches: Record<string, string[]> }[]>`select registry_matches from public.properties where id = ${property.id}`;
+      expect(moved.registry_matches).toEqual({});
+    } finally {
+      await admin`update public.properties set normalized_address = ${entry.normalized_address} where id = ${property.id}`;
+    }
+    const [back] = await admin<{ registry_matches: Record<string, string[]> }[]>`select registry_matches from public.properties where id = ${property.id}`;
+    expect(back.registry_matches[entry.registry_kind]).toContain(entry.id);
+    await expect(asUser(office, officeEmail, (tx) => tx`select app.rematch_registry_state(${lakeshoreId}, ${entry.state_code})`)).rejects.toThrow(/compliance.write/);
+  });
+
+  it("runs the compliance job twice without creating anything the second time (rule 1, rule 10)", async () => {
+    const { runCompliance } = await import("../../lib/compliance/db");
+    const [tenant] = await admin<{ timezone: string }[]>`select timezone from public.tenants where id = ${lakeshoreId}`;
+    await admin.begin((tx) => runCompliance(tx, lakeshoreId, tenant.timezone));
+    const again = await admin.begin((tx) => runCompliance(tx, lakeshoreId, tenant.timezone));
+    expect(again).toEqual({ records: 0, locked: 0, notices: 0, tasks: 0 });
   });
 });

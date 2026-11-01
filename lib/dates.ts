@@ -41,7 +41,39 @@ function zoneOffsetMs(at: number, timeZone: string): number {
 
 /** Today's business date ("yyyy-mm-dd") in the given time zone. */
 export function todayInZone(timeZone: string): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  return dateInZone(new Date(), timeZone);
+}
+
+/** The business date ("yyyy-mm-dd") an instant falls on in the given time zone. */
+export function dateInZone(value: string | Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(value));
+}
+
+/** The last instant of a business date in the given time zone, as an ISO string. */
+export function endOfDayInZone(iso: string, timeZone: string): string {
+  const end = fromTenantLocal(`${iso}T23:59:59`, timeZone);
+  if (!end) throw new Error(`not a business date: ${iso}`);
+  return end.toISOString();
+}
+
+/** The first instant of a business date in the given time zone, as an ISO string. */
+export function startOfDayInZone(iso: string, timeZone: string): string {
+  const start = fromTenantLocal(`${iso}T00:00:00`, timeZone);
+  if (!start) throw new Error(`not a business date: ${iso}`);
+  return start.toISOString();
+}
+
+/** Moves a business date by Monday-to-Friday business days; holidays are a state pack question. */
+export function addBusinessDays(iso: string, days: number): string {
+  let current = iso;
+  let left = Math.abs(days);
+  const step = days < 0 ? -1 : 1;
+  while (left > 0) {
+    current = addDays(current, step);
+    const weekday = new Date(toUtc(current)).getUTCDay();
+    if (weekday !== 0 && weekday !== 6) left -= 1;
+  }
+  return current;
 }
 
 // Civil-date arithmetic on "yyyy-mm-dd" strings. Business dates never become JavaScript Dates in local time;

@@ -143,3 +143,32 @@ describe("dispatch checks (rules 1 to 7)", () => {
     expect(fine.warnings).toEqual([]);
   });
 });
+
+describe("registry notices and branch licenses (spec 07)", () => {
+  const matched = { registry_matches: { general: ["reg-1"] } };
+
+  it("blocks a registry match without a pack, and lifts once the advance notice for that date is sent", () => {
+    expect(codes(checkAssignment(input({ pack: undefined, stateRule: { required_cert_categories: [], pack_version: null, confirmed_at: "2026-10-01T00:00:00Z" } }, { ...matched, treatment_areas: ["interior"] }))).b).toContain("registry_notice_due");
+    const sent = checkAssignment(input({ pack: undefined, stateRule: { required_cert_categories: [], pack_version: null, confirmed_at: "2026-10-01T00:00:00Z" } }, { ...matched, treatment_areas: ["interior"], registry_notice_sent: true }));
+    expect(codes(sent).b).not.toContain("registry_notice_due");
+  });
+
+  it("keeps the pack's triggers: only the work it names blocks, and a sent notice lifts that too", () => {
+    expect(codes(checkAssignment(input({}, { ...matched, treatment_areas: ["interior"] }))).b).not.toContain("registry_notice_due");
+    const yard = checkAssignment(input({}, { ...matched, treatment_areas: ["yard"] }));
+    expect(codes(yard).b).toContain("registry_notice_due");
+    expect(yard.blockers.find((b) => b.code === "registry_notice_due")?.href).toBeUndefined();
+    expect(codes(checkAssignment(input({ visitId: "v1" }, { ...matched, treatment_areas: ["yard"] }))).b).toContain("registry_notice_due");
+    expect(checkAssignment(input({ visitId: "v1" }, { ...matched, treatment_areas: ["yard"] })).blockers[0].href).toBe("/dispatch/visits/v1#registry");
+    expect(codes(checkAssignment(input({}, { ...matched, treatment_areas: ["yard"], registry_notice_sent: true }))).b).not.toContain("registry_notice_due");
+  });
+
+  it("blocks an expired branch license and warns about a missing one", () => {
+    expect(codes(checkAssignment(input({}, { branch_license: { expires_on: "2026-11-01" } }))).b).toContain("branch_license_expired");
+    expect(codes(checkAssignment(input({}, { branch_license: { expires_on: "2027-11-01" } }))).b).not.toContain("branch_license_expired");
+    expect(codes(checkAssignment(input({}, { branch_license: null }))).w).toContain("branch_license_unconfirmed");
+    const perLocation: StatePack = { ...ZZ, rules: { ...ZZ.rules, "business.licensePerLocation": { value: true, source: "fixture", effectiveOn: "2026-01-01" } } };
+    expect(codes(checkAssignment(input({ pack: perLocation }, { branch_license: null }))).w).toContain("branch_license_unknown");
+    expect(codes(checkAssignment(input({}, { branch_id: null, branch_license: null }))).w).not.toContain("branch_license_unconfirmed");
+  });
+});

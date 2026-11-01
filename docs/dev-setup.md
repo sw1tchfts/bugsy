@@ -52,7 +52,10 @@ npm test            # unit tests
 npm run test:rls    # tenant isolation suite against DATABASE_URL
 npm run test:e2e    # Playwright against the dev server; screenshots land in test-results/
 npm run db:types    # regenerate lib/supabase/types.ts after a migration
+npm run compliance:run  # the compliance job for every company: records, locks, notices, alert tasks
 ```
+
+The compliance job is idempotent and meant to run hourly. On Vercel, a cron calls `POST /api/compliance/run` with the `x-compliance-secret` header set to `COMPLIANCE_RUN_SECRET`; locally the script above does the same, and a licensed manager can press "Run the compliance job now" on the Compliance page for their own company.
 
 The RLS suite discovers every table in the `public` schema. A new table without row level security or without a select policy fails it, and a new tenant table needs a seeded Lakeshore row so the isolation checks have something to test against.
 

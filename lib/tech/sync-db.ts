@@ -2,6 +2,7 @@
 // by its client id; the completion gate runs here for real.
 import type postgres from "postgres";
 import { checkLabelRate } from "@/lib/catalog/label-rates";
+import { onVisitCompleted } from "@/lib/compliance/db";
 import { decodeBase64File, putFile } from "@/lib/files";
 import { gapsFor } from "@/lib/tech/gaps";
 import { loadRouteVisit } from "@/lib/tech/route-db";
@@ -119,6 +120,9 @@ async function apply(tx: Sql, actor: Actor, change: QueuedChange): Promise<SyncR
       const at = instant(payload.at);
       const r = await tx`update public.visits set status = 'completed', departed_at = ${at}, completed_at = ${at} where id = ${visitId} and tenant_id = ${tenantId} and status = 'in_progress'`;
       if (r.count === 0) return rejected(change.id, `the visit is ${visit.status}, not in progress`);
+      // The application record and the notice obligations are born in the same transaction (spec 07 rule 1).
+      const [tenant] = await tx<{ timezone: string }[]>`select timezone from public.tenants where id = ${tenantId}`;
+      await onVisitCompleted(tx, tenantId, visitId, tenant?.timezone ?? "UTC");
       return { id: change.id, result: "applied" };
     }
     default:

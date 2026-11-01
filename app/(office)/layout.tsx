@@ -56,7 +56,7 @@ export default async function OfficeLayout({ children }: { children: React.React
                 <Link href="/dispatch" className="text-stone-700 hover:text-stone-900">
                   Dispatch
                 </Link>
-                <Link href="/compliance/credentials" className="text-stone-700 hover:text-stone-900">
+                <Link href="/compliance" className="text-stone-700 hover:text-stone-900">
                   Compliance
                 </Link>
                 <Link href="/catalog/service-types" className="text-stone-700 hover:text-stone-900">

@@ -16,7 +16,7 @@ Keep this list in sync with package.json. Setup paths are in `docs/dev-setup.md`
 - `npm run test:rls` runs the tenant isolation suite against `DATABASE_URL`; `npm run test:e2e` runs Playwright against the dev server
 - `npm run seed` loads the demo companies and users (password in `docs/dev-setup.md`)
 - `supabase start`, `supabase db reset`, `supabase migration new <name>` with the Supabase local stack; `npm run db:reset-local` is the stand-in when running native Postgres plus GoTrue instead
-- All tenant data access in the app goes through `withRls` in `lib/db.ts`, which runs each query under the signed-in user's claims so row level security applies. Never query tenant tables with the superuser connection from request code.
+- All tenant data access in the app goes through `withRls` in `lib/db.ts`, which runs each query under the signed-in user's claims so row level security applies. Never query tenant tables with the superuser connection from request code. The one exception is the scheduled compliance job (`POST /api/compliance/run` with `COMPLIANCE_RUN_SECRET`), which has no user and runs `lib/compliance/db.ts` for every tenant; a signed-in member runs the same code under their own session.
 
 ## Rules that are easy to get wrong
 - Every tenant-owned table has `tenant_id uuid not null`, row level security enabled, and policies that call `app.is_member(tenant_id)`. Shared tables carry a `-- shared-table: <reason>` comment. A hook rejects migrations that break this.

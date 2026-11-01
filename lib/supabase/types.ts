@@ -42,11 +42,23 @@ export type Database = {
 "product_enabled_by":
 { Args: { "product": string }; Returns: number
                            },
+"registry_matches_for":
+{ Args: { "p_address": string,"p_state": string,"p_tenant": string }; Returns: Json
+                           },
+"rematch_registry_state":
+{ Args: { "p_state": string,"p_tenant": string }; Returns: number
+                           },
 "role_is_owner":
 { Args: { "role": string }; Returns: boolean
                            },
+"set_branch_license":
+{ Args: { "p_branch": string,"p_expires": string,"p_number": string,"p_tenant": string,"p_year": number }; Returns: boolean
+                           },
 "set_my_locale":
 { Args: { "p_locale": string,"p_tenant_id": string }; Returns: boolean
+                           },
+"shares_crew":
+{ Args: { "other_user": string,"tenant": string }; Returns: boolean
                            },
 "tenant_states":
 { Args: { "tenant": string }; Returns: string[]
@@ -180,6 +192,58 @@ isOneToOne: false
       referencedColumns: ["tenant_id","id"]
     }
                   ]
+                },"application_record_amendments": {
+                  Row: {
+                    "author_id": string,"changed_fields": NonNullable<Json>,"created_at": string,"created_by": string | null,"id": string,"reason": string,"record_id": string,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "author_id": string,"changed_fields": NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"id"?: string,"reason": string,"record_id": string,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "author_id"?: string,"changed_fields"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"id"?: string,"reason"?: string,"record_id"?: string,"tenant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "application_record_amendments_record_id_fkey"
+      columns: ["record_id"]
+isOneToOne: false
+      referencedRelation: "application_records"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "application_record_amendments_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"application_records": {
+                  Row: {
+                    "arrived_at": string | null,"business_date": string,"complete": boolean,"created_at": string,"created_by": string | null,"departed_at": string | null,"id": string,"job_kind": string,"lock_due_at": string,"locked_at": string | null,"locked_by": string | null,"missing_fields": (string)[],"pack_version": string | null,"required_fields": (string)[],"retention_until": string | null,"snapshot": NonNullable<Json>,"state_code": string,"status": string,"tenant_id": string,"updated_at": string,"visit_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "arrived_at"?: string | null,"business_date": string,"complete"?: boolean,"created_at"?: string,"created_by"?: string | null,"departed_at"?: string | null,"id"?: string,"job_kind": string,"lock_due_at": string,"locked_at"?: string | null,"locked_by"?: string | null,"missing_fields"?: (string)[],"pack_version"?: string | null,"required_fields"?: (string)[],"retention_until"?: string | null,"snapshot": NonNullable<Json>,"state_code": string,"status"?: string,"tenant_id": string,"updated_at"?: string,"visit_id": string
+                  }
+                  Update: {
+                    "arrived_at"?: string | null,"business_date"?: string,"complete"?: boolean,"created_at"?: string,"created_by"?: string | null,"departed_at"?: string | null,"id"?: string,"job_kind"?: string,"lock_due_at"?: string,"locked_at"?: string | null,"locked_by"?: string | null,"missing_fields"?: (string)[],"pack_version"?: string | null,"required_fields"?: (string)[],"retention_until"?: string | null,"snapshot"?: NonNullable<Json>,"state_code"?: string,"status"?: string,"tenant_id"?: string,"updated_at"?: string,"visit_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "application_records_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "application_records_tenant_id_visit_id_fkey"
+      columns: ["tenant_id","visit_id"]
+isOneToOne: false
+      referencedRelation: "visits"
+      referencedColumns: ["tenant_id","id"]
+    }
+                  ]
                 },"applicator_credentials": {
                   Row: {
                     "archived_at": string | null,"categories": (string)[],"cert_expires_on": string | null,"cert_number": string | null,"created_at": string,"created_by": string | null,"id": string,"license_expires_on": string | null,"license_number": string | null,"license_year": number | null,"notes": string | null,"recert_credits": NonNullable<Json>,"state_code": string,"supervisor_id": string | null,"tenant_id": string,"trainee_registered_on": string | null,"updated_at": string,"user_id": string
@@ -216,14 +280,14 @@ isOneToOne: false
                   ]
                 },"branches": {
                   Row: {
-                    "address": string,"archived_at": string | null,"business_license_number": string | null,"created_at": string,"created_by": string | null,"id": string,"license_year": number | null,"name": string,"state_code": string,"tenant_id": string,"updated_at": string
+                    "address": string,"archived_at": string | null,"business_license_number": string | null,"created_at": string,"created_by": string | null,"id": string,"license_expires_on": string | null,"license_year": number | null,"name": string,"state_code": string,"tenant_id": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "address": string,"archived_at"?: string | null,"business_license_number"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"license_year"?: number | null,"name": string,"state_code": string,"tenant_id": string,"updated_at"?: string
+                    "address": string,"archived_at"?: string | null,"business_license_number"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"license_expires_on"?: string | null,"license_year"?: number | null,"name": string,"state_code": string,"tenant_id": string,"updated_at"?: string
                   }
                   Update: {
-                    "address"?: string,"archived_at"?: string | null,"business_license_number"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"license_year"?: number | null,"name"?: string,"state_code"?: string,"tenant_id"?: string,"updated_at"?: string
+                    "address"?: string,"archived_at"?: string | null,"business_license_number"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"license_expires_on"?: string | null,"license_year"?: number | null,"name"?: string,"state_code"?: string,"tenant_id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -248,6 +312,46 @@ isOneToOne: false
                   Relationships: [
                     {
       foreignKeyName: "cancel_reasons_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"compliance_exports": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"file_count": number,"from_date": string,"id": string,"state_code": string | null,"tenant_id": string,"to_date": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"file_count": number,"from_date": string,"id"?: string,"state_code"?: string | null,"tenant_id": string,"to_date": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"file_count"?: number,"from_date"?: string,"id"?: string,"state_code"?: string | null,"tenant_id"?: string,"to_date"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "compliance_exports_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"compliance_tasks": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"done_at": string | null,"done_by": string | null,"due_on": string,"id": string,"kind": string,"note": string | null,"status": string,"subject_id": string,"subject_table": string,"tenant_id": string,"title": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"done_at"?: string | null,"done_by"?: string | null,"due_on": string,"id"?: string,"kind": string,"note"?: string | null,"status"?: string,"subject_id": string,"subject_table": string,"tenant_id": string,"title": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"done_at"?: string | null,"done_by"?: string | null,"due_on"?: string,"id"?: string,"kind"?: string,"note"?: string | null,"status"?: string,"subject_id"?: string,"subject_table"?: string,"tenant_id"?: string,"title"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "compliance_tasks_tenant_id_fkey"
       columns: ["tenant_id"]
 isOneToOne: false
       referencedRelation: "tenants"
@@ -436,6 +540,82 @@ isOneToOne: false
       referencedColumns: ["id"]
     },{
       foreignKeyName: "memberships_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"notices": {
+                  Row: {
+                    "agreement_id": string | null,"channel": string,"content_file_id": string | null,"created_at": string,"created_by": string | null,"dedupe_key": string,"due_by": string | null,"for_scheduled_for": string | null,"id": string,"kind": string,"proof": NonNullable<Json>,"property_id": string,"recipient_address": string | null,"recipient_contact_id": string | null,"recipient_email": string | null,"recipient_name": string,"recipient_phone": string | null,"required": boolean,"rule_key": string,"sent_at": string | null,"status": string,"tenant_id": string,"unit_id": string | null,"updated_at": string,"visit_id": string | null,"waived_reason": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "agreement_id"?: string | null,"channel": string,"content_file_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"dedupe_key": string,"due_by"?: string | null,"for_scheduled_for"?: string | null,"id"?: string,"kind": string,"proof"?: NonNullable<Json>,"property_id": string,"recipient_address"?: string | null,"recipient_contact_id"?: string | null,"recipient_email"?: string | null,"recipient_name": string,"recipient_phone"?: string | null,"required"?: boolean,"rule_key"?: string,"sent_at"?: string | null,"status"?: string,"tenant_id": string,"unit_id"?: string | null,"updated_at"?: string,"visit_id"?: string | null,"waived_reason"?: string | null
+                  }
+                  Update: {
+                    "agreement_id"?: string | null,"channel"?: string,"content_file_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"dedupe_key"?: string,"due_by"?: string | null,"for_scheduled_for"?: string | null,"id"?: string,"kind"?: string,"proof"?: NonNullable<Json>,"property_id"?: string,"recipient_address"?: string | null,"recipient_contact_id"?: string | null,"recipient_email"?: string | null,"recipient_name"?: string,"recipient_phone"?: string | null,"required"?: boolean,"rule_key"?: string,"sent_at"?: string | null,"status"?: string,"tenant_id"?: string,"unit_id"?: string | null,"updated_at"?: string,"visit_id"?: string | null,"waived_reason"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "notices_content_file_id_fkey"
+      columns: ["content_file_id"]
+isOneToOne: false
+      referencedRelation: "files"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "notices_recipient_contact_id_fkey"
+      columns: ["recipient_contact_id"]
+isOneToOne: false
+      referencedRelation: "contacts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "notices_tenant_id_agreement_id_fkey"
+      columns: ["tenant_id","agreement_id"]
+isOneToOne: false
+      referencedRelation: "agreements"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "notices_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "notices_tenant_id_property_id_fkey"
+      columns: ["tenant_id","property_id"]
+isOneToOne: false
+      referencedRelation: "properties"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "notices_tenant_id_visit_id_fkey"
+      columns: ["tenant_id","visit_id"]
+isOneToOne: false
+      referencedRelation: "visits"
+      referencedColumns: ["tenant_id","id"]
+    }
+                  ]
+                },"notification_registries": {
+                  Row: {
+                    "city": string,"contact_name": string | null,"created_at": string,"created_by": string | null,"email": string | null,"id": string,"imported_at": string,"line1": string,"line2": string | null,"name": string | null,"normalized_address": string,"notes": string | null,"phone": string | null,"postal_code": string,"registry_kind": string,"registry_year": number,"row_hash": string,"source_file_id": string | null,"state_code": string,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "city": string,"contact_name"?: string | null,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"id"?: string,"imported_at"?: string,"line1": string,"line2"?: string | null,"name"?: string | null,"normalized_address": string,"notes"?: string | null,"phone"?: string | null,"postal_code": string,"registry_kind"?: string,"registry_year": number,"row_hash": string,"source_file_id"?: string | null,"state_code": string,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "city"?: string,"contact_name"?: string | null,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"id"?: string,"imported_at"?: string,"line1"?: string,"line2"?: string | null,"name"?: string | null,"normalized_address"?: string,"notes"?: string | null,"phone"?: string | null,"postal_code"?: string,"registry_kind"?: string,"registry_year"?: number,"row_hash"?: string,"source_file_id"?: string | null,"state_code"?: string,"tenant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "notification_registries_source_file_id_fkey"
+      columns: ["source_file_id"]
+isOneToOne: false
+      referencedRelation: "files"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "notification_registries_tenant_id_fkey"
       columns: ["tenant_id"]
 isOneToOne: false
       referencedRelation: "tenants"
