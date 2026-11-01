@@ -4,7 +4,8 @@ import { Badge, Card, Empty, Notice, Table, errorMessage } from "@/components/ui
 import { ARRIVAL_WINDOW_LABELS, type ArrivalWindow } from "@/lib/dispatch/checks";
 import { formatBusinessDate, formatInstantDate } from "@/lib/dates";
 import { formatCents } from "@/lib/money";
-import { overview } from "@/lib/portal/db";
+import { headers } from "next/headers";
+import { overview, referralFor } from "@/lib/portal/db";
 import { portalDb, requirePortal } from "@/lib/portal/session";
 
 export const metadata: Metadata = { title: "Your account" };
@@ -23,7 +24,9 @@ const NOTICE: Record<string, string> = {
 export default async function PortalHome({ searchParams }: { searchParams: Promise<{ note?: string; error?: string }> }) {
   const q = await searchParams;
   const { session, identity } = await requirePortal();
-  const data = await portalDb(session, identity, (tx) => overview(tx, identity));
+  const [data, referral] = await portalDb(session, identity, (tx) => Promise.all([overview(tx, identity), referralFor(tx, identity)]));
+  const h = await headers();
+  const origin = h.get("origin") ?? (h.get("host") ? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}` : (process.env.NEXT_PUBLIC_SITE_URL ?? ""));
   const tz = identity.tenant_timezone;
   const multi = data.properties.length > 1;
   const sites = data.properties.filter((p) => p.has_site);
@@ -149,6 +152,13 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
             </ul>
           )}
         </Card>
+        {referral ? (
+          <Card title="Refer a friend" description={`When a friend you send signs a plan, you get ${formatCents(referral.credit_cents)} off your next invoice.`}>
+            <p className="break-all text-sm" data-testid="portal-referral-link">
+              {origin}/r/{referral.code}
+            </p>
+          </Card>
+        ) : null}
         <Card title="Notices sent to you">
           {data.notices.length === 0 ? (
             <Empty>No notices.</Empty>

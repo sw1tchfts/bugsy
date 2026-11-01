@@ -51,6 +51,12 @@ export default async function NewAgreementPage({ searchParams }: { searchParams:
     if (!propertyId && properties.length === 1) propertyId = properties[0].id;
     const serviceTypes = await tx<ServiceType[]>`select id, name, pricing_method from public.service_types where tenant_id = ${tenantId} and active and archived_at is null order by name`;
     const branches = await tx<Branch[]>`select id, name from public.branches where tenant_id = ${tenantId} and archived_at is null order by name`;
+    // Who can be the seller: the people an active commission plan covers (spec 17 rule 4).
+    const sellers = await tx<{ user_id: string; name: string }[]>`
+      select m.user_id, coalesce(m.display_name, 'Member') as name from public.memberships m join public.roles r on r.id = m.role_id
+      where m.tenant_id = ${tenantId}
+        and exists (select 1 from public.commission_plans p where p.tenant_id = m.tenant_id and p.active and (m.user_id = any(p.user_ids) or r.key = any(p.role_keys)))
+      order by 2`;
     const items = propertyId
       ? await tx<(PriceBookItemLike & { service_type_name: string })[]>`
           select p.id, p.service_type_id, st.name as service_type_name, p.name, p.add_on, p.size_basis, p.size_min, p.size_max, p.initial_price_cents, p.recurring_price_cents, p.one_time_price_cents
@@ -58,7 +64,7 @@ export default async function NewAgreementPage({ searchParams }: { searchParams:
           where p.tenant_id = ${tenantId} and p.active and p.archived_at is null and st.active and st.archived_at is null and not p.add_on
           order by st.name, p.position, p.name, p.size_min`
       : [];
-    return { accountId, propertyId, option, prices, accounts, properties, serviceTypes, branches, items };
+    return { accountId, propertyId, option, prices, accounts, properties, serviceTypes, branches, items, sellers };
   });
 
   const property = data.properties.find((p) => p.id === data.propertyId) ?? null;
@@ -150,6 +156,18 @@ export default async function NewAgreementPage({ searchParams }: { searchParams:
                 ))}
               </Select>
             </Field>
+            {active.roleKey !== "sales_rep" && data.sellers.length ? (
+              <Field label="Sold by" htmlFor="sold_by" hint="Earns the commission when the customer signs.">
+                <Select id="sold_by" name="sold_by" defaultValue={data.sellers.some((s) => s.user_id === session.userId) ? session.userId : ""}>
+                  <option value="">No seller</option>
+                  {data.sellers.map((s) => (
+                    <option key={s.user_id} value={s.user_id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            ) : null}
             {offers.length ? (
               <div className="rounded border border-stone-200 bg-stone-50 p-3 text-sm sm:col-span-2">
                 <p className="font-medium text-stone-800">Price book for this property{property.size_sqft ? ` (${property.size_sqft.toLocaleString("en-US")} sq ft` : ""}{property.lot_sqft ? `${property.size_sqft ? ", " : " ("}${property.lot_sqft.toLocaleString("en-US")} lot sq ft` : ""}{property.size_sqft || property.lot_sqft ? ")" : ""}</p>

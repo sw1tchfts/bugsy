@@ -38,6 +38,7 @@ export const PERMISSION_GROUPS = [
     permissions: [
       { key: "billing.read", label: "View invoices and payments" },
       { key: "billing.write", label: "Issue invoices, take payments, run collections" },
+      { key: "payments.capture", label: "Save a customer's card for autopay (no charges or refunds)" },
       { key: "gl.read", label: "View the general ledger" },
       { key: "gl.write", label: "Post journal entries and close periods" },
       { key: "reports.read", label: "View reports" },

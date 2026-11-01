@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Book a visit", robots: { index: fals
 const input = "w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm";
 
 /** The hosted booking form (spec 16 rule 8), made to sit in an iframe on the company's own website. */
-export default async function BookingForm({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ sent?: string; error?: string }> }) {
+export default async function BookingForm({ params, searchParams }: { params: Promise<{ key: string }>; searchParams: Promise<{ sent?: string; error?: string; ref?: string }> }) {
   const { key } = await params;
   const q = await searchParams;
   const form = await publicForm(key);
@@ -31,6 +31,7 @@ export default async function BookingForm({ params, searchParams }: { params: Pr
             </p>
           ) : null}
           <input type="hidden" name="key" value={key} />
+          {q.ref && /^[A-Za-z0-9]{4,16}$/.test(q.ref) ? <input type="hidden" name="ref" value={q.ref} /> : null}
           <div aria-hidden="true" className="absolute left-[-9999px] h-0 w-0 overflow-hidden">
             <label>
               Leave this empty <input name={HONEYPOT} tabIndex={-1} autoComplete="off" />

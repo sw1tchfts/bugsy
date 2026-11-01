@@ -177,3 +177,16 @@ export async function invoiceDetail(tx: Sql, identity: PortalIdentity, invoiceId
     payments: payments.map((p) => ({ ...p, amount_cents: Number(p.amount_cents) })),
   };
 }
+
+/** The customer's referral link (spec 17 rule 10), when the company pays a credit and has a booking form to land on. */
+export async function referralFor(tx: Sql, identity: PortalIdentity): Promise<{ code: string; credit_cents: number } | null> {
+  const [a] = await tx<{ code: string; credit: string | null }[]>`
+    select a.referral_code as code, g.referral_credit_cents::text as credit
+    from public.accounts a left join public.growth_settings g on g.tenant_id = a.tenant_id
+    where a.id = ${identity.account_id} and a.tenant_id = ${identity.tenant_id}`;
+  if (!a) return null;
+  const credit = a.credit === null ? 2500 : Number(a.credit);
+  if (credit <= 0) return null;
+  const [r] = await tx<{ form_key: string | null }[]>`select form_key from app.referral(${a.code})`;
+  return r?.form_key ? { code: a.code, credit_cents: credit } : null;
+}

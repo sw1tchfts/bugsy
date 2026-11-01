@@ -10,6 +10,8 @@ import { can } from "@/lib/auth/permissions";
 import { dbAs, requireMembership, requirePermission } from "@/lib/auth/session";
 import { imageInfo } from "@/lib/commercial/image";
 import { putFile } from "@/lib/files";
+import { creditReferral } from "@/lib/growth/db";
+import { earnCommissions } from "@/lib/sales/db";
 import { RELATIONSHIPS } from "@/lib/specialty/materials";
 import { issuePrepayments, settleCancellation } from "@/lib/billing/db";
 import { intOrNull, opt, str } from "@/lib/customers/forms";
@@ -63,6 +65,8 @@ export async function createAgreement(formData: FormData) {
           ...read.value,
           cadence_rule: tx.json(read.value.cadence_rule),
           terms_text: read.value.terms_text ?? terms?.agreement_terms ?? null,
+          // Spec 17 rule 4: the seller earns the commission; a sales rep is always their own seller.
+          sold_by: membership.roleKey === "sales_rep" ? session.userId : opt(formData, "sold_by"),
         })} returning id`;
       id = row.id;
     });
@@ -70,7 +74,6 @@ export async function createAgreement(formData: FormData) {
     error = errorCode(err);
   }
   if (error || !id) back(returnTo, error ?? "failed");
-  void membership;
   back(detail(id), null);
 }
 
@@ -129,6 +132,10 @@ export async function signAgreement(formData: FormData) {
       await syncVisits(tx, tenantId, agreementId);
       // Annual prepay bills at signing when the term has started (spec 08 rule 4); installments wait for the job.
       await issuePrepayments(tx, tenantId, todayInZone(membership.tenantTimezone), membership.tenantTimezone);
+      // Spec 17 rules 4 and 10: the seller's commissions, and the referrer's credit when this is a referred customer's
+      // first plan (billing staff credit it now; otherwise the billing job does on its next run).
+      await earnCommissions(tx, tenantId, agreementId, todayInZone(membership.tenantTimezone));
+      if (can(membership.permissions, "billing.write")) await creditReferral(tx, tenantId, agreementId, todayInZone(membership.tenantTimezone));
       if (consent && contactId) {
         await tx`
           update public.contacts set e_notice_consent_at = coalesce(e_notice_consent_at, now()),

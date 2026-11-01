@@ -120,6 +120,22 @@ export function recognitionLines(event: { cents: number; service_line: string; a
   ]);
 }
 
+/** Spec 17 rule 5: a released commission is an expense owed to the seller; negative cents reverse it (a chargeback). */
+export function commissionLines(cents: number): PostingLine[] {
+  return settle([
+    { account: "commissions_expense", cents: -cents },
+    { account: "commissions_payable", cents },
+  ]);
+}
+
+/** Spec 17 rule 7: paying a seller settles what the books owed them. */
+export function commissionPayoutLines(cents: number): PostingLine[] {
+  return settle([
+    { account: "commissions_payable", cents: -cents },
+    { account: "operating_bank", cents },
+  ]);
+}
+
 export type ProductUseEvent = { quantity: string | number; usage_unit: string; unit_cost_cents: number; cost_unit: string };
 
 /** Quantity in the cost unit times the unit cost, half up to the cent; null when the units do not convert. */

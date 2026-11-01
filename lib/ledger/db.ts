@@ -29,7 +29,7 @@ import { type BalanceSheet, type DateRange, type IncomeStatement, type ReportAcc
 
 type Sql = postgres.Sql | postgres.TransactionSql;
 
-export type SourceType = "invoice" | "credit_memo" | "void" | "visit" | "product_use" | "payment" | "refund" | "payout" | "reclass" | "reclass_reversal" | "opening" | "manual" | "reversal" | "recognition";
+export type SourceType = "invoice" | "credit_memo" | "void" | "visit" | "product_use" | "payment" | "refund" | "payout" | "reclass" | "reclass_reversal" | "opening" | "manual" | "reversal" | "recognition" | "commission" | "commission_payout";
 
 /** A line for app.post_entry: a template key, or an account id for manual entries. */
 export type EntryLine = { account?: AccountKey; gl_account_id?: string; debit_cents: number; credit_cents: number; agreement_id?: string | null; jurisdiction?: string | null; memo?: string | null };

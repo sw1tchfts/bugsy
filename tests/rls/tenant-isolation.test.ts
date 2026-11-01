@@ -2366,3 +2366,142 @@ describe("spec 16 rules enforced in the database", () => {
     expect(result.limited).toEqual({ visits: 0, devices: 0, notices: 0, propertyInvoices: 0, propertyPayments: 0 });
   });
 });
+
+describe("spec 17 rules enforced in the database", () => {
+  const repEmail = seedUserEmail(lakeshore, "sales_rep");
+  const officeEmail = seedUserEmail(lakeshore, "office");
+  const techEmail = seedUserEmail(lakeshore, "technician");
+  let rep = "";
+  let office = "";
+  let tech = "";
+  const ROLLBACK = "rollback: spec 17";
+
+  async function rolledBack<T>(fn: (tx: Tx, as: (id: string, email: string) => Promise<void>) => Promise<T>): Promise<T> {
+    let out: T | undefined;
+    await admin
+      .begin(async (tx) => {
+        const as = async (id: string, email: string) => {
+          await tx.unsafe("reset role");
+          await tx.unsafe("set local role authenticated");
+          await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: id, email, role: "authenticated" })}, true)`;
+        };
+        out = await fn(tx, as);
+        throw new Error(ROLLBACK);
+      })
+      .catch((e: Error) => {
+        if (e.message !== ROLLBACK) throw e;
+      });
+    return out as T;
+  }
+  const attempt = (tx: Tx, q: (sp: Tx) => Promise<unknown>) =>
+    tx.savepoint((sp) => q(sp as unknown as Tx)).then((r) => `ok ${(r as { count?: number }).count ?? ""}`.trim(), (e: Error) => e.message);
+
+  beforeAll(async () => {
+    rep = await userId(repEmail);
+    office = await userId(officeEmail);
+    tech = await userId(techEmail);
+  });
+
+  it("shows a rep only their territories' knocks and their own commissions, and lets them knock only where assigned (rules 2 and 4)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      const [other] = await tx<{ id: string }[]>`
+        insert into public.territories (tenant_id, name, zip_codes, rep_ids) values (${lakeshoreId}, 'Someone else''s', ${["60601"]}, ${[office]}) returning id`;
+      await tx`insert into public.knocks (tenant_id, territory_id, rep_id, address, normalized_address, outcome) values (${lakeshoreId}, ${other.id}, ${office}, '1 Lake St', '1 LAKE ST', 'not_home')`;
+      await as(rep, repEmail);
+      const count = async (sqlText: string) => (await tx.unsafe<{ n: number }[]>(sqlText))[0].n;
+      const repView = {
+        territories: await count("select count(*)::int as n from public.territories"),
+        foreignKnocks: await count(`select count(*)::int as n from public.knocks where territory_id = '${other.id}'`),
+        ownKnocks: await count(`select count(*)::int as n from public.knocks where rep_id = '${rep}'`),
+        othersCommissions: await count(`select count(*)::int as n from public.commissions where user_id <> '${rep}'`),
+        ownCommissions: await count(`select count(*)::int as n from public.commissions where user_id = '${rep}'`),
+      };
+      const knockElsewhere = await attempt(tx, (sp) => sp`
+        insert into public.knocks (tenant_id, territory_id, rep_id, address, normalized_address, outcome) values (${lakeshoreId}, ${other.id}, ${rep}, '3 Lake St', '3 LAKE ST', 'not_home')`);
+      await as(tech, techEmail);
+      const techView = {
+        commissions: await count("select count(*)::int as n from public.commissions"),
+        payouts: await count("select count(*)::int as n from public.commission_payouts"),
+        knocks: await count("select count(*)::int as n from public.knocks"),
+      };
+      return { repView, knockElsewhere, techView };
+    });
+    expect(result.repView).toMatchObject({ territories: 1, foreignKnocks: 0, othersCommissions: 0 });
+    expect(result.repView.ownKnocks).toBeGreaterThan(0);
+    expect(result.repView.ownCommissions).toBeGreaterThan(0);
+    expect(result.knockElsewhere).toMatch(RLS_ERROR);
+    expect(result.techView).toEqual({ commissions: 0, payouts: 0, knocks: 0 });
+  });
+
+  it("keeps a rep from writing their own pay: amounts are the plan's, holds and payouts are billing's, credits are not theirs (rules 4 to 7 and 10)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      const [held] = await tx<{ id: string; agreement_id: string; plan_id: string }[]>`
+        select id, agreement_id, plan_id from public.commissions where tenant_id = ${lakeshoreId} and user_id = ${rep} and status = 'held' limit 1`;
+      const [mine] = await tx<{ id: string }[]>`select id from public.agreements where tenant_id = ${lakeshoreId} and sold_by = ${rep} and signed_at is not null limit 1`;
+      const [notMine] = await tx<{ id: string; account_id: string }[]>`
+        select id, account_id from public.agreements where tenant_id = ${lakeshoreId} and sold_by is distinct from ${rep} and signed_at is not null limit 1`;
+      // A second plan covering reps: the rep may not invent its amount.
+      const [flat] = await tx<{ id: string }[]>`
+        insert into public.commission_plans (tenant_id, name, role_keys, basis, flat_cents, hold_days, hold_paid_invoices, chargeback_days)
+        values (${lakeshoreId}, 'Spiff', ${["sales_rep"]}, 'flat', 5000, 0, 0, 30) returning id`;
+      const today = (await tx<{ d: string }[]>`select (now() at time zone ${lakeshore.timezone})::date::text as d`)[0].d;
+      await as(rep, repEmail);
+      const raise = await attempt(tx, (sp) => sp`update public.commissions set amount_cents = amount_cents * 10 where id = ${held.id}`);
+      const release = await attempt(tx, (sp) => sp`update public.commissions set status = 'payable', released_on = current_date where id = ${held.id}`);
+      const inflated = await attempt(tx, (sp) => sp`
+        insert into public.commissions (tenant_id, user_id, agreement_id, plan_id, basis_cents, amount_cents, earned_on, releasable_on)
+        values (${lakeshoreId}, ${rep}, ${mine.id}, ${flat.id}, 999999, 999999, ${today}, ${today})`);
+      const fair = await attempt(tx, (sp) => sp`
+        insert into public.commissions (tenant_id, user_id, agreement_id, plan_id, basis_cents, amount_cents, earned_on, releasable_on)
+        values (${lakeshoreId}, ${rep}, ${mine.id}, ${flat.id}, 5000, 5000, ${today}, ${today})`);
+      const othersSale = await attempt(tx, (sp) => sp`
+        insert into public.commissions (tenant_id, user_id, agreement_id, plan_id, basis_cents, amount_cents, earned_on, releasable_on)
+        values (${lakeshoreId}, ${rep}, ${notMine.id}, ${flat.id}, 5000, 5000, ${today}, ${today})`);
+      const credit = await attempt(tx, (sp) => sp`
+        insert into public.referral_credits (tenant_id, referrer_account_id, referred_account_id, agreement_id, amount_cents)
+        select ${lakeshoreId}, a.id, ${notMine.account_id}, ${notMine.id}, 100000 from public.accounts a where a.tenant_id = ${lakeshoreId} and a.id <> ${notMine.account_id} limit 1`);
+      const charge = await attempt(tx, (sp) => sp`
+        insert into public.payments (tenant_id, account_id, kind, method, status, amount_cents, gateway, received_at) values (${lakeshoreId}, ${notMine.account_id}, 'payment', 'card', 'succeeded', 100, 'local', now())`);
+      const saveCard = await attempt(tx, (sp) => sp`
+        insert into public.payment_methods (tenant_id, account_id, gateway, gateway_payment_method_id, kind, last4, status)
+        values (${lakeshoreId}, ${notMine.account_id}, 'local', 'local_pm_rls_capture', 'card', '4242', 'active')`);
+      // Billing staff release only when the hold is met; the seller is fixed once signed.
+      await as(office, officeEmail);
+      const earlyRelease = await attempt(tx, (sp) => sp`update public.commissions set status = 'payable', released_on = current_date where id = ${held.id}`);
+      const reseller = await attempt(tx, (sp) => sp`update public.agreements set sold_by = ${office} where id = ${mine.id}`);
+      return { raise, release, inflated, fair, othersSale, credit, charge, saveCard, earlyRelease, reseller };
+    });
+    expect(result.raise).toMatch(/terms do not change/);
+    expect(result.release).toMatch(/still held/);
+    expect(result.inflated).toMatch(/must be 5000 on a basis of 5000/);
+    expect(result.fair).toBe("ok 1");
+    expect(result.othersSale).toMatch(/the seller's/);
+    expect(result.credit).toMatch(RLS_ERROR);
+    expect(result.charge).toMatch(RLS_ERROR);
+    expect(result.saveCard).toBe("ok 1");
+    expect(result.earlyRelease).toMatch(/still held/);
+    expect(result.reseller).toMatch(/fixed once the agreement is signed/);
+  });
+
+  it("takes one survey answer per visit from anyone holding the link, and names a referrer only on a fresh lead (rules 9 and 10)", async () => {
+    const [survey] = await admin<{ token: string }[]>`select token from public.surveys where tenant_id = ${lakeshoreId} and responded_at is null limit 1`;
+    const [referrer] = await admin<{ code: string; id: string }[]>`select referral_code as code, id from public.accounts where tenant_id = ${lakeshoreId} order by created_at limit 1`;
+    const result = await rolledBack(async (tx) => {
+      const [source] = await tx<{ id: string }[]>`select id from public.lead_sources where tenant_id = ${lakeshoreId} order by created_at limit 1`;
+      const [fresh] = await tx<{ id: string }[]>`insert into public.leads (tenant_id, source_id, name, line1) values (${lakeshoreId}, ${source.id}, 'Fresh Lead', '5 New St') returning id`;
+      const [old] = await tx<{ id: string }[]>`insert into public.leads (tenant_id, source_id, name, line1, created_at) values (${lakeshoreId}, ${source.id}, 'Old Lead', '6 Old St', now() - interval '1 day') returning id`;
+      await tx.unsafe("set local role anon");
+      const outOfRange = await attempt(tx, (sp) => sp`select app.answer_survey(${survey.token}::uuid, 11, null)`);
+      const [{ first }] = await tx<{ first: boolean }[]>`select app.answer_survey(${survey.token}::uuid, 9, 'Great') as first`;
+      const [{ second }] = await tx<{ second: boolean }[]>`select app.answer_survey(${survey.token}::uuid, 0, 'Changed my mind') as second`;
+      const [{ named }] = await tx<{ named: boolean }[]>`select app.intake_referral(${fresh.id}::uuid, ${referrer.code.toLowerCase()}) as named`;
+      const [{ late }] = await tx<{ late: boolean }[]>`select app.intake_referral(${old.id}::uuid, ${referrer.code}) as late`;
+      await tx.unsafe("reset role");
+      const [s] = await tx<{ score: number }[]>`select score from public.surveys where token = ${survey.token}`;
+      const [l] = await tx<{ referred_by_account_id: string | null }[]>`select referred_by_account_id from public.leads where id = ${fresh.id}`;
+      return { outOfRange, first, second, score: s.score, named, late, referredBy: l.referred_by_account_id };
+    });
+    expect(result.outOfRange).toMatch(/0 to 10/);
+    expect(result).toMatchObject({ first: true, second: false, score: 9, named: true, late: false, referredBy: referrer.id });
+  });
+});

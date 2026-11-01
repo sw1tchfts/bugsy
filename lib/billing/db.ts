@@ -85,7 +85,7 @@ export type InvoiceDraft = {
   property_id: string | null;
   agreement_id?: string | null;
   visit_id?: string | null;
-  source: "visit" | "installment" | "prepay" | "settlement" | "late_fee" | "manual" | "opening" | "materials";
+  source: "visit" | "installment" | "prepay" | "settlement" | "late_fee" | "manual" | "opening" | "materials" | "referral";
   source_key: string;
   /** The business date the invoice is issued on; the draft stays a draft when `issue` is false. */
   issued_on: string;
@@ -760,6 +760,13 @@ export async function runBilling(
   counts.late_fees = await applyLateFees(tx, tenantId, settings, today);
   // The ledger's share of the job (spec 09): anything the inline postings missed, payouts, and period-end reclasses.
   counts.ledger = await runLedger(tx, tenantId, timeZone, today, settings.gateway, ledger);
+  // Spec 17 rules 5 and 6: holds release once customers have paid, early cancellations charge back (imported late:
+  // sales builds on billing).
+  const { runCommissions } = await import("@/lib/sales/db");
+  await runCommissions(tx, tenantId, today);
+  // Rule 10: referral credits for referred customers' first plans signed by staff who cannot issue credits.
+  const { creditReferrals } = await import("@/lib/growth/db");
+  await creditReferrals(tx, tenantId, today);
   return counts;
 }
 

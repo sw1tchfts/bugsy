@@ -91,7 +91,7 @@ export function PaymentFields({ gateway, publishableKey, stripeAccount, idPrefix
   if (gateway === "stripe") {
     if (!publishableKey) return <p className="text-sm text-red-700">Card entry is not set up for this site yet.</p>;
     return (
-      <div className="grid gap-1 sm:col-span-full">
+      <div className="col-span-full grid gap-1">
         <span className="text-sm font-medium text-stone-700">Card</span>
         <div ref={host} className={`${box} min-h-[2.4rem]`} data-testid={`${idPrefix}-stripe-card`} />
         <input ref={tokenRef} type="hidden" name={n.token} defaultValue="" />

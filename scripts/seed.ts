@@ -19,6 +19,7 @@ import { seedMessaging } from "./seed-messaging";
 import { seedCommercial } from "./seed-commercial";
 import { seedSpecialty } from "./seed-specialty";
 import { seedPortal } from "./seed-portal";
+import { seedSales } from "./seed-sales";
 import { seedPlatform } from "./seed-platform";
 import { seedReports } from "./seed-reports";
 import { seedCompliance } from "./seed-compliance";
@@ -149,6 +150,7 @@ async function seedTenant(tenant: SeedTenant, useAuthServer: boolean) {
   await seedCommercial(sql, tenant, tenantId);
   await seedSpecialty(sql, tenant, tenantId);
   await seedPortal(sql, tenant, tenantId, await ensureUser(portalCustomerEmail(tenant), useAuthServer));
+  await seedSales(sql, tenant, tenantId);
 
   console.log(`seeded ${tenant.name} (${tenantId})`);
 }

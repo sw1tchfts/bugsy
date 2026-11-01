@@ -477,6 +477,9 @@ export async function queueVisitSummary(tx: Sql, tenantId: string, visitId: stri
     if (recipient && channel) {
       const t = token();
       const day = dateInZone(visit.captured.departed_at ?? visit.captured.completed_at ?? new Date(), timeZone);
+      // Spec 17 rule 9: the survey link rides with the summary (imported late: growth reads messaging too).
+      const { surveyLink } = await import("@/lib/growth/db");
+      const survey = await safely(tx, "survey link", (t2) => surveyLink(t2, tenantId, visitId));
       summaryId = await composeAndQueue(tx, tenantId, settings, {
         key: "summary",
         purpose: "summary",
@@ -489,7 +492,9 @@ export async function queueVisitSummary(tx: Sql, tenantId: string, visitId: stri
           technician_name: lead?.name ?? "Your technician",
           summary_url: `${appUrl()}/m/${t}`,
           summary_text: summaryText(visit, timeZone),
+          survey_line: survey ? `\n\nHow did we do? ${survey}` : "",
         },
+        required: ["survey_line"],
         dedupe_key: `summary:${visitId}`,
         ids: { visit_id: visitId, notice_id: notice?.id ?? null },
         pageHtml: summaryHtml(visit, timeZone, company),
@@ -673,6 +678,9 @@ export async function runMessaging(tx: Sql, tenantId: string, timeZone: string, 
   const notices = await queueDueNotices(tx, tenantId, settings, timeZone);
   const scheduled = await tx<{ id: string }[]>`select id from public.campaigns where tenant_id = ${tenantId} and status = 'scheduled' and scheduled_for <= ${now}`;
   for (const c of scheduled) await launchCampaign(tx, tenantId, c.id, todayInZone(timeZone));
+  // Spec 17 rule 8: sequences enroll and queue their due steps before everything due goes out.
+  const { runSequences } = await import("@/lib/growth/db");
+  await runSequences(tx, tenantId, todayInZone(timeZone), now);
   const sent = await sendQueued(tx, tenantId, now, timeZone);
   return { reminders, notices, campaigns: scheduled.length, ...sent };
 }
