@@ -72,6 +72,11 @@ export default async function RegistriesPage({ searchParams }: { searchParams: P
               </Field>
             </div>
             <div className="sm:col-span-4">
+              <Field label="Header mapping (optional)" htmlFor="reg-mapping" hint="One line per column the file names differently: Header=field, with fields name, line1, line2, city, state, postal_code, contact_name, phone, email, notes. A state pack's layout applies when a pack exists.">
+                <Textarea id="reg-mapping" name="mapping" rows={2} className="font-mono text-xs" placeholder={"Service Address=line1\nZIP5=postal_code"} />
+              </Field>
+            </div>
+            <div className="sm:col-span-4">
               <Button type="submit">Import</Button>
             </div>
           </form>

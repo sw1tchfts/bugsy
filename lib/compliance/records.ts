@@ -170,7 +170,7 @@ export type RecordSnapshot = {
     label_check: { status: string; reason: string } | null;
     applied_by: { user_id: string; name: string; cert_number: string | null };
   }[];
-  crew: { user_id: string; name: string; role: string; cert_number: string | null; trainee: boolean; cert_expires_on: string | null }[];
+  crew: { user_id: string; name: string; role: string; cert_number: string | null; categories: string[]; trainee: boolean; cert_expires_on: string | null }[];
   areas_treated: string[];
   target_pests: string[];
   conditions: Record<string, unknown> | null;
@@ -250,6 +250,7 @@ export function buildRecordSnapshot(visit: RouteVisit, pack: StatePack | undefin
       name: m.name,
       role: m.role,
       cert_number: m.credential?.cert_number ?? null,
+      categories: m.credential?.categories ?? [],
       trainee: m.credential?.trainee ?? false,
       cert_expires_on: m.credential?.cert_expires_on ?? null,
     })),

@@ -108,6 +108,14 @@ describe("notices from the pack (rules 6 and 8)", () => {
     expect(byEmail.dedupe_key).toBe("registry_advance:v1:g1:2026-11-10");
   });
 
+  it("counts the hours before a visit across the spring-forward night", () => {
+    // March 15, 2027 starts at 00:00 EDT (04:00 UTC); 24 real hours earlier is 04:00 UTC on March 14, which is 23:00 EST on
+    // March 13: the hour the clocks skip never shortens the lead time.
+    const registry = [{ id: "g1", kind: "general", name: null, address: "1 Main St", phone: null, email: "a@example.test" }];
+    const [spec] = ofKind(requiredNotices(input({ visit: visit({ scheduled_for: "2027-03-15", treatment_areas: ["yard"], registry }) }), ZZ), "registry_advance");
+    expect(spec.due_by).toBe("2027-03-14T04:00:00.000Z");
+  });
+
   it("applies the registry only to the work the pack names, and to everything without a pack", () => {
     const registry = [{ id: "g1", kind: "general", name: null, address: "1 Main St", phone: null, email: null }];
     const interior = visit({ scheduled_for: "2026-11-10", treatment_areas: ["interior"], registry });

@@ -3,9 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { dbAs, requirePermission } from "@/lib/auth/session";
+import { refreshAlertTasks } from "@/lib/compliance/db";
 import { intOrNull, opt, str } from "@/lib/customers/forms";
-import { isIsoDate } from "@/lib/dates";
+import { isIsoDate, todayInZone } from "@/lib/dates";
 import { errorCode } from "@/lib/db";
+import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 
 const PAGE = "/compliance/credentials";
 
@@ -48,6 +50,7 @@ export async function saveCredential(formData: FormData) {
     supervisor_id: opt(formData, "supervisor_id"),
     notes: opt(formData, "notes"),
   };
+  const { active } = await requireActiveTenant();
   let error: string | null = null;
   try {
     await dbAs(session, async (tx) => {
@@ -56,6 +59,8 @@ export async function saveCredential(formData: FormData) {
       } else {
         await tx`insert into public.applicator_credentials ${tx({ tenant_id: tenantId, ...columns })}`;
       }
+      // A renewed expiry closes its alert right away rather than at the next job run (spec 07 rule 10).
+      await refreshAlertTasks(tx, tenantId, todayInZone(active.tenantTimezone));
     });
   } catch (err) {
     error = errorCode(err);

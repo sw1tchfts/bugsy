@@ -27,7 +27,7 @@ function visit(overrides: Partial<RouteVisit> = {}, captured: Partial<RouteVisit
     account: { id: "a1", name: "Maria Lopez", phone: null },
     property: { id: "p1", address: "1234 NEIL AVE", city: "COLUMBUS", state: "OH", lat: null, lng: null, access_notes: null },
     service_type: { id: "s1", name: "General pest plan" },
-    crew: [{ user_id: "u1", name: "Sam Rivera", role: "lead", credential: { cert_number: "OH-APP-1042", trainee: false, cert_expires_on: "2027-12-31" } }],
+    crew: [{ user_id: "u1", name: "Sam Rivera", role: "lead", credential: { cert_number: "OH-APP-1042", categories: ["7A", "7F"], trainee: false, cert_expires_on: "2027-12-31" } }],
     state_rule: null,
     required_fields: [],
     captured: {
@@ -73,7 +73,7 @@ describe("the record snapshot (rule 2)", () => {
     expect(build.complete).toBe(true);
     expect(build.missing).toEqual([]);
     expect(build.business_date).toBe("2026-11-01");
-    expect(build.snapshot.crew[0]).toEqual({ user_id: "u1", name: "Sam Rivera", role: "lead", cert_number: "OH-APP-1042", trainee: false, cert_expires_on: "2027-12-31" });
+    expect(build.snapshot.crew[0]).toEqual({ user_id: "u1", name: "Sam Rivera", role: "lead", cert_number: "OH-APP-1042", categories: ["7A", "7F"], trainee: false, cert_expires_on: "2027-12-31" });
     expect(build.snapshot.products[0].applied_by).toEqual({ user_id: "u1", name: "Sam Rivera", cert_number: "OH-APP-1042" });
     expect(build.snapshot.products[0].epa_reg_no).toBe("100-1066");
     expect(build.snapshot.time_zone).toBe(TZ);
@@ -100,9 +100,11 @@ describe("the record snapshot (rule 2)", () => {
 });
 
 describe("lock timing and retention (rules 3 and 5)", () => {
-  it("locks at the end of the business day without a pack, on the fall-back day too", () => {
+  it("locks at the end of the business day without a pack, on the fall-back and spring-forward days too", () => {
     // November 1, 2026 ends at 23:59:59 EST, which is 04:59:59 UTC the next day.
     expect(lockDueAt("2026-11-01T06:30:00Z", "2026-11-01", TZ, undefined)).toBe("2026-11-02T04:59:59.000Z");
+    // March 14, 2027 loses an hour at 02:00; its end is 23:59:59 EDT, which is 03:59:59 UTC the next day.
+    expect(lockDueAt(null, "2027-03-14", TZ, undefined)).toBe("2027-03-15T03:59:59.000Z");
   });
 
   it("follows the pack's completion rule", () => {

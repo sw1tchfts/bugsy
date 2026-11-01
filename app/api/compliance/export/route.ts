@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   const state = normalizeStateCode(url.searchParams.get("state"));
   if (!isIsoDate(from) || !isIsoDate(to) || from > to) return new NextResponse("from and to are business dates, from first", { status: 400 });
   const files = await dbAs(session, async (tx) => {
-    const built = await buildInspectorExport(tx, active.tenantId, { from, to, state }, active.tenantName);
+    const built = await buildInspectorExport(tx, active.tenantId, { from, to, state }, active.tenantName, active.tenantTimezone);
     await tx`insert into public.compliance_exports (tenant_id, from_date, to_date, state_code, file_count) values (${active.tenantId}, ${from}, ${to}, ${state}, ${built.length})`;
     return built;
   });

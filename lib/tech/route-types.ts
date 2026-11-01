@@ -20,7 +20,7 @@ export type RouteCrewMember = {
   user_id: string;
   name: string;
   role: CrewRole;
-  credential: { cert_number: string | null; trainee: boolean; cert_expires_on: string | null } | null;
+  credential: { cert_number: string | null; categories: string[]; trainee: boolean; cert_expires_on: string | null } | null;
 };
 
 export type CapturedProduct = {

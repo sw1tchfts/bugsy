@@ -84,7 +84,8 @@ export function channelFor(contact: NoticeContact, pack: StatePack | undefined, 
   const electronic = electronicAllowed(contact, pack);
   if (electronic && contact.email && allowed.includes("email")) return "email";
   if (electronic && contact.phone && allowed.includes("sms")) return "sms";
-  if (contact.address && allowed.includes("mail") && !allowed.includes("print")) return "mail";
+  // Paper: a contact reachable only by post is mailed; anyone else gets a printed copy handed over or left.
+  if (contact.address && !contact.email && !contact.phone && allowed.includes("mail")) return "mail";
   if (allowed.includes("print")) return "print";
   if (allowed.includes("mail") && contact.address) return "mail";
   return "phone";

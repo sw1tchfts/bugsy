@@ -158,6 +158,34 @@ export async function noticesForVisit(tx: Sql, tenantId: string, visitId: string
 type NoticeVisitJobKind = Parameters<typeof requiredNotices>[0] extends { visit: infer V } ? (V extends { job_kind: infer K } ? K : never) : never;
 type NoticeTreatmentArea = Parameters<typeof requiredNotices>[0] extends { visit: infer V } ? (V extends { treatment_areas: (infer A)[] } ? A : never) : never;
 
+/** The offer of advance notice a continuing contract owes before its first application, when the pack asks for one. */
+export async function noticesForAgreement(tx: Sql, tenantId: string, agreementId: string, timeZone: string): Promise<NoticeSpec[]> {
+  const [a] = await tx<{ id: string; property_id: string; account_id: string; first_visit_on: string | null; signed_at: string | null; state_code: string; address: string }[]>`
+    select a.id, a.property_id, a.account_id, a.first_visit_on, a.signed_at, p.state_code,
+           concat_ws(', ', concat_ws(' ', p.line1, p.line2), p.city, concat_ws(' ', p.state_code, p.postal_code)) as address
+    from public.agreements a join public.properties p on p.id = a.property_id where a.id = ${agreementId} and a.tenant_id = ${tenantId}`;
+  if (!a || !a.signed_at || !a.first_visit_on) return [];
+  const contacts = await tx<{ id: string; role: string; unit_id: string | null; name: string; email: string | null; phone: string | null; e_notice_consent_at: string | null }[]>`
+    select id, role, unit_id, name, email, phone, e_notice_consent_at from public.contacts
+    where tenant_id = ${tenantId} and archived_at is null and (account_id = ${a.account_id} or property_id = ${a.property_id})
+    order by case role when 'primary' then 0 when 'billing' then 1 else 2 end, created_at`;
+  return requiredNotices(
+    { visit: null, agreement: { id: a.id, property_id: a.property_id, first_visit_on: a.first_visit_on, signed_at: a.signed_at }, contacts: contacts.map((c): NoticeContact => ({ ...c, address: a.address })), timeZone },
+    getStatePack(a.state_code),
+  );
+}
+
+/** A posted sign photographed at the stop is the proof of the posting-sign notice. */
+export async function attachPostingProof(tx: Sql, tenantId: string, visitId: string | null = null): Promise<number> {
+  const result = await tx`
+    update public.notices n
+    set status = 'sent', sent_at = ph.taken_at, channel = 'posted', proof = jsonb_build_object('method', 'posted', 'photo_file_id', ph.file_id, 'taken_at', ph.taken_at)
+    from (select distinct on (visit_id) visit_id, file_id, taken_at from public.visit_photos where tenant_id = ${tenantId} and kind = 'posting' order by visit_id, taken_at) ph
+    where n.tenant_id = ${tenantId} and n.kind = 'posting_sign' and n.status = 'due' and n.visit_id = ph.visit_id
+      and (${visitId}::uuid is null or n.visit_id = ${visitId})`;
+  return result.count;
+}
+
 /** Inserts the notices that do not exist yet (one obligation, one row). Returns how many were new. */
 export async function createNotices(tx: Sql, tenantId: string, specs: readonly NoticeSpec[]): Promise<number> {
   let created = 0;
@@ -192,6 +220,7 @@ export async function createNotices(tx: Sql, tenantId: string, specs: readonly N
 export async function onVisitCompleted(tx: Sql, tenantId: string, visitId: string, timeZone: string): Promise<void> {
   await ensureRecord(tx, tenantId, visitId, timeZone);
   await createNotices(tx, tenantId, await noticesForVisit(tx, tenantId, visitId, timeZone));
+  await attachPostingProof(tx, tenantId, visitId);
 }
 
 /** Notices for a visit the office just scheduled on a registry address, so the advance notice can be recorded. */
@@ -251,16 +280,27 @@ export async function refreshNoticeTasks(tx: Sql, tenantId: string, timeZone: st
       on conflict (tenant_id, kind, subject_id, due_on) do nothing`;
     created += result.count;
   }
-  const blocked = await tx<{ id: string; scheduled_for: string; address: string }[]>`
+  // A registry task stands only where the engine says a notice is owed (the pack's triggers, or every match without a pack).
+  const matched = await tx<{ id: string; scheduled_for: string; address: string }[]>`
     select v.id, v.scheduled_for, concat_ws(' ', p.line1, p.city) as address from public.visits v join public.properties p on p.id = v.property_id
     where v.tenant_id = ${tenantId} and v.status = 'scheduled' and p.registry_matches <> '{}'::jsonb
       and not exists (select 1 from public.notices n where n.tenant_id = v.tenant_id and n.visit_id = v.id and n.kind = 'registry_advance' and n.status = 'sent' and n.for_scheduled_for = v.scheduled_for)`;
-  for (const v of blocked) {
+  const owed = new Set<string>();
+  for (const v of matched) {
+    const specs = await noticesForVisit(tx, tenantId, v.id, timeZone);
+    if (!specs.some((s) => s.kind === "registry_advance")) continue;
+    owed.add(v.id);
     const result = await tx`
       insert into public.compliance_tasks (tenant_id, kind, subject_table, subject_id, due_on, title)
       values (${tenantId}, 'registry_notice_due', 'visits', ${v.id}, ${v.scheduled_for}, ${`Registry advance notice for ${v.address} on ${v.scheduled_for} is not recorded`})
       on conflict (tenant_id, kind, subject_id, due_on) do nothing`;
     created += result.count;
+  }
+  const openRegistryTasks = await tx<{ id: string; subject_id: string; due_on: string }[]>`
+    select id, subject_id, due_on from public.compliance_tasks where tenant_id = ${tenantId} and status = 'open' and kind = 'registry_notice_due'`;
+  for (const t of openRegistryTasks) {
+    const still = owed.has(t.subject_id) && matched.some((v) => v.id === t.subject_id && v.scheduled_for === t.due_on);
+    if (!still) await tx`update public.compliance_tasks set status = 'done', done_at = now(), note = 'notice recorded, visit moved or match gone' where id = ${t.id}`;
   }
   // A registry entry dropped by a re-import takes its unsent obligation with it (the entry id sits in the dedupe key).
   await tx`
@@ -272,13 +312,6 @@ export async function refreshNoticeTasks(tx: Sql, tenantId: string, timeZone: st
     update public.compliance_tasks set status = 'done', done_at = now(), note = 'notice sent or waived'
     where tenant_id = ${tenantId} and status = 'open' and kind = 'notice_overdue'
       and not exists (select 1 from public.notices n where n.id = compliance_tasks.subject_id and n.status = 'due')`;
-  const stale = await tx<{ id: string }[]>`
-    select t.id from public.compliance_tasks t
-    where t.tenant_id = ${tenantId} and t.status = 'open' and t.kind = 'registry_notice_due'
-      and not exists (select 1 from public.visits v join public.properties p on p.id = v.property_id
-                      where v.id = t.subject_id and v.status = 'scheduled' and v.scheduled_for = t.due_on and p.registry_matches <> '{}'::jsonb
-                        and not exists (select 1 from public.notices n where n.visit_id = v.id and n.kind = 'registry_advance' and n.status = 'sent' and n.for_scheduled_for = v.scheduled_for))`;
-  for (const t of stale) await tx`update public.compliance_tasks set status = 'done', done_at = now(), note = 'notice recorded, visit moved or match gone' where id = ${t.id}`;
   return created;
 }
 
@@ -304,6 +337,10 @@ export async function runCompliance(tx: Sql, tenantId: string, timeZone: string,
     select id from public.visits where tenant_id = ${tenantId}
       and ((status = 'completed' and completed_at >= ${since}) or (status = 'scheduled' and exists (select 1 from public.properties p where p.id = visits.property_id and p.registry_matches <> '{}'::jsonb)))`;
   for (const v of recent) counts.notices += await createNotices(tx, tenantId, await noticesForVisit(tx, tenantId, v.id, timeZone));
+  // Continuing contracts owe an offer of advance notice where the pack says so (rule 6).
+  const agreements = await tx<{ id: string }[]>`select id from public.agreements where tenant_id = ${tenantId} and status = 'active' and signed_at is not null and first_visit_on is not null`;
+  for (const a of agreements) counts.notices += await createNotices(tx, tenantId, await noticesForAgreement(tx, tenantId, a.id, timeZone));
+  await attachPostingProof(tx, tenantId);
   counts.tasks += await refreshNoticeTasks(tx, tenantId, timeZone, now);
   counts.tasks += await refreshAlertTasks(tx, tenantId, todayInZone(timeZone));
   return counts;

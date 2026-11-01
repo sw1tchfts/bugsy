@@ -75,7 +75,7 @@ type BranchRow = { name: string; state_code: string; business_license_number: st
 export const EXPORT_FILES = ["records.csv", "record_products.csv", "amendments.csv", "notices.csv", "credentials.csv", "branch_licenses.csv", "binder.html"] as const;
 
 /** Builds the files for the range. The caller logs the export and zips the result. */
-export async function buildInspectorExport(tx: Sql, tenantId: string, range: ExportRange, tenantName: string): Promise<ExportFile[]> {
+export async function buildInspectorExport(tx: Sql, tenantId: string, range: ExportRange, tenantName: string, timeZone = "UTC"): Promise<ExportFile[]> {
   const names = new Map((await listMembers(tx, tenantId)).map((m) => [m.user_id, m.name]));
   const who = (id: string | null) => (id ? (names.get(id) ?? id) : "");
   const state = range.state;
@@ -95,7 +95,7 @@ export async function buildInspectorExport(tx: Sql, tenantId: string, range: Exp
   const notices = await tx<NoticeRow[]>`
     select n.id, n.kind, n.required, n.rule_key, n.visit_id, n.recipient_name, n.recipient_address, n.channel, n.due_by, n.status, n.sent_at, n.proof, n.waived_reason, n.created_at
     from public.notices n join public.properties p on p.id = n.property_id
-    where n.tenant_id = ${tenantId} and (n.created_at at time zone 'UTC')::date between ${range.from} and ${range.to} and (${state}::text is null or p.state_code = ${state})
+    where n.tenant_id = ${tenantId} and (n.created_at at time zone ${timeZone})::date between ${range.from} and ${range.to} and (${state}::text is null or p.state_code = ${state})
     order by n.created_at`;
   const credentials = await tx<CredentialRow[]>`
     select user_id, state_code, cert_number, categories, cert_expires_on, license_number, license_expires_on, license_year, trainee_registered_on, supervisor_id, archived_at

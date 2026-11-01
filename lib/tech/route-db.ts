@@ -80,8 +80,8 @@ async function captures(tx: Sql, tenantId: string, visitId: string): Promise<Rou
 }
 
 async function crewFor(tx: Sql, tenantId: string, visitId: string, stateCode: string, names: Map<string, string>): Promise<RouteCrewMember[]> {
-  const rows = await tx<{ user_id: string; role: CrewRole; cert_number: string | null; trainee_registered_on: string | null; cert_expires_on: string | null; has_credential: boolean }[]>`
-    select c.user_id, c.role, cr.cert_number, cr.trainee_registered_on, cr.cert_expires_on, (cr.id is not null) as has_credential
+  const rows = await tx<{ user_id: string; role: CrewRole; cert_number: string | null; categories: string[] | null; trainee_registered_on: string | null; cert_expires_on: string | null; has_credential: boolean }[]>`
+    select c.user_id, c.role, cr.cert_number, cr.categories, cr.trainee_registered_on, cr.cert_expires_on, (cr.id is not null) as has_credential
     from public.visit_crew c
       left join public.applicator_credentials cr on cr.tenant_id = c.tenant_id and cr.user_id = c.user_id and cr.state_code = ${stateCode} and cr.archived_at is null
     where c.tenant_id = ${tenantId} and c.visit_id = ${visitId}
@@ -90,7 +90,7 @@ async function crewFor(tx: Sql, tenantId: string, visitId: string, stateCode: st
     user_id: r.user_id,
     name: names.get(r.user_id) ?? "Crew member",
     role: r.role,
-    credential: r.has_credential ? { cert_number: r.cert_number, trainee: r.trainee_registered_on !== null, cert_expires_on: r.cert_expires_on } : null,
+    credential: r.has_credential ? { cert_number: r.cert_number, categories: r.categories ?? [], trainee: r.trainee_registered_on !== null, cert_expires_on: r.cert_expires_on } : null,
   }));
 }
 

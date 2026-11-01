@@ -4,17 +4,38 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { can } from "@/lib/auth/permissions";
 import { dbAs, requireMembership, requirePermission } from "@/lib/auth/session";
-import { createNotices, lockRecord, noticesForVisit, runCompliance } from "@/lib/compliance/db";
+import { createNotices, lockRecord, noticesForVisit, refreshAlertTasks, runCompliance } from "@/lib/compliance/db";
 import { type Amendment, applyAmendments, readPath } from "@/lib/compliance/records";
 import { parseRegistryCsv } from "@/lib/compliance/registry";
+import { getStatePack } from "@/lib/compliance/rules";
 import { intOrNull, opt, str } from "@/lib/customers/forms";
-import { fromTenantLocal, isIsoDate } from "@/lib/dates";
+import { fromTenantLocal, isIsoDate, todayInZone } from "@/lib/dates";
 import { errorCode } from "@/lib/db";
 import { putFile } from "@/lib/files";
 import { normalizeStateCode } from "@/lib/geo/normalize";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 
 const HOME = "/compliance";
+
+/** "Header=field" lines (or a JSON object) from the import form, as the parser's mapping; null when empty. */
+function parseMapping(text: string | null): Record<string, string> | null {
+  if (!text?.trim()) return null;
+  const trimmed = text.trim();
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+      return Object.fromEntries(Object.entries(parsed).filter(([, v]) => typeof v === "string") as [string, string][]);
+    } catch {
+      return null;
+    }
+  }
+  const mapping: Record<string, string> = {};
+  for (const line of trimmed.split(/\r?\n/)) {
+    const at = line.indexOf("=");
+    if (at > 0) mapping[line.slice(0, at).trim()] = line.slice(at + 1).trim();
+  }
+  return Object.keys(mapping).length ? mapping : null;
+}
 
 function go(path: string, params: Record<string, string | null | undefined>): never {
   revalidatePath(HOME);
@@ -172,17 +193,23 @@ export async function importRegistry(formData: FormData) {
     const text = file instanceof File && file.size > 0 ? await file.text() : (pasted ?? "");
     if (!text.trim()) error = "Upload the registry file or paste its rows.";
     else {
-      const parsed = parseRegistryCsv(text, state);
+      // Header mapping: the form's "Header=field" lines, else the state pack's file layout, else the parser's own synonyms.
+      const mapping = parseMapping(opt(formData, "mapping")) ?? getStatePack(state)?.rules["registry.fileFormat"]?.value;
+      const parsed = parseRegistryCsv(text, state, mapping);
       if (parsed.rows.length === 0) error = parsed.errors.map((e) => `line ${e.line}: ${e.message}`).join("; ") || "No rows found.";
       else {
         try {
           const changed = await dbAs(session, async (tx) => {
             const sourceId = await putFile(tx, tenantId, { kind: "document", contentType: "text/csv", data: new TextEncoder().encode(text) });
-            await tx`delete from public.notification_registries where tenant_id = ${tenantId} and state_code = ${state} and registry_kind = ${kind} and registry_year = ${year}`;
+            // Unchanged entries keep their ids (and the notices that name them); only entries missing from the file are dropped.
             for (const r of parsed.rows) {
               await tx`insert into public.notification_registries ${tx({ tenant_id: tenantId, state_code: state, registry_kind: kind, registry_year: year, ...r, source_file_id: sourceId })}
-                       on conflict (tenant_id, state_code, registry_kind, registry_year, row_hash) do nothing`;
+                       on conflict (tenant_id, state_code, registry_kind, registry_year, row_hash) do update
+                       set imported_at = now(), source_file_id = excluded.source_file_id, line1 = excluded.line1, line2 = excluded.line2, city = excluded.city,
+                           postal_code = excluded.postal_code, notes = excluded.notes`;
             }
+            const hashes = parsed.rows.map((r) => r.row_hash);
+            await tx`delete from public.notification_registries where tenant_id = ${tenantId} and state_code = ${state} and registry_kind = ${kind} and registry_year = ${year} and row_hash <> all(${hashes}::text[])`;
             const [{ changed }] = await tx<{ changed: number }[]>`select app.rematch_registry_state(${tenantId}, ${state}) as changed`;
             return changed;
           });
@@ -247,11 +274,16 @@ export async function saveBranchLicense(formData: FormData) {
   const year = intOrNull(formData, "license_year");
   const expires = opt(formData, "license_expires_on");
   const { session } = await requirePermission(tenantId, "compliance.write");
+  const { active } = await requireActiveTenant();
   let error: string | null = null;
   if (expires && !isIsoDate(expires)) error = "The expiry is a date.";
   else {
     try {
-      await dbAs(session, (tx) => tx`select app.set_branch_license(${tenantId}, ${branchId}, ${number}, ${year}, ${expires})`);
+      await dbAs(session, async (tx) => {
+        await tx`select app.set_branch_license(${tenantId}, ${branchId}, ${number}, ${year}, ${expires})`;
+        // A renewal closes its alert right away rather than at the next job run.
+        await refreshAlertTasks(tx, tenantId, todayInZone(active.tenantTimezone));
+      });
     } catch (err) {
       error = errorCode(err);
     }
