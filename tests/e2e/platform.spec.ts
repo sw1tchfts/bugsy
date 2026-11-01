@@ -116,6 +116,8 @@ test("support asks, the owner approves and watches, access ends; the owner sets 
   await signIn(page, NEW_OWNER_EMAIL, /\/(no-company)?$/);
   await page.goto(invite);
   await page.getByRole("button", { name: "Accept invitation" }).click();
+  // The invite page names the company too: wait to have left it, so the acceptance has landed.
+  await expect(page).not.toHaveURL(/\/invite\//);
   await expect(page.getByRole("heading", { name })).toBeVisible();
   await page.goto("/settings/branches");
   await page.locator("#name").fill("Springfield shop");
