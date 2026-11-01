@@ -94,9 +94,22 @@ export default async function OfficeLayout({ children }: { children: React.React
                 <Link href="/messages" className="text-stone-700 hover:text-stone-900">
                   Messages
                 </Link>
+                {can(active.permissions, "inventory.read") ? (
+                  <Link href="/inventory" className="text-stone-700 hover:text-stone-900">
+                    Inventory
+                  </Link>
+                ) : null}
+                <Link href="/time" className="text-stone-700 hover:text-stone-900">
+                  Time
+                </Link>
                 <Link href="/billing" className="text-stone-700 hover:text-stone-900">
                   Billing
                 </Link>
+                {can(active.permissions, "payroll.read") ? (
+                  <Link href="/payroll" className="text-stone-700 hover:text-stone-900">
+                    Payroll
+                  </Link>
+                ) : null}
                 <Link href="/ledger" className="text-stone-700 hover:text-stone-900">
                   Ledger
                 </Link>

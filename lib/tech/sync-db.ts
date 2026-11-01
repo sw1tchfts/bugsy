@@ -12,9 +12,11 @@ import { checkProblems, isDeviceKind, validPosition, ZONES } from "@/lib/commerc
 import { dateInZone } from "@/lib/dates";
 import { DISPOSITIONS } from "@/lib/specialty/materials";
 import { invoiceMaterials } from "@/lib/specialty/db";
+import { recordUsage } from "@/lib/inventory/db";
 import { gapsFor } from "@/lib/tech/gaps";
 import { loadRouteVisit } from "@/lib/tech/route-db";
-import type { ChangePayload, QueuedChange, SyncResult } from "@/lib/tech/route-types";
+import { CLOCK_VISIT, type ChangePayload, type QueuedChange, type SyncResult } from "@/lib/tech/route-types";
+import { clock } from "@/lib/payroll/db";
 
 type Sql = postgres.TransactionSql;
 
@@ -42,6 +44,12 @@ async function apply(tx: Sql, actor: Actor, change: QueuedChange): Promise<SyncR
   const { tenantId, userId } = actor;
   const payload = change.payload as ChangePayload;
   const visitId = change.visit_id;
+  // Spec 18 rule 6: a clock change is about the person, not a stop.
+  if (payload.kind === "clock") {
+    if (visitId !== CLOCK_VISIT || (payload.direction !== "in" && payload.direction !== "out")) return rejected(change.id, "malformed clock change");
+    await clock(tx, tenantId, userId, payload.direction, new Date(instant(payload.at)), "app");
+    return { id: change.id, result: "applied" };
+  }
   if (!(await onCrew(tx, tenantId, visitId, userId))) return rejected(change.id, "sync.notOnCrew");
 
   switch (payload.kind) {
@@ -140,6 +148,8 @@ async function apply(tx: Sql, actor: Actor, change: QueuedChange): Promise<SyncR
       await invoiceForVisit(tx, tenantId, visitId, tenant?.timezone ?? "UTC");
       await postVisit(tx, tenantId, visitId, tenant?.timezone ?? "UTC");
       await postProductUse(tx, tenantId, visitId, tenant?.timezone ?? "UTC");
+      // What was applied comes off the technician's truck (spec 18 rule 3).
+      await recordUsage(tx, tenantId, visitId);
       // Billable materials used at the stop become their own invoice (spec 15 rule 5).
       await invoiceMaterials(tx, tenantId, visitId, tenant?.timezone ?? "UTC");
       // The summary goes to the customer, carrying the post-application notice when it can (spec 11 rule 8).
@@ -322,7 +332,7 @@ export async function applyChange(run: <T>(fn: (tx: Sql) => Promise<T>) => Promi
       const result = await apply(tx, actor, change);
       if (result.result === "rejected") throw Object.assign(new Error(result.error ?? "rejected"), { code: "SYNC", result });
       await tx`insert into public.sync_log (tenant_id, user_id, client_change_id, kind, visit_id, result, detail)
-               values (${actor.tenantId}, ${actor.userId}, ${change.id}, ${kind}, ${change.visit_id}, 'applied', ${tx.json({})})`;
+               values (${actor.tenantId}, ${actor.userId}, ${change.id}, ${kind}, ${change.visit_id === CLOCK_VISIT ? null : change.visit_id}, 'applied', ${tx.json({})})`;
       return result;
     });
   } catch (err) {
@@ -331,7 +341,7 @@ export async function applyChange(run: <T>(fn: (tx: Sql) => Promise<T>) => Promi
     // The rejection is a fact too; it goes in the ledger in its own transaction.
     await run((tx) =>
       tx`insert into public.sync_log (tenant_id, user_id, client_change_id, kind, visit_id, result, detail)
-         values (${actor.tenantId}, ${actor.userId}, ${change.id}, ${kind}, ${change.visit_id}, 'rejected', ${tx.json({ error: result.error ?? null, gaps: result.gaps ?? null })})
+         values (${actor.tenantId}, ${actor.userId}, ${change.id}, ${kind}, ${change.visit_id === CLOCK_VISIT ? null : change.visit_id}, 'rejected', ${tx.json({ error: result.error ?? null, gaps: result.gaps ?? null })})
          on conflict (client_change_id) do nothing`,
     ).catch(() => undefined);
     return result;

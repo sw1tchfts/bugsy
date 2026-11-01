@@ -254,19 +254,24 @@ export async function payCommissions(
   tenantId: string,
   userId: string,
   input: { paid_on: string; method: string; reference: string | null },
+  /** Spec 18: through payroll, the payout is linked to its pay period and posted by the payroll journal, not here. */
+  options: { post?: boolean; pay_period_id?: string | null; through?: string | null } = {},
 ): Promise<{ payout_id: string | null; amount_cents: number }> {
+  const through = options.through ?? null;
   const payable = await tx<{ id: string; amount_cents: string }[]>`
-    select id, amount_cents from public.commissions where tenant_id = ${tenantId} and user_id = ${userId} and status = 'payable' for update`;
+    select id, amount_cents from public.commissions where tenant_id = ${tenantId} and user_id = ${userId} and status = 'payable'
+      and (${through}::date is null or released_on <= ${through}::date) for update`;
   const owed = await tx<{ id: string; amount_cents: string }[]>`
     select id, amount_cents from public.commissions where tenant_id = ${tenantId} and user_id = ${userId} and status = 'charged_back' and paid_on is not null and recovered_payout_id is null for update`;
   const amount = payable.reduce((s, c) => s + Number(c.amount_cents), 0) - owed.reduce((s, c) => s + Number(c.amount_cents), 0);
   if (payable.length === 0 || amount <= 0) return { payout_id: null, amount_cents: 0 };
   const [payout] = await tx<{ id: string }[]>`
-    insert into public.commission_payouts (tenant_id, user_id, paid_on, amount_cents, method, reference) values (${tenantId}, ${userId}, ${input.paid_on}, ${amount}, ${input.method}, ${input.reference})
+    insert into public.commission_payouts (tenant_id, user_id, paid_on, amount_cents, method, reference, pay_period_id)
+    values (${tenantId}, ${userId}, ${input.paid_on}, ${amount}, ${input.method}, ${input.reference}, ${options.pay_period_id ?? null})
     returning id`;
   await tx`update public.commissions set status = 'paid', paid_on = ${input.paid_on}, payout_id = ${payout.id} where id = any(${payable.map((c) => c.id)}::uuid[])`;
   if (owed.length) await tx`update public.commissions set recovered_payout_id = ${payout.id} where id = any(${owed.map((c) => c.id)}::uuid[])`;
-  await postEntry(tx, tenantId, {
+  if (options.post !== false) await postEntry(tx, tenantId, {
     source_type: "commission_payout",
     source_key: `commission_payout:${payout.id}`,
     source_id: payout.id,

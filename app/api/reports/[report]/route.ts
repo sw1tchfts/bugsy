@@ -4,11 +4,13 @@ import { reportsReader } from "@/app/api/reports/_shared";
 import { dbAs } from "@/lib/auth/session";
 import { toCsv } from "@/lib/compliance/export";
 import { isIsoDate, todayInZone } from "@/lib/dates";
+import { jobCosts } from "@/lib/costing/db";
+import { GROUPS, type Group, groupJobs } from "@/lib/costing/jobs";
 import { AGING, arAging, reserviceReport, retentionReport, revenueByLine, salesBySource, technicianReport } from "@/lib/reports/db";
 
 export const dynamic = "force-dynamic";
 
-const NEEDS: Record<string, string> = { retention: "agreements.read", technicians: "visits.read", revenue: "gl.read", receivables: "billing.read", sales: "customers.read", reservices: "visits.read" };
+const NEEDS: Record<string, string> = { "job-costing": "reports.read", retention: "agreements.read", technicians: "visits.read", revenue: "gl.read", receivables: "billing.read", sales: "customers.read", reservices: "visits.read" };
 
 /** The CSV behind each standard report (spec 12), for the same range the page shows; money is integer cents. */
 export async function GET(request: Request, { params }: { params: Promise<{ report: string }> }) {
@@ -34,6 +36,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ repo
   if (!isIsoDate(from) || !isIsoDate(to) || from > to) return new NextResponse("from and to are business dates, from first", { status: 400 });
   const name = `${report}-${from}-to-${to}.csv`;
   const tz = active.tenantTimezone;
+
+  if (report === "job-costing") {
+    // Spec 18 rule 8: one row per group; money in integer cents, margin percent on revenue.
+    const group = (GROUPS as readonly string[]).includes(url.searchParams.get("group") ?? "") ? (url.searchParams.get("group") as Group) : "visit";
+    const jobs = await dbAs(session, (tx) => jobCosts(tx, active.tenantId, from, to, tz));
+    const rows = groupJobs(jobs, group);
+    return csvResponse(
+      toCsv(
+        [group, "visits", "revenue_cents", "product_cost_cents", "labor_cents", "margin_cents", "margin_pct", "on_site_hours", "unpriced_items"],
+        rows.map((r) => [r.label, r.visits, r.revenue_cents, r.product_cost_cents, r.labor_cents, r.margin_cents, r.margin_pct ?? "", r.on_site_hours, r.unpriced]),
+      ),
+      `job-costing-${group}-${from}-to-${to}.csv`,
+    );
+  }
 
   if (report === "retention") {
     const r = await dbAs(session, (tx) => retentionReport(tx, active.tenantId, tz, from, to));

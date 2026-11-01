@@ -29,7 +29,7 @@ import { type BalanceSheet, type DateRange, type IncomeStatement, type ReportAcc
 
 type Sql = postgres.Sql | postgres.TransactionSql;
 
-export type SourceType = "invoice" | "credit_memo" | "void" | "visit" | "product_use" | "payment" | "refund" | "payout" | "reclass" | "reclass_reversal" | "opening" | "manual" | "reversal" | "recognition" | "commission" | "commission_payout";
+export type SourceType = "invoice" | "credit_memo" | "void" | "visit" | "product_use" | "payment" | "refund" | "payout" | "reclass" | "reclass_reversal" | "opening" | "manual" | "reversal" | "recognition" | "commission" | "commission_payout" | "stock_receipt" | "stock_adjustment" | "payroll";
 
 /** A line for app.post_entry: a template key, or an account id for manual entries. */
 export type EntryLine = { account?: AccountKey; gl_account_id?: string; debit_cents: number; credit_cents: number; agreement_id?: string | null; jurisdiction?: string | null; memo?: string | null };
@@ -358,6 +358,9 @@ export async function sweep(tx: Sql, tenantId: string, timeZone: string): Promis
       and not exists (select 1 from app.journal_entry_by_key(v.tenant_id, 'visit:' || v.id)) order by v.completed_at`;
   for (const v of visits) if (await postVisit(tx, tenantId, v.id, timeZone)) counts.visits += 1;
   const usage = await postProductUse(tx, tenantId, null, timeZone);
+  // Spec 18: what completed stops used comes off the trucks too (imported late: inventory builds on the ledger).
+  const { recordUsage } = await import("@/lib/inventory/db");
+  await recordUsage(tx, tenantId, null);
   counts.product_uses = usage.posted;
   counts.unpriced = usage.unpriced;
   const payments = await tx<{ id: string; kind: "payment" | "refund" }[]>`

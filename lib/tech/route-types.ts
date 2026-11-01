@@ -146,7 +146,13 @@ export type RoutePayload = {
   technician: { user_id: string; name: string; locale: string };
   visits: RouteVisit[];
   products: RouteProduct[];
+  /** Spec 18: the person's open time entry, and their truck's stock, cached for offline use. */
+  clock: { open_since: string | null };
+  truck: { name: string; items: { product_id: string; product_name: string; unit: string; on_hand: number; flag: "low" | "negative" | null }[] } | null;
 };
+
+/** Clock changes are not about a stop; they travel under this reserved id. */
+export const CLOCK_VISIT = "00000000-0000-0000-0000-000000000000";
 
 export type ChangeKind =
   | "en_route"
@@ -212,7 +218,8 @@ export type ChangePayload =
   | { kind: "recommendation"; category: string; description: string; responsibility: string; priority: string; at: string }
   | { kind: "prep_check"; ready: boolean; missing: string[]; notes: string | null; at: string }
   | { kind: "capture"; species: string; count: number; disposition: string; location: string | null; notes: string | null; at: string }
-  | { kind: "material"; description: string; quantity: string; unit: string; unit_price_cents: number; billable: boolean; at: string };
+  | { kind: "material"; description: string; quantity: string; unit: string; unit_price_cents: number; billable: boolean; at: string }
+  | { kind: "clock"; direction: "in" | "out"; at: string };
 
 export type QueuedChange = {
   id: string;

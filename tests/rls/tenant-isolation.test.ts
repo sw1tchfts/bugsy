@@ -2568,3 +2568,139 @@ describe("spec 17 rules enforced in the database", () => {
     expect(result).toMatchObject({ first: true, second: false, score: 9, named: true, late: false, referredBy: referrer.id });
   });
 });
+
+describe("spec 18 rules enforced in the database", () => {
+  const techEmail = seedUserEmail(lakeshore, "technician");
+  const officeEmail = seedUserEmail(lakeshore, "office");
+  const bookkeeperEmail = seedUserEmail(lakeshore, "bookkeeper");
+  const dispatcherEmail = seedUserEmail(lakeshore, "dispatcher");
+  let tech = "";
+  let office = "";
+  let bookkeeper = "";
+  let dispatcher = "";
+  const ROLLBACK = "rollback: spec 18";
+
+  async function rolledBack<T>(fn: (tx: Tx, as: (id: string, email: string) => Promise<void>) => Promise<T>): Promise<T> {
+    let out: T | undefined;
+    await admin
+      .begin(async (tx) => {
+        const as = async (id: string, email: string) => {
+          await tx.unsafe("reset role");
+          await tx.unsafe("set local role authenticated");
+          await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: id, email, role: "authenticated" })}, true)`;
+        };
+        out = await fn(tx, as);
+        throw new Error(ROLLBACK);
+      })
+      .catch((e: Error) => {
+        if (e.message !== ROLLBACK) throw e;
+      });
+    return out as T;
+  }
+  const attempt = (tx: Tx, q: (sp: Tx) => Promise<unknown>) =>
+    tx.savepoint((sp) => q(sp as unknown as Tx)).then((r) => `ok ${(r as { count?: number }).count ?? ""}`.trim(), (e: Error) => e.message);
+
+  beforeAll(async () => {
+    tech = await userId(techEmail);
+    office = await userId(officeEmail);
+    bookkeeper = await userId(bookkeeperEmail);
+    dispatcher = await userId(dispatcherEmail);
+  });
+
+  it("shows a technician their own truck, time and pay, and keeps pay from the office (rules 3, 6 and 12)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      const count = async (sqlText: string) => (await tx.unsafe<{ n: number }[]>(sqlText))[0].n;
+      await as(tech, techEmail);
+      const techView = {
+        foreignTrucks: await count(`select count(*)::int as n from public.stock_locations where kind = 'truck' and user_id <> '${tech}'`),
+        ownTruck: await count(`select count(*)::int as n from public.stock_locations where kind = 'truck' and user_id = '${tech}'`),
+        othersTime: await count(`select count(*)::int as n from public.time_entries where user_id <> '${tech}'`),
+        ownTime: await count(`select count(*)::int as n from public.time_entries where user_id = '${tech}'`),
+        othersRates: await count(`select count(*)::int as n from public.pay_rates where user_id <> '${tech}'`),
+        ownRate: await count(`select count(*)::int as n from public.pay_rates where user_id = '${tech}'`),
+        periods: await count("select count(*)::int as n from public.pay_periods"),
+        othersLines: await count(`select count(*)::int as n from public.pay_period_lines where user_id <> '${tech}'`),
+      };
+      await as(office, officeEmail);
+      const officeView = {
+        rates: await count(`select count(*)::int as n from public.pay_rates where user_id <> '${office}'`),
+        periods: await count("select count(*)::int as n from public.pay_periods"),
+        othersTime: await count(`select count(*)::int as n from public.time_entries where user_id <> '${office}'`),
+        stock: await count("select count(*)::int as n from public.stock_movements"),
+      };
+      await as(bookkeeper, bookkeeperEmail);
+      const books = { periods: await count("select count(*)::int as n from public.pay_periods"), rates: await count("select count(*)::int as n from public.pay_rates") };
+      return { techView, officeView, books };
+    });
+    expect(result.techView).toMatchObject({ foreignTrucks: 0, ownTruck: 1, othersTime: 0, othersRates: 0, ownRate: 1, periods: 0, othersLines: 0 });
+    expect(result.techView.ownTime).toBeGreaterThan(0);
+    expect(result.officeView).toMatchObject({ rates: 0, periods: 0, othersTime: 0 });
+    expect(result.officeView.stock).toBeGreaterThan(0);
+    expect(result.books.periods).toBeGreaterThan(0);
+    expect(result.books.rates).toBeGreaterThan(1);
+  });
+
+  it("keeps movements as recorded and receipts and counts with inventory staff (rules 2, 4 and 5)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      const [m] = await tx<{ id: string; product_id: string; to_location_id: string }[]>`
+        select id, product_id, to_location_id from public.stock_movements where tenant_id = ${lakeshoreId} and kind = 'receipt' limit 1`;
+      await as(tech, techEmail);
+      const techReceive = await attempt(tx, (sp) => sp`select app.stock_receive(${lakeshoreId}, ${m.product_id}, ${m.to_location_id}, 1, 1000, null, null, 'now', null)`);
+      const techInsert = await attempt(tx, (sp) => sp`
+        insert into public.stock_movements (tenant_id, product_id, kind, to_location_id, quantity, unit, paid) values (${lakeshoreId}, ${m.product_id}, 'receipt', ${m.to_location_id}, 5, 'gal', 'now')`);
+      await as(dispatcher, dispatcherEmail);
+      const change = await attempt(tx, (sp) => sp`update public.stock_movements set quantity = 99 where id = ${m.id}`);
+      const remove = await attempt(tx, (sp) => sp`delete from public.stock_movements where id = ${m.id}`);
+      const [{ before }] = await tx<{ before: string }[]>`select unit_cost_cents::text as before from public.tenant_products where tenant_id = ${lakeshoreId} and product_id = ${m.product_id}`;
+      const [{ onHand }] = await tx<{ onHand: string }[]>`select app.stock_on_hand(${lakeshoreId}, ${m.product_id})::text as "onHand"`;
+      const [{ r }] = await tx<{ r: { unit_cost_cents: number } }[]>`select app.stock_receive(${lakeshoreId}, ${m.product_id}, ${m.to_location_id}, 4, ${Number(before) + 1000}, 'Supplier', 'PS-1', 'on_account', null) as r`;
+      const [{ c }] = await tx<{ c: { difference: number } }[]>`select app.stock_count(${lakeshoreId}, ${m.to_location_id}, ${m.product_id}, 0, 'empty shelf') as c`;
+      return { techReceive, techInsert, change, remove, before: Number(before), onHand: Number(onHand), after: r.unit_cost_cents, counted: Number(c.difference) };
+    });
+    expect(result.techReceive).toMatch(/needs inventory.write/);
+    expect(result.techInsert).toMatch(RLS_ERROR);
+    // No policy lets a member change or delete a movement (zero rows), and the trigger refuses it besides.
+    expect(result.change).toMatch(/never changed|^ok 0$/);
+    expect(result.remove).toMatch(/never changed|^ok 0$/);
+    // Rule 2: the moving average, half up, as the pure function has it.
+    const expected = result.onHand <= 0 ? result.before + 1000 : Math.round((result.onHand * result.before + 4 * (result.before + 1000)) / (result.onHand + 4));
+    expect(result.after).toBe(expected);
+    expect(result.counted).toBeLessThan(0);
+  });
+
+  it("lets a person clock only themselves, payroll correct with a reason, and nobody change an exported period (rules 6, 7 and 12)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      const [exported] = await tx<{ id: string; user_id: string }[]>`select id, user_id from public.time_entries where tenant_id = ${lakeshoreId} and pay_period_id is null and ended_at is not null and user_id = ${tech} limit 1`;
+      const [period] = await tx<{ id: string }[]>`select id from public.pay_periods where tenant_id = ${lakeshoreId} limit 1`;
+      await tx`update public.time_entries set pay_period_id = ${period.id} where id = ${exported.id}`;
+      const [loose] = await tx<{ id: string }[]>`select id from public.time_entries where tenant_id = ${lakeshoreId} and pay_period_id is null and ended_at is not null and user_id = ${tech} limit 1`;
+      await as(tech, techEmail);
+      const clockIn = await attempt(tx, (sp) => sp`insert into public.time_entries (tenant_id, user_id, started_at, source) values (${lakeshoreId}, ${tech}, now() - interval '1 hour', 'app')`);
+      const second = await attempt(tx, (sp) => sp`insert into public.time_entries (tenant_id, user_id, started_at, source) values (${lakeshoreId}, ${tech}, now() - interval '30 minutes', 'app')`);
+      const clockOut = await attempt(tx, (sp) => sp`update public.time_entries set ended_at = now() where tenant_id = ${lakeshoreId} and user_id = ${tech} and ended_at is null`);
+      const forOther = await attempt(tx, (sp) => sp`insert into public.time_entries (tenant_id, user_id, started_at, source) values (${lakeshoreId}, ${office}, now(), 'app')`);
+      const moveStart = await attempt(tx, (sp) => sp`update public.time_entries set started_at = started_at - interval '2 hours' where id = ${loose.id}`);
+      await as(office, officeEmail);
+      const officeFix = await attempt(tx, (sp) => sp`update public.time_entries set ended_at = ended_at + interval '1 hour', edit_reason = 'forgot' where id = ${loose.id}`);
+      await as(bookkeeper, bookkeeperEmail);
+      const noReason = await attempt(tx, (sp) => sp`update public.time_entries set ended_at = ended_at + interval '1 hour' where id = ${loose.id}`);
+      const withReason = await attempt(tx, (sp) => sp`update public.time_entries set ended_at = ended_at + interval '1 hour', edit_reason = 'left the clock running' where id = ${loose.id}`);
+      const lockedChange = await attempt(tx, (sp) => sp`update public.time_entries set ended_at = ended_at + interval '1 hour', edit_reason = 'late fix' where id = ${exported.id}`);
+      const officePost = await (async () => {
+        await as(office, officeEmail);
+        return attempt(tx, (sp) => sp`select app.post_entry(${lakeshoreId}, ${sp.json({ source_type: "payroll", source_key: `payroll:${period.id}:x`, source_id: period.id, posted_on: "2026-10-31" })}, ${sp.json([{ account_key: "technician_labor", debit_cents: 1, credit_cents: 0 }, { account_key: "operating_bank", debit_cents: 0, credit_cents: 1 }])})`);
+      })();
+      return { clockIn, second, clockOut, forOther, moveStart, officeFix, noReason, withReason, lockedChange, officePost };
+    });
+    expect(result.clockIn).toBe("ok 1");
+    expect(result.second).toMatch(/time_entries_one_open|duplicate|overlap|exclusion|conflicting/);
+    expect(result.clockOut).toBe("ok 1");
+    expect(result.forOther).toMatch(/only payroll adds time/);
+    expect(result.moveStart).toMatch(/row-level security|ok 0|only payroll corrects/);
+    expect(result.officeFix).toMatch(/ok 0|row-level security/);
+    expect(result.noReason).toMatch(/say why the time changes/);
+    expect(result.withReason).toBe("ok 1");
+    expect(result.lockedChange).toMatch(/exported with its pay period/);
+    expect(result.officePost).toMatch(/needs its source row/);
+  });
+});

@@ -1,4 +1,6 @@
 // Loads a technician's route for a day with everything the stop screen needs, under the technician's own session.
+import { truckStock } from "@/lib/inventory/db";
+import { openEntry } from "@/lib/payroll/db";
 import type postgres from "postgres";
 import type { JobKind, TreatmentArea } from "@/lib/catalog/service-lines";
 import { requiredRecordFields } from "@/lib/compliance/records";
@@ -259,5 +261,10 @@ export async function loadRoute(
     technician: { user_id: technician.user_id, name: names.get(technician.user_id) ?? "Technician", locale: technician.locale },
     visits,
     products: await enabledProducts(tx, tenant.id),
+    clock: { open_since: (await openEntry(tx, tenant.id, technician.user_id))?.started_at.toISOString() ?? null },
+    truck: await (async () => {
+      const truck = await truckStock(tx, tenant.id, technician.user_id);
+      return truck ? { name: truck.name, items: truck.items.map((i) => ({ product_id: i.product_id, product_name: i.product_name, unit: i.unit, on_hand: i.on_hand, flag: i.flag })) } : null;
+    })(),
   };
 }

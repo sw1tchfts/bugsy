@@ -244,3 +244,38 @@ export function openingLines(event: OpeningEvent): PostingLine[] {
     { account: "opening_balance_equity", cents: -position },
   ]);
 }
+
+// ---------------------------------------------------------------------------
+// Inventory and payroll (spec 18)
+// ---------------------------------------------------------------------------
+
+/** A receipt adds to chemical inventory, paid from the bank now or owed to the supplier. */
+export function stockReceiptLines(cents: number, paid: "now" | "on_account"): PostingLine[] {
+  if (cents <= 0) return [];
+  return settle([
+    { account: "chemical_inventory", cents: -cents },
+    { account: paid === "now" ? "operating_bank" : "accounts_payable", cents },
+  ]);
+}
+
+/** A count's difference: found stock adds to inventory against chemical cost, shrink the other way. */
+export function stockAdjustmentLines(cents: number): PostingLine[] {
+  if (cents === 0) return [];
+  return settle([
+    { account: "chemical_inventory", cents: -cents },
+    { account: "chemical_cost", cents },
+  ]);
+}
+
+/**
+ * The payroll register posted back: labor (gross wages less payroll-paid commissions, plus employer taxes) and the
+ * commissions it paid, against what is withheld and owed in taxes and the net pay out of the bank.
+ */
+export function payrollLines(r: { gross_wages_cents: number; employer_taxes_cents: number; withholdings_cents: number; net_pay_cents: number; commissions_cents: number }): PostingLine[] {
+  return settle([
+    { account: "technician_labor", cents: -(r.gross_wages_cents - r.commissions_cents + r.employer_taxes_cents) },
+    { account: "commissions_payable", cents: -r.commissions_cents },
+    { account: "payroll_liabilities", cents: r.withholdings_cents + r.employer_taxes_cents },
+    { account: "operating_bank", cents: r.net_pay_cents },
+  ]);
+}

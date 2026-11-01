@@ -14,7 +14,7 @@ import { type Locale, gapMessage, t as translate } from "@/lib/tech/i18n";
 import { withLocalChanges } from "@/lib/tech/local";
 import { addDays, todayInZone } from "@/lib/dates";
 import { formatCents } from "@/lib/money";
-import type { ChangePayload, QueuedChange, RoutePayload, RouteVisit, SyncResult } from "@/lib/tech/route-types";
+import { CLOCK_VISIT, type ChangePayload, type QueuedChange, type RoutePayload, type RouteVisit, type SyncResult } from "@/lib/tech/route-types";
 import { newId, techStore } from "@/lib/tech/store";
 import { dropChange, pendingCount, pushPending } from "@/lib/tech/sync";
 import type { Conditions } from "@/lib/weather/provider";
@@ -199,6 +199,13 @@ export function TechApp({ tenantId, userId, locale, today: serverToday, timezone
   }, []);
 
   const pending = pendingCount(changes);
+  const showTruck = params.get("truck") === "1";
+  // The clock as the phone knows it: the last clock change still waiting to sync, else the route's (spec 18 rule 6).
+  const clockChanges = changes.filter((c) => c.visit_id === CLOCK_VISIT);
+  const lastPending = [...clockChanges].reverse().find((c) => c.status === "pending");
+  const openSince =
+    lastPending && lastPending.payload.kind === "clock" ? (lastPending.payload.direction === "in" ? lastPending.payload.at : null) : (route?.clock?.open_since ?? null);
+  const clockRejected = clockChanges.filter((c) => c.status === "rejected");
   const visit = route && visitId ? route.visits.find((v) => v.id === visitId) : null;
   const effective = route && visit ? withLocalChanges(route, visit, changes) : null;
 
@@ -219,8 +226,31 @@ export function TechApp({ tenantId, userId, locale, today: serverToday, timezone
         {syncNote ? <span className="text-red-800">{syncNote}</span> : null}
       </div>
 
+      {route ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white p-2 text-sm" data-testid="clock-bar">
+          <span data-testid="clock-state">{openSince ? t("clock.since", { time: clock(openSince, locale, timezone) }) : t("clock.off")}</span>
+          <button
+            type="button"
+            onClick={() => void queue(CLOCK_VISIT, { kind: "clock", direction: openSince ? "out" : "in", at: new Date().toISOString() })}
+            className={`rounded px-3 py-1.5 font-medium text-white ${openSince ? "bg-stone-700" : "bg-emerald-800"}`}
+          >
+            {openSince ? t("clock.out") : t("clock.in")}
+          </button>
+          {clockRejected.map((c) => (
+            <p key={c.id} className="w-full text-red-900" role="alert">
+              {t("clock.rejected", { message: c.error ?? "" })}{" "}
+              <button type="button" onClick={() => void discard(c.id)} className="rounded border border-red-300 bg-white px-2 py-0.5 text-xs">
+                OK
+              </button>
+            </p>
+          ))}
+        </div>
+      ) : null}
+
       {!route ? (
         <p className="text-sm text-stone-600">{loading ? t("route.loading") : t("route.empty")}</p>
+      ) : showTruck ? (
+        <TruckScreen route={route} t={t} />
       ) : effective ? (
         <StopScreen
           route={route}
@@ -243,14 +273,19 @@ export function TechApp({ tenantId, userId, locale, today: serverToday, timezone
 
 function RouteList({ route, changes, fromCache, locale, t, onRefresh, onDiscard }: { route: RoutePayload; changes: QueuedChange[]; fromCache: boolean; locale: Locale; t: (k: string, v?: Record<string, string | number>) => string; onRefresh: () => void; onDiscard: (id: string) => Promise<void> }) {
   // Rejections for stops that left the route (the office moved the visit) are shown here, since no stop screen will.
-  const strays = changes.filter((c) => c.status === "rejected" && !route.visits.some((v) => v.id === c.visit_id));
+  const strays = changes.filter((c) => c.status === "rejected" && c.visit_id !== CLOCK_VISIT && !route.visits.some((v) => v.id === c.visit_id));
   return (
     <section className="grid gap-2">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold">{t("route.title")}</h1>
-        <button type="button" onClick={onRefresh} className="rounded border border-stone-300 bg-white px-2 py-1 text-xs">
-          {t("route.refresh")}
-        </button>
+        <div className="flex gap-2">
+          <Link href="/tech?truck=1" className="rounded border border-stone-300 bg-white px-2 py-1 text-xs">
+            {t("truck.link")}
+          </Link>
+          <button type="button" onClick={onRefresh} className="rounded border border-stone-300 bg-white px-2 py-1 text-xs">
+            {t("route.refresh")}
+          </button>
+        </div>
       </div>
       <p className="text-xs text-stone-600">
         {t("route.date", { date: route.date })}
@@ -292,6 +327,38 @@ function RouteList({ route, changes, fromCache, locale, t, onRefresh, onDiscard 
           </Link>
         );
       })}
+    </section>
+  );
+}
+
+/** Spec 18 (MOB-08): what is on the truck, from the cached route, so it works with no signal. */
+function TruckScreen({ route, t }: { route: RoutePayload; t: (k: string, v?: Record<string, string | number>) => string }) {
+  const truck = route.truck ?? null;
+  return (
+    <section className="grid gap-2" data-testid="truck-screen">
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold">{truck ? `${t("truck.title")}: ${truck.name}` : t("truck.title")}</h1>
+        <Link href="/tech" className="rounded border border-stone-300 bg-white px-2 py-1 text-xs">
+          {t("app.back")}
+        </Link>
+      </div>
+      {!truck ? (
+        <p className="rounded border border-stone-200 bg-white p-3 text-sm">{t("truck.none")}</p>
+      ) : truck.items.length === 0 ? (
+        <p className="rounded border border-stone-200 bg-white p-3 text-sm">{t("truck.empty")}</p>
+      ) : (
+        <ul className="grid gap-1">
+          {truck.items.map((i) => (
+            <li key={i.product_id} className="flex items-center justify-between rounded border border-stone-200 bg-white p-2 text-sm" data-testid="truck-item">
+              <span>{i.product_name}</span>
+              <span className={i.flag ? "font-semibold text-red-800" : ""}>
+                {i.on_hand} {i.unit.replace("_", " ")}
+                {i.flag ? ` (${t(i.flag === "low" ? "truck.low" : "truck.negative")})` : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

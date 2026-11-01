@@ -28,4 +28,9 @@ export const SOURCE_LABELS: Record<string, string> = {
   manual: "Manual",
   reversal: "Reversal",
   recognition: "Warranty recognition",
+  commission: "Commission",
+  commission_payout: "Commission payout",
+  stock_receipt: "Stock receipt",
+  stock_adjustment: "Stock count",
+  payroll: "Payroll",
 };

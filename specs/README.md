@@ -25,7 +25,7 @@ Specs 01 to 10 sit in `phase-1/` for historical reasons; the folder name does no
 | 15 | [Specialty services: termite, wildlife, bed bug](15-specialty-services.md) | done | 04, 06 |
 | 16 | [Customer portal and online booking](16-portal-and-booking.md) | done | 02, 08 |
 | 17 | [Sales and growth: door-to-door, commissions, campaigns](17-sales-and-growth.md) | done | 02, 04, 11 |
-| 18 | Inventory, job costing, time and payroll export | not written | 06, 09 |
+| 18 | [Inventory, job costing, time and payroll export](18-inventory-costing-payroll.md) | done | 05, 06, 09 |
 | 19 | Routing and fleet: route optimization, GPS | not written | 05 |
 | 20 | Integrations and API: QuickBooks sync, webhooks, phone systems | not written | 01, 09 |
 | 21 | AI features | not written | 06, 12 |

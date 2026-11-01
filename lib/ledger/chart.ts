@@ -27,6 +27,7 @@ export const CHART_TEMPLATE = [
   { key: "contract_asset", number: "1250", name: "Unbilled receivables (contract asset)", type: "asset", subtype: "contract_asset" },
   { key: "chemical_inventory", number: "1300", name: "Chemical inventory", type: "asset", subtype: "inventory" },
   { key: "vehicles", number: "1500", name: "Vehicles", type: "asset", subtype: "fixed_asset" },
+  { key: "accounts_payable", number: "2050", name: "Accounts payable", type: "liability", subtype: "payable" },
   { key: "contract_liability", number: "2100", name: "Deferred revenue (contract liability)", type: "liability", subtype: "contract_liability" },
   { key: "sales_tax_payable", number: "2200", name: "Sales tax payable", type: "liability", subtype: "tax_payable" },
   { key: "commissions_payable", number: "2300", name: "Commissions payable", type: "liability", subtype: "payable" },

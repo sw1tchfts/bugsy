@@ -31,6 +31,8 @@ export const PERMISSION_GROUPS = [
     permissions: [
       { key: "compliance.read", label: "View credentials, records and notices" },
       { key: "compliance.write", label: "Manage credentials, amend records, send notices" },
+      { key: "inventory.read", label: "View stock on trucks and in warehouses" },
+      { key: "inventory.write", label: "Receive, move and count stock" },
     ],
   },
   {
@@ -39,6 +41,8 @@ export const PERMISSION_GROUPS = [
       { key: "billing.read", label: "View invoices and payments" },
       { key: "billing.write", label: "Issue invoices, take payments, run collections" },
       { key: "payments.capture", label: "Save a customer's card for autopay (no charges or refunds)" },
+      { key: "payroll.read", label: "View time, pay rates and payroll exports" },
+      { key: "payroll.write", label: "Correct time, set pay, export payroll and post it" },
       { key: "gl.read", label: "View the general ledger" },
       { key: "gl.write", label: "Post journal entries and close periods" },
       { key: "reports.read", label: "View reports" },
