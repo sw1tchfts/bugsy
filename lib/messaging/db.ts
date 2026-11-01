@@ -403,6 +403,28 @@ export async function queueReminders(tx: Sql, tenantId: string, settings: Messag
   return queued;
 }
 
+/** Spec 16: the portal invitation, by email to the invited address, sent at once. */
+export async function queuePortalInvite(
+  tx: Sql,
+  tenantId: string,
+  input: { portal_user_id: string; email: string; name: string; contact_id: string | null; account_id: string; url: string },
+  timeZone: string,
+): Promise<string | null> {
+  const settings = await messagingSettings(tx, tenantId);
+  const company = await companyFacts(tx, tenantId, settings);
+  const recipient: Recipient = { contact_id: input.contact_id, name: input.name, email: input.email, phone: null, address: null, sms_opt_in: false, preferred_channel: "email", account_id: input.account_id, property_id: null };
+  const id = await composeAndQueue(tx, tenantId, settings, {
+    key: "portal_invite",
+    purpose: "other",
+    channel: "email",
+    recipient,
+    vars: { ...commonVars(company, recipient, ""), portal_url: input.url },
+    dedupe_key: `portal_invite:${input.portal_user_id}:${Date.now()}`,
+  });
+  if (id) await sendQueued(tx, tenantId, new Date(), timeZone, [id]);
+  return id;
+}
+
 /** The on-the-way text when the technician taps On my way; a tap synced more than two hours late is suppressed. */
 export async function queueOnTheWay(tx: Sql, tenantId: string, visitId: string, tappedAt: Date, timeZone: string): Promise<string | null> {
   const settings = await messagingSettings(tx, tenantId);

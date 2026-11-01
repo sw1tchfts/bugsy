@@ -57,7 +57,9 @@ export async function loadSettings(tx: Sql, tenantId: string): Promise<Settings>
 
 /** The settings row, created on first write. */
 export async function ensureSettings(tx: Sql, tenantId: string): Promise<Settings> {
-  await tx`insert into public.billing_settings (tenant_id) values (${tenantId}) on conflict (tenant_id) do nothing`;
+  // Insert only when missing: a customer paying in the portal reads the row but may not write it (spec 16).
+  const [exists] = await tx<{ id: string }[]>`select id from public.billing_settings where tenant_id = ${tenantId}`;
+  if (!exists) await tx`insert into public.billing_settings (tenant_id) values (${tenantId}) on conflict (tenant_id) do nothing`;
   return loadSettings(tx, tenantId);
 }
 
@@ -467,7 +469,7 @@ export async function chargeInvoice(
   tx: Sql,
   tenantId: string,
   invoiceId: string,
-  options: { payment_method_id?: string | null; idempotency_key: string; recorded_by: string | null },
+  options: { payment_method_id?: string | null; idempotency_key: string; recorded_by: string | null; post?: boolean },
 ): Promise<ChargeOutcome> {
   const settings = await ensureSettings(tx, tenantId);
   const gateway = gatewayFor(settings);
@@ -511,7 +513,8 @@ export async function chargeInvoice(
     returning id`;
   if (result.status !== "succeeded") return { ok: false, payment_id: payment.id, error: result.failure_reason ?? result.status };
   await allocate(tx, tenantId, payment.id, inv.account_id, open, inv.id);
-  await postPayment(tx, tenantId, payment.id, await tenantTimeZone(tx, tenantId));
+  // A customer paying in the portal is not a member and cannot post: the ledger job's sweep posts it (spec 16).
+  if (options.post !== false) await postPayment(tx, tenantId, payment.id, await tenantTimeZone(tx, tenantId));
   return { ok: true, payment_id: payment.id, error: null };
 }
 

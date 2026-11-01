@@ -17,6 +17,7 @@ export const TEMPLATE_KEYS = [
   "keyword.start",
   "keyword.help",
   "campaign",
+  "portal_invite",
 ] as const;
 export type TemplateKey = (typeof TEMPLATE_KEYS)[number];
 
@@ -40,6 +41,7 @@ export const TEMPLATE_VARIABLES: Record<TemplateKey, readonly string[]> = {
   "keyword.start": ["company_name", "company_phone"],
   "keyword.help": ["company_name", "company_phone"],
   campaign: [...COMMON, "unsubscribe_url"],
+  portal_invite: [...COMMON, "portal_url"],
 };
 
 export const TEMPLATE_LABELS: Record<TemplateKey, string> = {
@@ -57,6 +59,7 @@ export const TEMPLATE_LABELS: Record<TemplateKey, string> = {
   "keyword.start": "START confirmation",
   "keyword.help": "HELP answer",
   campaign: "Campaign (starting text)",
+  portal_invite: "Portal invitation",
 };
 
 const D = (subject: string | null, body: string): Template => ({ subject, body });
@@ -113,6 +116,9 @@ export const DEFAULT_TEMPLATES: Record<TemplateKey, Partial<Record<Channel, Temp
   campaign: {
     sms: D(null, "{{company_name}}: "),
     email: D("News from {{company_name}}", "Hi {{customer_name}},\n\n\n\n{{company_name}}\nUnsubscribe: {{unsubscribe_url}}"),
+  },
+  portal_invite: {
+    email: D("Your {{company_name}} account online", "Hi {{customer_name}},\n\n{{company_name}} set up your account online: see your next visit, what was applied at your home, your invoices and cards, and ask for a re-service.\n\nOpen it here to set your password: {{portal_url}}\n\nQuestions? Call {{company_phone}}.\n\n{{company_name}}"),
   },
 };
 

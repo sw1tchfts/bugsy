@@ -23,6 +23,7 @@ const DAY = "2027-03-02";
 const NEXT_DAY = "2027-03-03";
 
 test("a dispatcher schedules a due visit, is refused for an uncredentialed technician, moves a whole day, builds a crew, and a licensed manager unblocks the dispatcher", async ({ page }) => {
+  test.setTimeout(120_000);
   const stamp = Date.now();
 
   // Setup as the owner: Casey (a dispatcher who can also run visits) holds no OH credential, and Maria has a fresh

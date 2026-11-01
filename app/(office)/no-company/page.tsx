@@ -2,12 +2,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui";
 import { isPlatformAdmin, requireSession } from "@/lib/auth/session";
+import { portalIdentities } from "@/lib/portal/session";
 import { resolveActiveTenant } from "@/lib/tenancy/active-tenant";
 
 export default async function NoCompanyPage() {
   const session = await requireSession();
   const { active } = await resolveActiveTenant(session);
   if (active) redirect("/");
+  // A customer with portal access belongs in the portal (spec 16).
+  if ((await portalIdentities(session)).length > 0) redirect("/portal");
   const admin = await isPlatformAdmin(session);
 
   return (

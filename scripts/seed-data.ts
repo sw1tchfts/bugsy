@@ -73,3 +73,8 @@ export const CROSS_TENANT_USER = {
   alsoIn: SEED_TENANTS[0].name,
   roleKey: "bookkeeper" as const,
 };
+
+/** The seeded commercial customer with portal access (spec 16): Corner Bistro's manager. */
+export function portalCustomerEmail(tenant: SeedTenant): string {
+  return `bistro@customers.${tenant.domain}`;
+}

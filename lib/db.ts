@@ -23,6 +23,8 @@ export type Claims = {
   sub: string;
   email?: string;
   role: "authenticated";
+  /** The portal identity a customer works as (spec 16). The database checks it belongs to `sub` before honoring it. */
+  portal_user?: string;
 };
 
 /**

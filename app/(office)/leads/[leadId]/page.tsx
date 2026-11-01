@@ -7,7 +7,7 @@ import { can } from "@/lib/auth/permissions";
 import { dbAs } from "@/lib/auth/session";
 import { type LeadStage, STAGE_LABELS, canTransition } from "@/lib/customers/pipeline";
 import { formatCents } from "@/lib/money";
-import { formatInstant, formatInstantDate } from "@/lib/dates";
+import { formatBusinessDate, formatInstant, formatInstantDate } from "@/lib/dates";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 import { createQuote } from "@/app/(office)/quotes/actions";
 import { convertLead, setLeadStage, updateLead } from "../actions";
@@ -19,6 +19,7 @@ type Lead = {
   line1: string | null; line2: string | null; city: string | null; state_code: string | null; postal_code: string | null; normalized_address: string | null;
   geocode_status: string; property_type: string | null; notes: string | null; inspection_at: string | null; lost_reason: string | null;
   account_id: string | null; property_id: string | null; won_at: string | null; lost_at: string | null; created_at: string;
+  service_name: string | null; preferred_date: string | null; arrival_window: string | null; form_name: string | null; sms_consent: boolean;
 };
 type Quote = { id: string; number: number; status: string; created_at: string; options: number; best_total: number | null };
 
@@ -34,7 +35,9 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
 
   const data = await dbAs(session, async (tx) => {
     const [lead] = await tx<Lead[]>`
-      select l.*, s.name as source_name from public.leads l join public.lead_sources s on s.id = l.source_id
+      select l.*, l.preferred_date::text as preferred_date, s.name as source_name, st.name as service_name, f.name as form_name
+      from public.leads l join public.lead_sources s on s.id = l.source_id
+        left join public.service_types st on st.id = l.service_type_id left join public.lead_forms f on f.id = l.form_id
       where l.id = ${leadId} and l.tenant_id = ${tenantId}`;
     if (!lead) return null;
     const sources = await tx<{ id: string; name: string }[]>`select id, name from public.lead_sources where tenant_id = ${tenantId} and (active or id = ${lead.source_id}) order by name`;
@@ -64,6 +67,11 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
         <p className="text-sm text-stone-600">
           Source: {lead.source_name}. Created {formatInstantDate(lead.created_at, active.tenantTimezone)}.
           {lead.inspection_at ? ` Inspection ${formatInstant(lead.inspection_at, active.tenantTimezone)}.` : ""}
+          {lead.form_name ? ` From the "${lead.form_name}" form.` : ""}
+          {lead.service_name ? ` Asked for ${lead.service_name}` : ""}
+          {lead.preferred_date ? `${lead.service_name ? "" : " Asked"} on ${formatBusinessDate(lead.preferred_date)}${lead.arrival_window && lead.arrival_window !== "any" ? `, ${lead.arrival_window}` : ""}` : ""}
+          {lead.service_name || lead.preferred_date ? "." : ""}
+          {lead.form_name ? (lead.sms_consent ? " Agreed to texts." : " No consent to texts.") : ""}
           {lead.account_id ? (
             <>
               {" "}

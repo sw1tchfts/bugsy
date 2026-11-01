@@ -18,6 +18,7 @@ import { seedLedger } from "./seed-ledger";
 import { seedMessaging } from "./seed-messaging";
 import { seedCommercial } from "./seed-commercial";
 import { seedSpecialty } from "./seed-specialty";
+import { seedPortal } from "./seed-portal";
 import { seedPlatform } from "./seed-platform";
 import { seedReports } from "./seed-reports";
 import { seedCompliance } from "./seed-compliance";
@@ -31,6 +32,7 @@ import {
   SEED_TENANTS,
   type SeedTenant,
   seedUserEmail,
+  portalCustomerEmail,
 } from "./seed-data";
 
 loadEnv({ path: ".env.local" });
@@ -146,6 +148,7 @@ async function seedTenant(tenant: SeedTenant, useAuthServer: boolean) {
   await seedPlatform(sql, tenant, tenantId);
   await seedCommercial(sql, tenant, tenantId);
   await seedSpecialty(sql, tenant, tenantId);
+  await seedPortal(sql, tenant, tenantId, await ensureUser(portalCustomerEmail(tenant), useAuthServer));
 
   console.log(`seeded ${tenant.name} (${tenantId})`);
 }

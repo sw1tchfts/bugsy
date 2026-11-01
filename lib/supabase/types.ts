@@ -14,6 +14,9 @@ export type Database = {
             "accept_invitation":
 { Args: { "invite_token": string }; Returns: string
                            },
+"accept_portal_invitation":
+{ Args: { "p_token": string }; Returns: string
+                           },
 "claim_message":
 { Args: { "p_message": string,"p_tenant": string }; Returns: boolean
                            },
@@ -41,6 +44,9 @@ export type Database = {
 "has_permission":
 { Args: { "perm": string,"tenant": string }; Returns: boolean
                            },
+"intake_lead":
+{ Args: { "p_ip_hash": string,"p_key": string,"p_payload": Json }; Returns: string
+                           },
 "invitation_preview":
 { Args: { "invite_token": string }; Returns: {
               "email": string,"role_name": string,"tenant_name": string,"valid": boolean
@@ -58,6 +64,11 @@ export type Database = {
 "journal_entry_by_key":
 { Args: { "p_key": string,"p_tenant": string }; Returns: {
               "id": string,"reversed_by": string
+            }[]
+                           },
+"lead_form":
+{ Args: { "p_key": string }; Returns: {
+              "ask_preferred_date": boolean,"name": string,"services": Json,"tenant_name": string,"thank_you": string,"timezone": string
             }[]
                            },
 "log_support_access":
@@ -92,6 +103,39 @@ export type Database = {
 { Args: Record<PropertyKey, never>; Returns: {
               "accounts": number,"active_agreements": number,"archived_at": string,"created_at": string,"first_route_on": string,"imported_on": string,"last_activity": string,"members": number,"name": string,"onboarding": Json,"open_support": number,"status": string,"status_reason": string,"tenant_id": string,"visits_30": number
             }[]
+                           },
+"portal_account":
+{ Args: { "p_tenant": string }; Returns: string
+                           },
+"portal_identities":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "account_id": string,"account_name": string,"id": string,"property_ids": (string)[],"tenant_id": string,"tenant_name": string,"tenant_timezone": string
+            }[]
+                           },
+"portal_invitation":
+{ Args: { "p_token": string }; Returns: {
+              "account_name": string,"email": string,"has_login": boolean,"status": string,"tenant_name": string
+            }[]
+                           },
+"portal_move_visit":
+{ Args: { "p_date": string,"p_visit": string }; Returns: string
+                           },
+"portal_property":
+{ Args: { "p_property": string,"p_tenant": string }; Returns: boolean
+                           },
+"portal_reschedule_context":
+{ Args: { "p_visit": string }; Returns: Json
+                           },
+"portal_staff_names":
+{ Args: { "p_tenant": string }; Returns: {
+              "name": string,"user_id": string
+            }[]
+                           },
+"portal_user_id":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
+"portal_visit":
+{ Args: { "p_visit": string }; Returns: boolean
                            },
 "post_entry":
 { Args: { "p_chart"?: Json,"p_entry": Json,"p_lines": Json,"p_tenant": string }; Returns: string
@@ -855,6 +899,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"intake_log": {
+                  Row: {
+                    "created_at": string,"form_id": string,"id": string,"ip_hash": string,"lead_id": string | null,"result": string,"tenant_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"form_id": string,"id"?: string,"ip_hash": string,"lead_id"?: string | null,"result": string,"tenant_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"form_id"?: string,"id"?: string,"ip_hash"?: string,"lead_id"?: string | null,"result"?: string,"tenant_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "intake_log_form_id_fkey"
+      columns: ["form_id"]
+isOneToOne: false
+      referencedRelation: "lead_forms"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "intake_log_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"invitations": {
                   Row: {
                     "accepted_at": string | null,"accepted_by": string | null,"branch_ids": (string)[] | null,"created_at": string,"created_by": string | null,"email": string,"expires_at": string,"id": string,"role_id": string,"tenant_id": string,"token": string,"updated_at": string
@@ -1053,6 +1123,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"lead_forms": {
+                  Row: {
+                    "active": boolean,"ask_preferred_date": boolean,"created_at": string,"created_by": string | null,"id": string,"key": string,"name": string,"service_type_ids": (string)[],"tenant_id": string,"thank_you": string | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"ask_preferred_date"?: boolean,"created_at"?: string,"created_by"?: string | null,"id"?: string,"key"?: string,"name": string,"service_type_ids"?: (string)[],"tenant_id": string,"thank_you"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "active"?: boolean,"ask_preferred_date"?: boolean,"created_at"?: string,"created_by"?: string | null,"id"?: string,"key"?: string,"name"?: string,"service_type_ids"?: (string)[],"tenant_id"?: string,"thank_you"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "lead_forms_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"lead_sources": {
                   Row: {
                     "active": boolean,"created_at": string,"created_by": string | null,"id": string,"key": string,"name": string,"tenant_id": string,"updated_at": string
@@ -1075,17 +1165,29 @@ isOneToOne: false
                   ]
                 },"leads": {
                   Row: {
-                    "account_id": string | null,"city": string | null,"county": string | null,"created_at": string,"created_by": string | null,"email": string | null,"geocode_status": string,"id": string,"inspection_at": string | null,"lat": number | null,"line1": string | null,"line2": string | null,"lng": number | null,"lost_at": string | null,"lost_reason": string | null,"name": string,"normalized_address": string | null,"notes": string | null,"owner_id": string | null,"phone": string | null,"phone_digits": string | null,"postal_code": string | null,"property_id": string | null,"property_type": string | null,"source_id": string,"stage": string,"state_code": string | null,"tenant_id": string,"updated_at": string,"won_at": string | null
+                    "account_id": string | null,"arrival_window": string | null,"city": string | null,"county": string | null,"created_at": string,"created_by": string | null,"email": string | null,"form_id": string | null,"geocode_status": string,"id": string,"inspection_at": string | null,"lat": number | null,"line1": string | null,"line2": string | null,"lng": number | null,"lost_at": string | null,"lost_reason": string | null,"name": string,"normalized_address": string | null,"notes": string | null,"owner_id": string | null,"phone": string | null,"phone_digits": string | null,"postal_code": string | null,"preferred_date": string | null,"property_id": string | null,"property_type": string | null,"service_type_id": string | null,"sms_consent": boolean,"source_id": string,"stage": string,"state_code": string | null,"tenant_id": string,"updated_at": string,"won_at": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "account_id"?: string | null,"city"?: string | null,"county"?: string | null,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"geocode_status"?: string,"id"?: string,"inspection_at"?: string | null,"lat"?: number | null,"line1"?: string | null,"line2"?: string | null,"lng"?: number | null,"lost_at"?: string | null,"lost_reason"?: string | null,"name": string,"normalized_address"?: string | null,"notes"?: string | null,"owner_id"?: string | null,"phone"?: string | null,"phone_digits"?: never,"postal_code"?: string | null,"property_id"?: string | null,"property_type"?: string | null,"source_id": string,"stage"?: string,"state_code"?: string | null,"tenant_id": string,"updated_at"?: string,"won_at"?: string | null
+                    "account_id"?: string | null,"arrival_window"?: string | null,"city"?: string | null,"county"?: string | null,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"form_id"?: string | null,"geocode_status"?: string,"id"?: string,"inspection_at"?: string | null,"lat"?: number | null,"line1"?: string | null,"line2"?: string | null,"lng"?: number | null,"lost_at"?: string | null,"lost_reason"?: string | null,"name": string,"normalized_address"?: string | null,"notes"?: string | null,"owner_id"?: string | null,"phone"?: string | null,"phone_digits"?: never,"postal_code"?: string | null,"preferred_date"?: string | null,"property_id"?: string | null,"property_type"?: string | null,"service_type_id"?: string | null,"sms_consent"?: boolean,"source_id": string,"stage"?: string,"state_code"?: string | null,"tenant_id": string,"updated_at"?: string,"won_at"?: string | null
                   }
                   Update: {
-                    "account_id"?: string | null,"city"?: string | null,"county"?: string | null,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"geocode_status"?: string,"id"?: string,"inspection_at"?: string | null,"lat"?: number | null,"line1"?: string | null,"line2"?: string | null,"lng"?: number | null,"lost_at"?: string | null,"lost_reason"?: string | null,"name"?: string,"normalized_address"?: string | null,"notes"?: string | null,"owner_id"?: string | null,"phone"?: string | null,"phone_digits"?: never,"postal_code"?: string | null,"property_id"?: string | null,"property_type"?: string | null,"source_id"?: string,"stage"?: string,"state_code"?: string | null,"tenant_id"?: string,"updated_at"?: string,"won_at"?: string | null
+                    "account_id"?: string | null,"arrival_window"?: string | null,"city"?: string | null,"county"?: string | null,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"form_id"?: string | null,"geocode_status"?: string,"id"?: string,"inspection_at"?: string | null,"lat"?: number | null,"line1"?: string | null,"line2"?: string | null,"lng"?: number | null,"lost_at"?: string | null,"lost_reason"?: string | null,"name"?: string,"normalized_address"?: string | null,"notes"?: string | null,"owner_id"?: string | null,"phone"?: string | null,"phone_digits"?: never,"postal_code"?: string | null,"preferred_date"?: string | null,"property_id"?: string | null,"property_type"?: string | null,"service_type_id"?: string | null,"sms_consent"?: boolean,"source_id"?: string,"stage"?: string,"state_code"?: string | null,"tenant_id"?: string,"updated_at"?: string,"won_at"?: string | null
                   }
                   Relationships: [
                     {
+      foreignKeyName: "leads_form_id_fkey"
+      columns: ["form_id"]
+isOneToOne: false
+      referencedRelation: "lead_forms"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "leads_service_type_id_fkey"
+      columns: ["service_type_id"]
+isOneToOne: false
+      referencedRelation: "service_types"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "leads_tenant_id_account_id_fkey"
       columns: ["tenant_id","account_id"]
 isOneToOne: false
@@ -1503,6 +1605,58 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"portal_settings": {
+                  Row: {
+                    "allow_requests": boolean,"allow_reschedule": boolean,"created_at": string,"id": string,"max_stops_per_day": number,"requestable_service_type_ids": (string)[],"reschedule_notice_hours": number,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "allow_requests"?: boolean,"allow_reschedule"?: boolean,"created_at"?: string,"id"?: string,"max_stops_per_day"?: number,"requestable_service_type_ids"?: (string)[],"reschedule_notice_hours"?: number,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "allow_requests"?: boolean,"allow_reschedule"?: boolean,"created_at"?: string,"id"?: string,"max_stops_per_day"?: number,"requestable_service_type_ids"?: (string)[],"reschedule_notice_hours"?: number,"tenant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "portal_settings_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: true
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"portal_users": {
+                  Row: {
+                    "accepted_at": string | null,"account_id": string,"contact_id": string | null,"created_at": string,"email": string,"id": string,"invited_at": string,"invited_by": string | null,"last_seen_at": string | null,"property_ids": (string)[] | null,"status": string,"tenant_id": string,"token": string,"updated_at": string,"user_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "accepted_at"?: string | null,"account_id": string,"contact_id"?: string | null,"created_at"?: string,"email": string,"id"?: string,"invited_at"?: string,"invited_by"?: string | null,"last_seen_at"?: string | null,"property_ids"?: (string)[] | null,"status"?: string,"tenant_id": string,"token"?: string,"updated_at"?: string,"user_id"?: string | null
+                  }
+                  Update: {
+                    "accepted_at"?: string | null,"account_id"?: string,"contact_id"?: string | null,"created_at"?: string,"email"?: string,"id"?: string,"invited_at"?: string,"invited_by"?: string | null,"last_seen_at"?: string | null,"property_ids"?: (string)[] | null,"status"?: string,"tenant_id"?: string,"token"?: string,"updated_at"?: string,"user_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "portal_users_tenant_id_account_id_fkey"
+      columns: ["tenant_id","account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "portal_users_tenant_id_contact_id_fkey"
+      columns: ["tenant_id","contact_id"]
+isOneToOne: false
+      referencedRelation: "contacts"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "portal_users_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"prep_checks": {
                   Row: {
                     "checked_at": string,"checked_by": string | null,"client_id": string | null,"created_at": string,"id": string,"missing": (string)[],"notes": string | null,"ready": boolean,"tenant_id": string,"updated_at": string,"visit_id": string
@@ -1811,6 +1965,68 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "tenants"
       referencedColumns: ["id"]
+    }
+                  ]
+                },"service_requests": {
+                  Row: {
+                    "account_id": string,"agreement_id": string | null,"arrival_window": string | null,"created_at": string,"created_by": string | null,"details": string | null,"handled_at": string | null,"handled_by": string | null,"id": string,"kind": string,"portal_user_id": string | null,"preferred_date": string | null,"property_id": string,"response": string | null,"result_visit_id": string | null,"service_type_id": string | null,"status": string,"tenant_id": string,"updated_at": string,"visit_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"agreement_id"?: string | null,"arrival_window"?: string | null,"created_at"?: string,"created_by"?: string | null,"details"?: string | null,"handled_at"?: string | null,"handled_by"?: string | null,"id"?: string,"kind": string,"portal_user_id"?: string | null,"preferred_date"?: string | null,"property_id": string,"response"?: string | null,"result_visit_id"?: string | null,"service_type_id"?: string | null,"status"?: string,"tenant_id": string,"updated_at"?: string,"visit_id"?: string | null
+                  }
+                  Update: {
+                    "account_id"?: string,"agreement_id"?: string | null,"arrival_window"?: string | null,"created_at"?: string,"created_by"?: string | null,"details"?: string | null,"handled_at"?: string | null,"handled_by"?: string | null,"id"?: string,"kind"?: string,"portal_user_id"?: string | null,"preferred_date"?: string | null,"property_id"?: string,"response"?: string | null,"result_visit_id"?: string | null,"service_type_id"?: string | null,"status"?: string,"tenant_id"?: string,"updated_at"?: string,"visit_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "service_requests_portal_user_id_fkey"
+      columns: ["portal_user_id"]
+isOneToOne: false
+      referencedRelation: "portal_users"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "service_requests_service_type_id_fkey"
+      columns: ["service_type_id"]
+isOneToOne: false
+      referencedRelation: "service_types"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "service_requests_tenant_id_account_id_fkey"
+      columns: ["tenant_id","account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "service_requests_tenant_id_agreement_id_fkey"
+      columns: ["tenant_id","agreement_id"]
+isOneToOne: false
+      referencedRelation: "agreements"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "service_requests_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "service_requests_tenant_id_property_id_fkey"
+      columns: ["tenant_id","property_id"]
+isOneToOne: false
+      referencedRelation: "properties"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "service_requests_tenant_id_result_visit_id_fkey"
+      columns: ["tenant_id","result_visit_id"]
+isOneToOne: false
+      referencedRelation: "visits"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "service_requests_tenant_id_visit_id_fkey"
+      columns: ["tenant_id","visit_id"]
+isOneToOne: false
+      referencedRelation: "visits"
+      referencedColumns: ["tenant_id","id"]
     }
                   ]
                 },"service_type_state_rules": {
@@ -2341,14 +2557,14 @@ isOneToOne: false
                   ]
                 },"wdi_reports": {
                   Row: {
-                    "buyer": string | null,"created_at": string,"created_by": string | null,"findings": NonNullable<Json>,"id": string,"inaccessible_areas": string | null,"inspected_areas": string | null,"inspector_id": string | null,"issued_at": string | null,"issued_by": string | null,"notes": string | null,"number": number | null,"requested_by": string | null,"seller": string | null,"status": string,"structures": string | null,"tenant_id": string,"treatment_recommended": boolean | null,"updated_at": string,"visit_id": string
+                    "buyer": string | null,"created_at": string,"created_by": string | null,"findings": NonNullable<Json>,"id": string,"inaccessible_areas": string | null,"inspected_areas": string | null,"inspector_id": string | null,"issued_at": string | null,"issued_by": string | null,"issued_snapshot": Json | null,"notes": string | null,"number": number | null,"requested_by": string | null,"seller": string | null,"status": string,"structures": string | null,"tenant_id": string,"treatment_recommended": boolean | null,"updated_at": string,"visit_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "buyer"?: string | null,"created_at"?: string,"created_by"?: string | null,"findings"?: NonNullable<Json>,"id"?: string,"inaccessible_areas"?: string | null,"inspected_areas"?: string | null,"inspector_id"?: string | null,"issued_at"?: string | null,"issued_by"?: string | null,"notes"?: string | null,"number"?: number | null,"requested_by"?: string | null,"seller"?: string | null,"status"?: string,"structures"?: string | null,"tenant_id": string,"treatment_recommended"?: boolean | null,"updated_at"?: string,"visit_id": string
+                    "buyer"?: string | null,"created_at"?: string,"created_by"?: string | null,"findings"?: NonNullable<Json>,"id"?: string,"inaccessible_areas"?: string | null,"inspected_areas"?: string | null,"inspector_id"?: string | null,"issued_at"?: string | null,"issued_by"?: string | null,"issued_snapshot"?: Json | null,"notes"?: string | null,"number"?: number | null,"requested_by"?: string | null,"seller"?: string | null,"status"?: string,"structures"?: string | null,"tenant_id": string,"treatment_recommended"?: boolean | null,"updated_at"?: string,"visit_id": string
                   }
                   Update: {
-                    "buyer"?: string | null,"created_at"?: string,"created_by"?: string | null,"findings"?: NonNullable<Json>,"id"?: string,"inaccessible_areas"?: string | null,"inspected_areas"?: string | null,"inspector_id"?: string | null,"issued_at"?: string | null,"issued_by"?: string | null,"notes"?: string | null,"number"?: number | null,"requested_by"?: string | null,"seller"?: string | null,"status"?: string,"structures"?: string | null,"tenant_id"?: string,"treatment_recommended"?: boolean | null,"updated_at"?: string,"visit_id"?: string
+                    "buyer"?: string | null,"created_at"?: string,"created_by"?: string | null,"findings"?: NonNullable<Json>,"id"?: string,"inaccessible_areas"?: string | null,"inspected_areas"?: string | null,"inspector_id"?: string | null,"issued_at"?: string | null,"issued_by"?: string | null,"issued_snapshot"?: Json | null,"notes"?: string | null,"number"?: number | null,"requested_by"?: string | null,"seller"?: string | null,"status"?: string,"structures"?: string | null,"tenant_id"?: string,"treatment_recommended"?: boolean | null,"updated_at"?: string,"visit_id"?: string
                   }
                   Relationships: [
                     {

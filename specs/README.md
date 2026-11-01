@@ -23,7 +23,7 @@ Specs 01 to 10 sit in `phase-1/` for historical reasons; the folder name does no
 | 13 | [Platform operations](13-platform-operations.md) | done | 01 |
 | 14 | [Commercial programs: devices, maps, trends, audits](14-commercial-programs.md) | done | 04, 06 |
 | 15 | [Specialty services: termite, wildlife, bed bug](15-specialty-services.md) | done | 04, 06 |
-| 16 | Customer portal and online booking | not written | 02, 08 |
+| 16 | [Customer portal and online booking](16-portal-and-booking.md) | done | 02, 08 |
 | 17 | Sales and growth: door-to-door, commissions, campaigns | not written | 02, 04, 11 |
 | 18 | Inventory, job costing, time and payroll export | not written | 06, 09 |
 | 19 | Routing and fleet: route optimization, GPS | not written | 05 |

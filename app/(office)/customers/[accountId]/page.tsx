@@ -16,6 +16,7 @@ import { timeline } from "@/lib/messaging/db";
 import { replyAction, sendMessageAction } from "@/app/(office)/messages/actions";
 import { createQuote } from "@/app/(office)/quotes/actions";
 import { archiveAccount, archiveContact, setContactConsent, updateAccount } from "../actions";
+import { invitePortalUser, setPortalUserStatus } from "../portal-actions";
 
 export const metadata: Metadata = { title: "Account" };
 
@@ -67,10 +68,12 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
       from public.agreements a join public.service_types st on st.id = a.service_type_id join public.properties p on p.id = a.property_id
       where a.tenant_id = ${tenantId} and a.account_id = ${accountId} and a.archived_at is null
       order by case a.status when 'active' then 0 when 'draft' then 1 else 2 end, a.created_at desc`;
-    return { account, properties, contacts, quotes, agreements };
+    const portalUsers = await tx<{ id: string; email: string; status: string; property_ids: string[] | null; invited_at: Date; accepted_at: Date | null; token: string }[]>`
+      select id, email, status, property_ids, invited_at, accepted_at, token from public.portal_users where tenant_id = ${tenantId} and account_id = ${accountId} order by invited_at desc`;
+    return { account, properties, contacts, quotes, agreements, portalUsers };
   });
   if (!data) notFound();
-  const { account, properties, contacts, quotes, agreements } = data;
+  const { account, properties, contacts, quotes, agreements, portalUsers } = data;
   const billing = can(active.permissions, "billing.read") ? await dbAs(session, (tx) => statementFor(tx, tenantId, accountId, todayInZone(active.tenantTimezone), active.tenantTimezone)) : null;
   const messages = await dbAs(session, (tx) => timeline(tx, tenantId, accountId));
   const canMessage = can(active.permissions, "messages.send");
@@ -328,6 +331,80 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
           </ul>
         )}
       </Card>
+
+      <section id="portal">
+        <Card title="Portal access" description="Customers see their visits, what was applied, invoices and cards, notices and requests; commercial sites add maps, trends and the binder.">
+          {portalUsers.length === 0 ? (
+            <Empty>No one has portal access yet.</Empty>
+          ) : (
+            <Table headers={["Email", "Properties", "Status", ""]}>
+              {portalUsers.map((u) => (
+                <tr key={u.id} data-testid="portal-user">
+                  <td className="py-2 pr-4">{u.email}</td>
+                  <td className="py-2 pr-4 text-sm">{u.property_ids ? properties.filter((p) => u.property_ids?.includes(p.id)).map((p) => p.name ?? p.normalized_address).join("; ") : "All"}</td>
+                  <td className="py-2 pr-4">
+                    <Badge tone={u.status === "active" ? "good" : u.status === "invited" ? "warn" : "neutral"}>{u.status}</Badge>
+                    {u.status === "invited" ? (
+                      <span className="block text-xs text-stone-500" data-testid="portal-invite-link">
+                        /portal/invite/{u.token}
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="py-2 pr-4 text-right">
+                    {canWrite ? (
+                      <form action={setPortalUserStatus}>
+                        <input type="hidden" name="tenant_id" value={tenantId} />
+                        <input type="hidden" name="account_id" value={account.id} />
+                        <input type="hidden" name="portal_user_id" value={u.id} />
+                        <input type="hidden" name="status" value={u.status === "disabled" ? "enabled" : "disabled"} />
+                        <Button type="submit" variant="secondary">
+                          {u.status === "disabled" ? "Turn back on" : "Turn off"}
+                        </Button>
+                      </form>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          )}
+          {canWrite ? (
+            <form action={invitePortalUser} className="mt-4 grid gap-3 border-t border-stone-100 pt-3 sm:grid-cols-2">
+              <input type="hidden" name="tenant_id" value={tenantId} />
+              <input type="hidden" name="account_id" value={account.id} />
+              <Field label="Contact" htmlFor="portal-contact">
+                <Select id="portal-contact" name="contact_id" defaultValue="">
+                  <option value="">Someone else (type the email)</option>
+                  {contacts
+                    .filter((c) => c.email)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.email})
+                      </option>
+                    ))}
+                </Select>
+              </Field>
+              <Field label="Email (when not a contact)" htmlFor="portal-email">
+                <Input id="portal-email" name="email" type="email" />
+              </Field>
+              {properties.length > 1 ? (
+                <fieldset className="sm:col-span-2">
+                  <legend className="text-sm font-medium text-stone-700">Properties (none ticked: all of them)</legend>
+                  <div className="mt-1 flex flex-wrap gap-4 text-sm">
+                    {properties.map((p) => (
+                      <label key={p.id} className="flex items-center gap-2">
+                        <input type="checkbox" name="property_ids" value={p.id} /> {p.name ?? p.normalized_address}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              ) : null}
+              <div className="sm:col-span-2">
+                <Button type="submit">Send portal invitation</Button>
+              </div>
+            </form>
+          ) : null}
+        </Card>
+      </section>
 
       <Card title="Quotes">
         {quotes.length === 0 ? (

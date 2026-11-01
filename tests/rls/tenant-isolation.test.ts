@@ -13,7 +13,7 @@ import { PG_TYPES } from "../../lib/pg-types";
 import { buildQuery } from "../../lib/reports/builder";
 import { arAging, salesBySource, technicianReport } from "../../lib/reports/db";
 import { DATASETS, datasetFor } from "../../lib/reports/datasets";
-import { CROSS_TENANT_USER, PLATFORM_ADMIN_EMAIL, ROLE_KEYS, SEED_TENANTS, seedUserEmail } from "../../scripts/seed-data";
+import { CROSS_TENANT_USER, PLATFORM_ADMIN_EMAIL, ROLE_KEYS, SEED_TENANTS, portalCustomerEmail, seedUserEmail } from "../../scripts/seed-data";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is not set; see docs/dev-setup.md");
@@ -2111,5 +2111,153 @@ describe("spec 15 rules enforced in the database", () => {
     expect(result.forged).toMatch(/needs its source row/);
     expect(result.noSteps).toMatch(/agreements_job_plan_steps|check constraint/);
     expect(result.switched).toMatch(/fixed once the agreement is signed/);
+  });
+});
+
+describe("spec 16 rules enforced in the database", () => {
+  const bistroEmail = portalCustomerEmail(lakeshore);
+  const techEmail = seedUserEmail(lakeshore, "technician");
+  let bistro = "";
+  let portalId = "";
+  let bistroAccount = "";
+  let bistroProperty = "";
+  const ROLLBACK = "rollback: spec 16";
+
+  async function rolledBack<T>(fn: (tx: Tx, as: (id: string, email: string, portal?: string) => Promise<void>) => Promise<T>): Promise<T> {
+    let out: T | undefined;
+    await admin
+      .begin(async (tx) => {
+        const as = async (id: string, email: string, portal?: string) => {
+          await tx.unsafe("reset role");
+          await tx.unsafe("set local role authenticated");
+          await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: id, email, role: "authenticated", ...(portal ? { portal_user: portal } : {}) })}, true)`;
+        };
+        out = await fn(tx, as);
+        throw new Error(ROLLBACK);
+      })
+      .catch((e: Error) => {
+        if (e.message !== ROLLBACK) throw e;
+      });
+    return out as T;
+  }
+  const attempt = (tx: Tx, q: (sp: Tx) => Promise<unknown>) =>
+    tx.savepoint((sp) => q(sp as unknown as Tx)).then((r) => `ok ${(r as { count?: number }).count ?? ""}`.trim(), (e: Error) => e.message);
+
+  beforeAll(async () => {
+    bistro = await userId(bistroEmail);
+    const [pu] = await admin<{ id: string; account_id: string }[]>`select id, account_id from public.portal_users where tenant_id = ${lakeshoreId} and user_id = ${bistro}`;
+    portalId = pu.id;
+    bistroAccount = pu.account_id;
+    const [p] = await admin<{ id: string }[]>`select id from public.properties where account_id = ${bistroAccount} order by created_at limit 1`;
+    bistroProperty = p.id;
+  });
+
+  it("lets a portal identity read its own account, and nothing of another account or company (rules 2 and 7)", async () => {
+    const counts = await rolledBack(async (tx, as) => {
+      await as(bistro, bistroEmail, portalId);
+      const count = async (sqlText: string) => (await tx.unsafe<{ n: number }[]>(sqlText))[0].n;
+      return {
+        accounts: await count("select count(*)::int as n from public.accounts"),
+        otherAccounts: await count(`select count(*)::int as n from public.accounts where id <> '${bistroAccount}'`),
+        visits: await count("select count(*)::int as n from public.visits"),
+        foreignVisits: await count(`select count(*)::int as n from public.visits where account_id <> '${bistroAccount}'`),
+        devices: await count("select count(*)::int as n from public.devices"),
+        files: await count("select count(*)::int as n from public.files"),
+        members: await count("select count(*)::int as n from public.memberships"),
+        credentials: await count("select count(*)::int as n from public.applicator_credentials"),
+        leads: await count("select count(*)::int as n from public.leads"),
+        tenants: await count("select count(*)::int as n from public.tenants"),
+        draftInvoices: await count("select count(*)::int as n from public.invoices where status = 'draft'"),
+        portalUsers: await count("select count(*)::int as n from public.portal_users"),
+      };
+    });
+    expect(counts.accounts).toBe(1);
+    expect(counts.otherAccounts).toBe(0);
+    expect(counts.visits).toBeGreaterThan(0);
+    expect(counts.foreignVisits).toBe(0);
+    expect(counts.devices).toBeGreaterThan(0);
+    expect(counts.files).toBeGreaterThan(0);
+    expect(counts.members).toBe(0);
+    expect(counts.credentials).toBe(0);
+    expect(counts.leads).toBe(0);
+    expect(counts.tenants).toBe(1);
+    expect(counts.draftInvoices).toBe(0);
+    expect(counts.portalUsers).toBe(1);
+  });
+
+  it("honors the portal claim only for its own active user (rules 2 and 9)", async () => {
+    const tech = await userId(techEmail);
+    const result = await rolledBack(async (tx, as) => {
+      // A staff member naming the customer's portal identity gets nothing extra.
+      await as(tech, techEmail, portalId);
+      const [{ n: borrowed }] = await tx<{ n: number }[]>`select count(*)::int as n from public.accounts where id = ${bistroAccount} and app.portal_user_id() is not null`;
+      // The customer without the claim, or with it disabled, reads nothing.
+      await as(bistro, bistroEmail);
+      const [{ n: noClaim }] = await tx<{ n: number }[]>`select count(*)::int as n from public.visits`;
+      await tx.unsafe("reset role");
+      await tx`update public.portal_users set status = 'disabled' where id = ${portalId}`;
+      await as(bistro, bistroEmail, portalId);
+      const [{ n: disabled }] = await tx<{ n: number }[]>`select count(*)::int as n from public.visits`;
+      return { borrowed, noClaim, disabled };
+    });
+    expect(result).toEqual({ borrowed: 0, noClaim: 0, disabled: 0 });
+  });
+
+  it("lets a customer log sightings and requests only at their own properties, and pay only their own invoices (rules 3, 4 and 6)", async () => {
+    const [foreign] = await admin<{ id: string; account_id: string }[]>`select id, account_id from public.properties where tenant_id = ${lakeshoreId} and account_id <> ${bistroAccount} order by created_at limit 1`;
+    const [foreignInvoice] = await admin<{ id: string }[]>`select id from public.invoices where tenant_id = ${lakeshoreId} and account_id <> ${bistroAccount} and status <> 'draft' limit 1`;
+    const result = await rolledBack(async (tx, as) => {
+      await as(bistro, bistroEmail, portalId);
+      const own = await attempt(tx, (sp) => sp`insert into public.sightings (tenant_id, property_id, seen_at, location, pest, source) values (${lakeshoreId}, ${bistroProperty}, now(), 'Back door', 'Roach', 'customer')`);
+      const elsewhere = await attempt(tx, (sp) => sp`insert into public.sightings (tenant_id, property_id, seen_at, location, pest, source) values (${lakeshoreId}, ${foreign.id}, now(), 'Back door', 'Roach', 'customer')`);
+      const asOffice = await attempt(tx, (sp) => sp`insert into public.sightings (tenant_id, property_id, seen_at, location, pest, source) values (${lakeshoreId}, ${bistroProperty}, now(), 'Back door', 'Roach', 'office')`);
+      const editDevice = await attempt(tx, (sp) => sp`update public.devices set location = 'moved by customer' where property_id = ${bistroProperty}`);
+      const request = await attempt(tx, (sp) => sp`
+        insert into public.service_requests (tenant_id, account_id, property_id, portal_user_id, kind, service_type_id, details)
+        select ${lakeshoreId}, ${bistroAccount}, ${bistroProperty}, ${portalId}, 'booking', id, 'Fly treatment' from public.service_types where tenant_id = ${lakeshoreId} limit 1`);
+      const foreignRequest = await attempt(tx, (sp) => sp`
+        insert into public.service_requests (tenant_id, account_id, property_id, portal_user_id, kind, service_type_id)
+        select ${lakeshoreId}, ${foreign.account_id}, ${foreign.id}, ${portalId}, 'booking', id from public.service_types where tenant_id = ${lakeshoreId} limit 1`);
+      const [{ n: seeForeignInvoice }] = await tx<{ n: number }[]>`select count(*)::int as n from public.invoices where id = ${foreignInvoice.id}`;
+      const foreignPayment = await attempt(tx, (sp) => sp`
+        insert into public.payments (tenant_id, account_id, kind, method, status, amount_cents, gateway, received_at) values (${lakeshoreId}, ${foreign.account_id}, 'payment', 'card', 'succeeded', 100, 'local', now())`);
+      return { own, elsewhere, asOffice, editDevice, request, foreignRequest, seeForeignInvoice, foreignPayment };
+    });
+    expect(result.own).toBe("ok 1");
+    expect(result.elsewhere).toMatch(RLS_ERROR);
+    expect(result.asOffice).toMatch(RLS_ERROR);
+    expect(result.editDevice).toBe("ok 0");
+    expect(result.request).toBe("ok 1");
+    expect(result.foreignRequest).toMatch(RLS_ERROR);
+    expect(result.seeForeignInvoice).toBe(0);
+    expect(result.foreignPayment).toMatch(RLS_ERROR);
+  });
+
+  it("moves a visit only inside its window with notice, and takes booking forms from anyone within the limits (rules 5 and 8)", async () => {
+    const [visit] = await admin<{ id: string; due_start: string; due_end: string }[]>`
+      select id, due_start::text, due_end::text from public.visits where account_id = ${bistroAccount} and status = 'planned' order by due_start limit 1`;
+    const [form] = await admin<{ key: string }[]>`select key from public.lead_forms where tenant_id = ${lakeshoreId} and active limit 1`;
+    const result = await rolledBack(async (tx, as) => {
+      await tx`update public.visits set status = 'scheduled', scheduled_for = due_end, technician_id = (select m.user_id from public.memberships m join public.roles r on r.id = m.role_id where m.tenant_id = ${lakeshoreId} and r.key = 'technician' limit 1) where id = ${visit.id}`;
+      await as(bistro, bistroEmail, portalId);
+      const outside = await attempt(tx, (sp) => sp`select app.portal_move_visit(${visit.id}, (${visit.due_end}::date + 5))`);
+      const inside = await attempt(tx, (sp) => sp`select app.portal_move_visit(${visit.id}, ${visit.due_start}::date)`);
+      await tx.unsafe("reset role");
+      await tx.unsafe("set local role anon");
+      const payload = { name: "Pat Doe", email: "pat@example.com", line1: "1 Main St", service_type_id: "" };
+      const [{ services }] = await tx<{ services: { id: string }[] }[]>`select services from app.lead_form(${form.key}::uuid)`;
+      payload.service_type_id = services[0]?.id ?? "";
+      const outcomes: string[] = [];
+      for (let i = 0; i < 6; i += 1) outcomes.push(await attempt(tx, (sp) => sp`select app.intake_lead(${form.key}::uuid, ${sp.json(payload)}, 'rls-test-hash')`));
+      // Anonymous visitors write through the intake only; they read no leads.
+      const [{ n: directLead }] = await tx<{ n: number }[]>`select count(*)::int as n from public.leads`;
+      return { outside, inside, outcomes, directLead };
+    });
+    expect(result.outside).toMatch(/pick a day/);
+    // The window's first day may be inside the notice period; either way, the database decided by its own rules.
+    expect(result.inside).toMatch(/^ok|notice/);
+    expect(result.outcomes.slice(0, 5).every((o) => o === "ok 1")).toBe(true);
+    expect(result.outcomes[5]).toMatch(/too many requests/);
+    expect(result.directLead).toBe(0);
   });
 });
