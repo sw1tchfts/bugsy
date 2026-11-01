@@ -47,7 +47,7 @@ Migration `supabase/migrations/20261101190000_platform.sql`.
 - Routes: `app/(office)/settings/support/page.tsx`, `app/(office)/onboarding/page.tsx`, `app/(platform)/admin/tenants/page.tsx` (overview, lifecycle, support), `app/(platform)/admin/rules/page.tsx`, `app/api/company/export.zip/route.ts`.
 
 ## Business rules
-1. Platform admins belong to no company and see no company data (spec 01 rule 6), except through a live grant. They invite only a new company's first people (a company with no members yet); everyone else joins through the company's own users.write members.
+1. Platform admins belong to no company and see no company data (spec 01 rule 6), except through a live grant. They invite only a new company's first people: their invitation is made while the company has no members, expires within 14 days, and is accepted only while the company still has none. Nobody joins a company that is not active. Platform staff change a company's status and its reason, never its settings.
 2. A grant is asked for by a platform admin, for one company, with a reason of at least ten characters, read or write access, and 1 to 72 hours. One open (pending or live) grant per admin per company.
 3. Only an owner of the company approves or denies, within 7 days of the request; approval starts the clock: the grant is live from approval until approval plus its hours. An owner, or the support user, ends a live grant at any time.
 4. A live read grant reads everything a full read role reads and writes nothing; a write grant also writes, except users, roles, company settings and imports. A grant never makes its holder an owner.
@@ -72,6 +72,8 @@ Migration `supabase/migrations/20261101190000_platform.sql`.
 - Read only is one trigger on every tenant table rather than a change to hundreds of policies; the isolation suite checks that every tenant table has it.
 - Logging happens in the app at the request boundary (path and method), not per row read: Postgres does not log reads cheaply, and the page is what the company needs to see.
 - Packs stay code (reviewed, versioned, cited); the console shows them and where they are missing.
+- The Supabase Data API is off (locally in `supabase/config.toml`, and on the hosted project): the app reaches the database only through its server, so every read under a grant passes the access log.
+- Pages that only read never write: settings rows are created on first write or read first, and logs of reads (the inspector export's) are skipped when the company is read only.
 
 ## Open questions
 - Whether support should be able to act with no owner present (an emergency grant approved by two platform admins, shown to the company afterwards). Not built; a company with no reachable owner is handled outside the app.

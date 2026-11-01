@@ -43,8 +43,12 @@ export type MessagingSettings = {
 };
 
 export async function messagingSettings(tx: Sql, tenantId: string): Promise<MessagingSettings> {
-  await tx`select app.ensure_messaging_settings(${tenantId})`;
-  const [row] = await tx<MessagingSettings[]>`select * from public.messaging_settings where tenant_id = ${tenantId}`;
+  // Read first: creating the row is a write, which a read-only company refuses (spec 13).
+  let [row] = await tx<MessagingSettings[]>`select * from public.messaging_settings where tenant_id = ${tenantId}`;
+  if (!row) {
+    await tx`select app.ensure_messaging_settings(${tenantId})`;
+    [row] = await tx<MessagingSettings[]>`select * from public.messaging_settings where tenant_id = ${tenantId}`;
+  }
   return { ...row, quiet_start: String(row.quiet_start).slice(0, 5), quiet_end: String(row.quiet_end).slice(0, 5) };
 }
 

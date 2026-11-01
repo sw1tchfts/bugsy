@@ -22,7 +22,10 @@ export async function GET(request: Request) {
   if (!isIsoDate(from) || !isIsoDate(to) || from > to) return new NextResponse("from and to are business dates, from first", { status: 400 });
   const files = await dbAs(session, async (tx) => {
     const built = await buildInspectorExport(tx, active.tenantId, { from, to, state }, active.tenantName, active.tenantTimezone);
-    await tx`insert into public.compliance_exports (tenant_id, from_date, to_date, state_code, file_count) values (${active.tenantId}, ${from}, ${to}, ${state}, ${built.length})`;
+    // The export log is a write; a read-only company still exports (spec 13), it just is not logged.
+    if (active.tenantStatus === "active" && (!active.support || active.support.access === "write")) {
+      await tx`insert into public.compliance_exports (tenant_id, from_date, to_date, state_code, file_count) values (${active.tenantId}, ${from}, ${to}, ${state}, ${built.length})`;
+    }
     return built;
   });
   const zip = zipFiles(files);

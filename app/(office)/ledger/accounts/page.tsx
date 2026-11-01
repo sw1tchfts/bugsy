@@ -19,7 +19,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
   const { error } = await searchParams;
   const canWrite = can(active.permissions, "gl.write");
   const rows = await dbAs(session, async (tx) => {
-    if (canWrite) await ensureChart(tx, active.tenantId);
+    if (canWrite && active.tenantStatus === "active" && !(active.support && active.support.access === "read")) await ensureChart(tx, active.tenantId);
     return accounts(tx, active.tenantId);
   });
 

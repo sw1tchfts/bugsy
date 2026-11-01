@@ -4,6 +4,7 @@ import { signOut } from "@/app/(auth)/sign-in/actions";
 import { SwRegister } from "@/components/tech/sw-register";
 import { can } from "@/lib/auth/permissions";
 import { dbAs, requireSession } from "@/lib/auth/session";
+import { formatInstant } from "@/lib/dates";
 import { LOCALES, type Locale, t } from "@/lib/tech/i18n";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 import { setLocale } from "./actions";
@@ -51,6 +52,17 @@ export default async function TechLayout({ children }: { children: React.ReactNo
           </form>
         </div>
       </header>
+      {active.support ? (
+        <p className="border-b border-sky-300 bg-sky-50 px-3 py-2 text-center text-sm text-sky-950" data-testid="support-banner">
+          Support session, {active.support.access === "read" ? "read only" : "read and change"}, until {formatInstant(active.support.expiresAt, active.tenantTimezone)}. Every page you open is logged for
+          the company to see.
+        </p>
+      ) : null}
+      {active.tenantStatus !== "active" ? (
+        <p className="border-b border-amber-300 bg-amber-50 px-3 py-2 text-center text-sm text-amber-900" data-testid="tenant-readonly">
+          {active.tenantName} is {active.tenantStatus}: read only.
+        </p>
+      ) : null}
       <main className="mx-auto max-w-xl px-3 py-3">
         {canWork ? children : <p className="rounded border border-amber-200 bg-amber-50 p-3 text-sm">This account cannot run visits. Ask the office for a technician role.</p>}
       </main>

@@ -96,7 +96,8 @@ export default async function TenantsPage({ searchParams }: { searchParams: Prom
     invites: await tx<Invite[]>`
       select i.tenant_id, i.email, i.token, i.expires_at
       from public.invitations i join public.roles r on r.id = i.role_id
-      where r.tenant_id is null and r.key = 'owner' and i.accepted_at is null and i.expires_at >= now()`,
+      where r.tenant_id is null and r.key = 'owner' and i.accepted_at is null and i.expires_at >= now()
+        and exists (select 1 from public.platform_admins p where p.user_id = i.created_by)`,
     grants: (await myGrants(tx)).filter((g) => g.state === "pending" || g.state === "live"),
     purges: await tx<Purge[]>`select name, archived_at, purged_at from public.tenant_purges order by purged_at desc limit 20`,
   }));

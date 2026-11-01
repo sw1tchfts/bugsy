@@ -149,7 +149,7 @@ describe("as a Northwind owner", () => {
       // Oldest rows first: the seed's first rows are the plain ones (a planned visit, an open lead), later rows carry
       // states that insert triggers refuse.
       const samples = await admin<{ row: Record<string, unknown> }[]>`
-        select to_jsonb(x) as row from public.${admin(t.name)} x where tenant_id = ${lakeshoreId} order by created_at limit 12`;
+        select to_jsonb(sample_row) as row from public.${admin(t.name)} sample_row where tenant_id = ${lakeshoreId} order by created_at limit 12`;
       const generated = await admin<{ column_name: string }[]>`
         select column_name from information_schema.columns
         where table_schema = 'public' and table_name = ${t.name} and (is_generated = 'ALWAYS' or is_identity = 'YES')`;
@@ -510,7 +510,7 @@ describe("spec 02 rules enforced in the database", () => {
       await expect(
         asUser(northwindOwner, seedUserEmail(northwind, "owner"), (tx) => tx`insert into public.tenant_products (tenant_id, product_id) values (${northwindId}, ${mine.id})`),
       ).rejects.toThrow(/another company/);
-      await expect(asUser(...owner(), (tx) => tx`update public.products set tenant_id = null where id = ${mine.id}`)).rejects.toThrow(RLS_ERROR);
+      await expect(asUser(...owner(), (tx) => tx`update public.products set tenant_id = null where id = ${mine.id}`)).rejects.toThrow(/row-level security|stays with its company/);
       await asAdmin((tx) => tx`update public.products set tenant_id = null, verified_at = now(), verified_by = auth.uid() where id = ${mine.id}`);
       const [after] = await admin<{ tenant_id: string | null; verified_at: string | null }[]>`select tenant_id, verified_at from public.products where id = ${mine.id}`;
       expect(after.tenant_id).toBeNull();
@@ -1743,7 +1743,7 @@ describe("spec 13 rules enforced in the database", () => {
     });
     expect(result.read).toBeGreaterThan(0);
     expect(result.write).toMatch(/suspended and read only/);
-    expect(result.reopen).toMatch(/read only/);
+    expect(result.reopen).toMatch(/read only|only platform staff/);
     await expect(asUser(lakeshoreOwner, ownerEmail, (tx) => tx`update public.tenants set status = 'archived' where id = ${lakeshoreId}`)).rejects.toThrow(/only platform staff/);
   });
 
@@ -1771,6 +1771,71 @@ describe("spec 13 rules enforced in the database", () => {
     expect(Number(left)).toBe(0);
     const [record] = await admin<{ row_counts: Record<string, number> }[]>`select row_counts from public.tenant_purges where former_tenant_id = ${gone.id}`;
     expect(record.row_counts).toMatchObject({ accounts: 1, branches: 1 });
+  });
+
+  it("seats only a new company's first people from a platform invitation, and nobody joins a company that is not active (rule 1)", async () => {
+    const [ownerRole] = await admin<{ id: string }[]>`select id from public.roles where tenant_id is null and key = 'owner'`;
+    const result = await rolledBack(async (tx, as) => {
+      const [t] = await tx<{ id: string }[]>`insert into public.tenants (name, timezone) values ('RLS empty co', 'America/Chicago') returning id`;
+      await as(adminId, PLATFORM_ADMIN_EMAIL);
+      const longLived = await tx
+        .savepoint((sp) => sp`insert into public.invitations (tenant_id, email, role_id, expires_at) values (${t.id}, ${PLATFORM_ADMIN_EMAIL}, ${ownerRole.id}, now() + interval '5 years')`)
+        .then(() => "inserted", (e: Error) => e.message);
+      const [mine] = await tx<{ token: string }[]>`insert into public.invitations (tenant_id, email, role_id) values (${t.id}, ${PLATFORM_ADMIN_EMAIL}, ${ownerRole.id}) returning token`;
+      await tx.unsafe("reset role");
+      // The real owner joins first.
+      await tx`insert into public.memberships (tenant_id, user_id, role_id) values (${t.id}, ${lakeshoreOwner}, ${ownerRole.id})`;
+      await as(adminId, PLATFORM_ADMIN_EMAIL);
+      const late = await tx.savepoint((sp) => sp`select app.accept_invitation(${mine.token}::uuid)`).then(() => "accepted", (e: Error) => e.message);
+      const [{ team }] = await tx<{ team: boolean }[]>`select (app.onboarding_status(${t.id}) ->> 'team')::boolean as team`;
+      await tx.unsafe("reset role");
+      const [t2] = await tx<{ id: string }[]>`insert into public.tenants (name, timezone) values ('RLS archived co', 'America/Chicago') returning id`;
+      const [inv2] = await tx<{ token: string }[]>`insert into public.invitations (tenant_id, email, role_id) values (${t2.id}, ${PLATFORM_ADMIN_EMAIL}, ${ownerRole.id}) returning token`;
+      await tx`update public.tenants set status = 'archived' where id = ${t2.id}`;
+      await as(adminId, PLATFORM_ADMIN_EMAIL);
+      const archived = await tx.savepoint((sp) => sp`select app.accept_invitation(${inv2.token}::uuid)`).then(() => "accepted", (e: Error) => e.message);
+      return { longLived, late, team, archived };
+    });
+    expect(result.longLived).toMatch(/row-level security/);
+    expect(result.late).toMatch(/first people/);
+    expect(result.archived).toMatch(/takes no new members/);
+    // One owner and the admin's open (unaccepted) invitation: the open invitation counts, an accepted one would not.
+    expect(result.team).toBe(true);
+  });
+
+  it("keeps platform staff to a company's status: no backdated archive, no settings (rules 4 and 8)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      await tx`update public.tenants set status = 'archived' where id = ${lakeshoreId}`;
+      const [{ before }] = await tx<{ before: Date }[]>`select archived_at as before from public.tenants where id = ${lakeshoreId}`;
+      await as(adminId, PLATFORM_ADMIN_EMAIL);
+      await tx`update public.tenants set archived_at = now() - interval '100 days', status_changed_at = now() - interval '100 days' where id = ${lakeshoreId}`;
+      const [{ after }] = await tx<{ after: Date }[]>`select archived_at as after from public.tenants where id = ${lakeshoreId}`;
+      const purge = await tx.savepoint((sp) => sp`select app.purge_tenant(${lakeshoreId})`).then(() => "purged", (e: Error) => e.message);
+      const settings = await tx.savepoint((sp) => sp`update public.tenants set timezone = 'America/Denver' where id = ${lakeshoreId}`).then(() => "changed", (e: Error) => e.message);
+      const status = await tx.savepoint((sp) => sp`update public.tenants set status = 'suspended', status_reason = 'rls' where id = ${lakeshoreId}`).then(() => "changed", (e: Error) => e.message);
+      return { before, after, purge, settings, status };
+    });
+    expect(result.after.getTime()).toBe(result.before.getTime());
+    expect(result.purge).toMatch(/archived less than 90 days ago/);
+    expect(result.settings).toMatch(/not its settings/);
+    expect(result.status).toBe("changed");
+  });
+
+  it("never moves a row from one company to another (rule 7)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      await as(lakeshoreOwner, ownerEmail);
+      return tx.savepoint((sp) => sp`update public.saved_reports set tenant_id = ${northwindId} where tenant_id = ${lakeshoreId}`).then(() => "moved", (e: Error) => e.message);
+    });
+    expect(result).toMatch(/stays with its company/);
+  });
+
+  it("lets support ask again after a denial (edge case)", async () => {
+    const asAdmin = <T>(fn: (tx: Tx) => Promise<T>) => asUser(adminId, PLATFORM_ADMIN_EMAIL, fn);
+    const [{ id: first }] = await asAdmin((tx) => tx<{ id: string }[]>`select app.request_support(${lakeshoreId}, 'read', 1, 'First ask, to be denied') as id`);
+    await asUser(lakeshoreOwner, ownerEmail, (tx) => tx`select app.decide_support(${first}, false)`);
+    const [{ id: second }] = await asAdmin((tx) => tx<{ id: string }[]>`select app.request_support(${lakeshoreId}, 'read', 1, 'Second ask after the denial') as id`);
+    expect(second).not.toBe(first);
+    await asAdmin((tx) => tx`select app.revoke_support(${second})`);
   });
 
   it("works out the setup checklist from the data, for settings readers and platform staff only (rule 9)", async () => {

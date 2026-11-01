@@ -101,3 +101,5 @@ The technician app is the web layer of the native wrapper the PRD chose: a Capac
 ## Hosted Supabase and Vercel
 
 Set the same variables in Vercel: `DATABASE_URL` (the project's pooler connection string), `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server only), the job secrets `COMPLIANCE_RUN_SECRET` and `BILLING_RUN_SECRET` for the crons, and for live payments `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and `PLATFORM_FEE_BPS`. Do not set `SUPABASE_AUTH_INTERNAL_URL`. Apply migrations with `npx supabase db push` from a linked project.
+
+Turn the Data API off on the hosted project (Project Settings, Data API), or expose no schemas. The app reaches the database only through its own server; a session token used directly against `/rest/v1` would read under row level security without the support access log (spec 13).

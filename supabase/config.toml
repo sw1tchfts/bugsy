@@ -5,7 +5,9 @@
 project_id = "bugsy"
 
 [api]
-enabled = true
+# Off: the app reads and writes only through its own server (lib/db.ts), so nothing should reach tables over the Data
+# API, where a support grant's reads would skip the access log (spec 13 rule 5). Auth is served separately.
+enabled = false
 # Port to use for the API URL.
 port = 54321
 # Schemas to expose in your API. Tables, views and stored procedures in this schema will get API

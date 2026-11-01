@@ -125,6 +125,11 @@ export async function exportCompany(tx: Sql, tenantId: string, companyName: stri
     out[`${t.table_name}.csv`] = strToU8(`${lines.join("\r\n")}\r\n`);
     readme.push(`  ${t.table_name}.csv: ${rows.length} row(s)`);
   }
+  // The company's own row: its names, time zone and status (it has no tenant_id column, being the tenant).
+  const company = (await tx.unsafe("select * from public.tenants where id = $1", [tenantId])) as unknown as Record<string, unknown>[];
+  const companyColumns = company[0] ? Object.keys(company[0]) : [];
+  out["tenants.csv"] = strToU8(`${[companyColumns.map(csvCell).join(","), ...company.map((r) => companyColumns.map((c) => csvCell(r[c])).join(","))].join("\r\n")}\r\n`);
+  readme.push(`  tenants.csv: ${company.length} row(s), the company itself`);
   const files = await tx<{ id: string; content_type: string; data: Buffer }[]>`select id, content_type, data from public.files where tenant_id = ${tenantId} order by created_at`;
   for (const f of files) out[`files/${f.id}.${EXTENSIONS[f.content_type] ?? "bin"}`] = new Uint8Array(f.data);
   readme.push("", `files/: ${files.length} file(s)`);

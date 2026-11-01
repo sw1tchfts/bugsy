@@ -151,4 +151,8 @@ test("support asks, the owner approves and watches, access ends; the owner sets 
   await page.screenshot({ path: "test-results/platform-archived.png", fullPage: true });
   const theirs = await unzip(page, "/api/company/export.zip");
   expect(strFromU8(theirs["branches.csv"])).toContain("Springfield shop");
+  expect(strFromU8(theirs["tenants.csv"])).toContain(name);
+  // The inspector export still works for a company that has left (spec 07, spec 13 edge case).
+  const inspection = await page.request.get(`/api/compliance/export?from=2026-01-01&to=2026-12-31`);
+  expect(inspection.status()).toBe(200);
 });
