@@ -110,12 +110,17 @@ const EXTENSIONS: Record<string, string> = { "image/jpeg": "jpg", "image/png": "
  * its stored columns (file contents aside), each file's bytes under files/, and a README of tables and row counts.
  */
 export async function exportCompany(tx: Sql, tenantId: string, companyName: string): Promise<Record<string, Uint8Array>> {
+  // Only the columns the session may read: a secret kept from staff (a portal invitation's link) stays out.
   const tables = await tx<{ table_name: string; columns: string[] }[]>`
-    select c.table_name, array_agg(c.column_name::text order by c.ordinal_position) filter (where c.data_type <> 'bytea') as columns
+    select c.table_name,
+           array_agg(c.column_name::text order by c.ordinal_position)
+             filter (where c.data_type <> 'bytea' and has_column_privilege(format('public.%I', c.table_name), c.column_name, 'SELECT')) as columns
     from information_schema.columns c join information_schema.tables t on t.table_schema = c.table_schema and t.table_name = c.table_name
     where c.table_schema = 'public' and t.table_type = 'BASE TABLE'
       and exists (select 1 from information_schema.columns k where k.table_schema = 'public' and k.table_name = c.table_name and k.column_name = 'tenant_id')
-    group by c.table_name order by c.table_name`;
+    group by c.table_name
+    having count(*) filter (where c.data_type <> 'bytea' and has_column_privilege(format('public.%I', c.table_name), c.column_name, 'SELECT')) > 0
+    order by c.table_name`;
   const out: Record<string, Uint8Array> = {};
   const readme = [`${companyName}: full data export`, `Made ${new Date().toISOString()}.`, "", "One CSV per table, every column as stored: money in integer cents, timestamps in UTC, business dates as YYYY-MM-DD.", "Photos, signatures and documents are under files/, named by their id in files.csv.", "", "Tables:"];
   for (const t of tables) {

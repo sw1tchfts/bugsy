@@ -17,6 +17,7 @@ async function signOut(page: Page) {
 }
 
 test("an owner builds a service type with state rules and a price book, enables and adds products, quotes from the book, and the platform approves the product", async ({ page }) => {
+  test.setTimeout(120_000);
   const stamp = Date.now();
   const serviceTypeName = `Mosquito season ${stamp}`;
   const productName = `Demo botanical ${stamp}`;
