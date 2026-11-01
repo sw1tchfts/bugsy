@@ -219,6 +219,7 @@ export function validateAgreement(row: Row, cutoverOn: string): Checked<Agreemen
     window_days: cadence === "custom" && unit === "weeks" ? 7 : 30,
     terms_text: null,
     notes: text(v.notes),
+    recognition: "per_visit",
   };
   const value: AgreementRow = {
     external_id: need("external_id", v.external_id),

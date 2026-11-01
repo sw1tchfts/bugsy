@@ -5,12 +5,16 @@
 // position as fractions of its width and height, for placing or moving a device.
 import type { MouseEvent } from "react";
 import { KIND_TAGS, type DeviceKind } from "@/lib/commercial/devices";
+import { MARK_TAGS, type MarkKind } from "@/lib/specialty/marks";
 
 const MARK = "#2a78d6";
 const CRITICAL = "#d03b3b";
 const SELECTED = "#0b0b0b";
 
 export type MapDevice = { id: string; number: string; kind: string; x: number | null; y: number | null; hot?: boolean };
+/** A diagram mark (spec 15): a square, unlike a device's circle, with its kind letter inside and its label beside. */
+export type MapMark = { id: string; kind: string; x: number; y: number; label: string };
+const MARK_INK = "#44403c";
 
 export function SiteMap({
   src,
@@ -18,9 +22,11 @@ export function SiteMap({
   width,
   height,
   devices,
+  marks = [],
   selectedId,
   pending,
   onPick,
+  pickLabel,
   testid,
 }: {
   src: string;
@@ -28,9 +34,11 @@ export function SiteMap({
   width: number;
   height: number;
   devices: MapDevice[];
+  marks?: MapMark[];
   selectedId?: string | null;
   pending?: { x: number; y: number } | null;
   onPick?: (x: number, y: number) => void;
+  pickLabel?: string;
   testid?: string;
 }) {
   function pick(e: MouseEvent<HTMLDivElement>) {
@@ -50,7 +58,7 @@ export function SiteMap({
         onClick={pick}
         data-testid={testid}
         role={onPick ? "button" : "img"}
-        aria-label={onPick ? `${name}: tap to place the device` : `${name} with ${placed.length} device(s)`}
+        aria-label={onPick ? `${name}: ${pickLabel ?? "tap to place the device"}` : `${name} with ${placed.length} device(s)${marks.length ? ` and ${marks.length} mark(s)` : ""}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={src} alt="" className="absolute inset-0 h-full w-full object-fill" draggable={false} />
@@ -68,8 +76,27 @@ export function SiteMap({
                 <text x={cx} y={cy + r * 0.35} textAnchor="middle" fontSize={r * 0.95} fontWeight={600} fill="#ffffff">
                   {d.hot ? "!" : d.number.slice(0, 3)}
                 </text>
-                <text x={cx + r + 3} y={cy + r * 0.35} fontSize={r * 0.9} fill="#0b0b0b" stroke="#ffffff" strokeWidth={3} paintOrder="stroke">
+                {/* Near the right edge the label goes on the left so it stays on the plan. */}
+                <text x={(d.x as number) > 0.8 ? cx - r - 3 : cx + r + 3} y={cy + r * 0.35} textAnchor={(d.x as number) > 0.8 ? "end" : "start"} fontSize={r * 0.9} fill="#0b0b0b" stroke="#ffffff" strokeWidth={3} paintOrder="stroke">
                   {label}
+                </text>
+              </g>
+            );
+          })}
+          {marks.map((m) => {
+            const side = Math.max(16, Math.min(width, height) / 26);
+            const x = m.x * width;
+            const y = m.y * height;
+            const tag = MARK_TAGS[m.kind as MarkKind] ?? "?";
+            return (
+              <g key={m.id} data-mark={m.label}>
+                <title>{`${tag}: ${m.label}`}</title>
+                <rect x={x - side / 2} y={y - side / 2} width={side} height={side} rx={3} fill={MARK_INK} stroke="#ffffff" strokeWidth={2} />
+                <text x={x} y={y + side * 0.3} textAnchor="middle" fontSize={side * 0.75} fontWeight={700} fill="#ffffff">
+                  {tag}
+                </text>
+                <text x={m.x > 0.6 ? x - side / 2 - 3 : x + side / 2 + 3} y={y + side * 0.3} textAnchor={m.x > 0.6 ? "end" : "start"} fontSize={side * 0.65} fill="#0b0b0b" stroke="#ffffff" strokeWidth={3} paintOrder="stroke">
+                  {m.label}
                 </text>
               </g>
             );
@@ -85,6 +112,14 @@ export function SiteMap({
           </svg>
           device (kind tag and number beside it)
         </span>
+        {marks.length ? (
+          <span className="flex items-center gap-1">
+            <svg width="12" height="12" aria-hidden="true">
+              <rect x="1" y="1" width="10" height="10" rx="2" fill={MARK_INK} />
+            </svg>
+            diagram mark (D damage, E evidence, T treated, X not accessible, M moisture, N note)
+          </span>
+        ) : null}
         {hot ? (
           <span className="flex items-center gap-1">
             <svg width="14" height="14" aria-hidden="true">

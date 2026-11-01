@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { DEVICE_KINDS, KIND_LABELS } from "@/lib/commercial/devices";
+import type { JobStep } from "@/lib/agreements/cadence";
+import { formatJobSteps } from "@/lib/agreements/forms";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, Button, Card, Empty, Field, Input, Notice, Select, Table, Textarea, errorMessage } from "@/components/ui";
@@ -42,6 +44,8 @@ type ServiceType = {
   job_kind: JobKind;
   treatment_areas: string[];
   device_kinds: string[];
+  job_plan: JobStep[] | null;
+  prep_checklist: string[];
   pricing_method: PricingMethod;
   default_duration_minutes: number;
   active: boolean;
@@ -91,7 +95,7 @@ export default async function ServiceTypePage({ params, searchParams }: { params
 
   const [serviceType, rules, items] = await dbAs(session, async (tx) => {
     const [st] = await tx<ServiceType[]>`
-      select id, name, description, service_line, job_kind, treatment_areas, device_kinds, pricing_method, default_duration_minutes, active, archived_at
+      select id, name, description, service_line, job_kind, treatment_areas, device_kinds, job_plan, prep_checklist, pricing_method, default_duration_minutes, active, archived_at
       from public.service_types where id = ${serviceTypeId} and tenant_id = ${tenantId}`;
     if (!st) return [null, [], []] as const;
     const rules = await tx<StateRule[]>`
@@ -393,6 +397,18 @@ export default async function ServiceTypePage({ params, searchParams }: { params
                 ))}
               </div>
             </fieldset>
+            <Field
+              label="Job plan (jobs sold as one price)"
+              htmlFor="job_plan"
+              hint="One step per line: label @ days after the first visit / window days. Example: Treatment @ 0, Follow-up @ 14 / 3. New job agreements start from this plan."
+            >
+              <Textarea id="job_plan" name="job_plan" rows={3} defaultValue={formatJobSteps(serviceType.job_plan)} />
+              <input type="hidden" name="job_plan_present" value="1" />
+            </Field>
+            <Field label="Customer prep checklist" htmlFor="prep_checklist" hint="One item per line. Sent with each visit's reminder; the technician confirms it at the door.">
+              <Textarea id="prep_checklist" name="prep_checklist" rows={3} defaultValue={serviceType.prep_checklist.join("\n")} />
+              <input type="hidden" name="prep_present" value="1" />
+            </Field>
             <Field label="Default duration (minutes)" htmlFor="default_duration_minutes">
               <Input id="default_duration_minutes" name="default_duration_minutes" type="number" min={5} max={1440} defaultValue={serviceType.default_duration_minutes} />
             </Field>

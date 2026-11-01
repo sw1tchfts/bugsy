@@ -1,7 +1,7 @@
 // Cadences and due windows. Pure: strings in, strings out, no database and no clock.
 import { addDays, addMonths, daysBetween, endOfMonth, maxIso, minIso, monthOf, startOfMonth } from "@/lib/dates";
 
-export const CADENCES = ["monthly", "bimonthly", "quarterly", "custom", "seasonal_rounds"] as const;
+export const CADENCES = ["monthly", "bimonthly", "quarterly", "custom", "seasonal_rounds", "job_plan"] as const;
 export type Cadence = (typeof CADENCES)[number];
 
 export const CADENCE_LABELS: Record<Cadence, string> = {
@@ -10,6 +10,7 @@ export const CADENCE_LABELS: Record<Cadence, string> = {
   quarterly: "Quarterly",
   custom: "Custom interval",
   seasonal_rounds: "Seasonal rounds",
+  job_plan: "Job plan (set visits)",
 };
 
 export const BILLING_MODES = ["per_visit", "flat_monthly", "annual_prepay"] as const;
@@ -21,7 +22,43 @@ export const BILLING_MODE_LABELS: Record<BillingMode, string> = {
   annual_prepay: "Annual prepay",
 };
 
-export type CadenceRule = { every?: number; unit?: "weeks" | "months"; rounds?: number };
+/** A job plan step (spec 15): a visit `offset_days` after the first visit, due within `window_days`. */
+export type JobStep = { label: string; offset_days: number; window_days?: number };
+
+export type CadenceRule = { every?: number; unit?: "weeks" | "months"; rounds?: number; steps?: JobStep[] };
+
+/** A job plan from the form: one step per line, "label @ offset days / window days" (window optional). */
+export function parseJobSteps(text: string): JobStep[] {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const m = /^(.*?)\s*@\s*(-?\d+)\s*(?:\/\s*(\d+))?\s*$/.exec(line);
+      if (!m) return { label: line, offset_days: Number.NaN };
+      return { label: m[1].trim(), offset_days: Number(m[2]), ...(m[3] ? { window_days: Number(m[3]) } : {}) };
+    });
+}
+
+export function formatJobSteps(steps: readonly JobStep[] | undefined | null): string {
+  return (steps ?? []).map((s) => `${s.label} @ ${s.offset_days}${s.window_days ? ` / ${s.window_days}` : ""}`).join("\n");
+}
+
+/** Spec 15 rule 1: problems with a job plan's steps; empty when sound. */
+export function jobStepIssues(steps: readonly JobStep[] | undefined): string[] {
+  const list = steps ?? [];
+  const issues: string[] = [];
+  if (list.length < 1 || list.length > 20) issues.push("A job plan has 1 to 20 steps.");
+  let last = -1;
+  for (const [i, step] of list.entries()) {
+    if (!String(step.label ?? "").trim()) issues.push(`Step ${i + 1} needs a label.`);
+    if (!Number.isInteger(step.offset_days) || step.offset_days < 0) issues.push(`Step ${i + 1}'s offset is a whole number of days from the first visit.`);
+    else if (step.offset_days < last) issues.push(`Step ${i + 1} comes before the step above it.`);
+    else last = step.offset_days;
+    if (step.window_days !== undefined && !(Number.isInteger(step.window_days) && step.window_days >= 1 && step.window_days <= 30)) issues.push(`Step ${i + 1}'s window is 1 to 30 days.`);
+  }
+  return issues;
+}
 
 export type PlanInput = {
   cadence: Cadence;
@@ -53,6 +90,8 @@ export type DueWindow = {
   interior_only: boolean;
   /** True when the step falls in a skipped month; skipped windows carry no visit. */
   skipped: boolean;
+  /** The job plan step's label (spec 15). */
+  label?: string;
 };
 
 /** Last day of the term, including renewals. */
@@ -81,10 +120,16 @@ export function planIssues(input: PlanInput): string[] {
   const first = input.first_visit_on ?? input.starts_on;
   if (first < input.starts_on) issues.push("The first visit cannot be before the agreement starts.");
   if (first > endsOn(input)) issues.push("The first visit falls after the term ends.");
-  if (input.skip_months.includes(monthOf(first)) && input.cadence !== "seasonal_rounds") issues.push("The first visit falls in a skipped month; pick another first visit date.");
+  if (input.skip_months.includes(monthOf(first)) && input.cadence !== "seasonal_rounds" && input.cadence !== "job_plan") issues.push("The first visit falls in a skipped month; pick another first visit date.");
   if (input.cadence === "custom") {
     const every = input.cadence_rule?.every ?? 0;
     if (!(every >= 1) || !["weeks", "months"].includes(input.cadence_rule?.unit ?? "")) issues.push("A custom cadence needs an interval in weeks or months.");
+  }
+  if (input.cadence === "job_plan") {
+    issues.push(...jobStepIssues(input.cadence_rule?.steps));
+    const steps = input.cadence_rule?.steps ?? [];
+    const lastOffset = steps.length ? Math.max(...steps.map((s) => Number(s.offset_days) || 0)) : 0;
+    if (addDays(first, lastOffset) > endsOn(input)) issues.push("The job plan's last step falls after the term ends; lengthen the term.");
   }
   if (input.cadence === "seasonal_rounds") {
     const rounds = input.cadence_rule?.rounds ?? 0;
@@ -114,6 +159,16 @@ export function cadenceSteps(input: PlanInput): DueWindow[] {
     interior_only: input.interior_only_months.includes(monthOf(step)),
     skipped: input.skip_months.includes(monthOf(step)),
   });
+
+  if (input.cadence === "job_plan") {
+    // One window per step, from the first visit date plus the step's offset; skip months do not apply to a job.
+    for (const step of input.cadence_rule?.steps ?? []) {
+      const dueStart = addDays(first, step.offset_days);
+      if (dueStart > ends) continue;
+      windows.push({ step: dueStart, due_start: dueStart, due_end: minIso(addDays(dueStart, (step.window_days ?? 3) - 1), ends), interior_only: false, skipped: false, label: step.label.trim() });
+    }
+    return windows;
+  }
 
   if (input.cadence === "seasonal_rounds") {
     const rounds = Math.max(1, Math.floor(input.cadence_rule?.rounds ?? 1));

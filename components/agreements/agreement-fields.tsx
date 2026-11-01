@@ -1,10 +1,11 @@
 import { BILLING_MODES, BILLING_MODE_LABELS, CADENCES, CADENCE_LABELS } from "@/lib/agreements/cadence";
-import { MONTHS } from "@/lib/agreements/forms";
+import { MONTHS, formatJobSteps } from "@/lib/agreements/forms";
 import { Field, Input, Select, Textarea } from "@/components/ui";
 
 export type AgreementFieldValues = {
   cadence?: string;
-  cadence_rule?: { every?: number; unit?: string; rounds?: number } | null;
+  cadence_rule?: { every?: number; unit?: string; rounds?: number; steps?: { label: string; offset_days: number; window_days?: number }[] } | null;
+  recognition?: string;
   season_start?: string | null;
   season_end?: string | null;
   skip_months?: readonly number[];
@@ -65,6 +66,15 @@ export function AgreementFields({ prefix, values = {}, locked = false }: { prefi
           <Input name="season_start" type="date" defaultValue={values.season_start ?? ""} aria-label="Season start" />
           <Input name="season_end" type="date" defaultValue={values.season_end ?? ""} aria-label="Season end" />
         </div>
+      </Field>
+      <Field label="Job steps" htmlFor={id("job-steps")} hint="Only for a job plan: one visit per line, Label @ days after the first visit (add / days for its window). Leave empty to use the service type's plan.">
+        <Textarea id={id("job-steps")} name="job_steps" rows={3} defaultValue={formatJobSteps(rule.steps)} placeholder={"Treatment @ 0\nFollow-up @ 14\nFinal check @ 28"} />
+      </Field>
+      <Field label="Revenue" htmlFor={id("recognition")} hint="Warranties earn their fee evenly over each year rather than at the visit.">
+        <Select id={id("recognition")} name="recognition" defaultValue={values.recognition ?? "per_visit"}>
+          <option value="per_visit">Earned at each visit</option>
+          <option value="straight_line">Earned evenly over each term (warranty)</option>
+        </Select>
       </Field>
       <Field label="Initial visit price ($)" htmlFor={id("initial")}>
         <Input id={id("initial")} name="initial_price" inputMode="decimal" defaultValue={dollars(values.initial_price_cents)} />

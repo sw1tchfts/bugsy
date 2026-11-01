@@ -1,5 +1,5 @@
 // Reads the agreement form into columns and a plan input, with every validation message the office needs.
-import { BILLING_MODES, type BillingMode, CADENCES, type Cadence, type CadenceRule, type PlanInput, planIssues } from "@/lib/agreements/cadence";
+import { BILLING_MODES, type BillingMode, CADENCES, type Cadence, type CadenceRule, type JobStep, type PlanInput, formatJobSteps, parseJobSteps, planIssues } from "@/lib/agreements/cadence";
 import { intOrNull, opt, str } from "@/lib/customers/forms";
 import { isIsoDate } from "@/lib/dates";
 import { parseDollarsToCents } from "@/lib/money";
@@ -26,9 +26,17 @@ export const VISIT_KIND_LABELS = { initial: "Initial", recurring: "Recurring", r
 
 export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
 
+export const RECOGNITIONS = ["per_visit", "straight_line"] as const;
+export type Recognition = (typeof RECOGNITIONS)[number];
+
+// Job steps from the form live in the pure cadence module; re-exported for the form readers.
+export { formatJobSteps, parseJobSteps };
+
 export type AgreementColumns = {
   cadence: Cadence;
   cadence_rule: CadenceRule;
+  /** Spec 15: per visit, or evenly over each term (warranties). */
+  recognition: Recognition;
   season_start: string | null;
   season_end: string | null;
   skip_months: number[];
@@ -57,7 +65,7 @@ function dollars(formData: FormData, key: string): number | null {
 }
 
 /** Validates the plan fields shared by create and update. */
-export function readAgreementColumns(formData: FormData): { value: AgreementColumns } | { error: string } {
+export function readAgreementColumns(formData: FormData, defaults: { jobSteps?: readonly JobStep[] | null } = {}): { value: AgreementColumns } | { error: string } {
   const cadence = str(formData, "cadence") as Cadence;
   if (!CADENCES.includes(cadence)) return { error: "Pick a cadence." };
   const billingMode = str(formData, "billing_mode") as BillingMode;
@@ -78,6 +86,11 @@ export function readAgreementColumns(formData: FormData): { value: AgreementColu
     rule.unit = str(formData, "unit") === "months" ? "months" : "weeks";
   }
   if (cadence === "seasonal_rounds") rule.rounds = intOrNull(formData, "rounds") ?? 0;
+  if (cadence === "job_plan") {
+    // Spec 15: the steps typed on the form, or the service type's plan when left empty.
+    const typed = parseJobSteps(str(formData, "job_steps"));
+    rule.steps = typed.length ? typed : [...(defaults.jobSteps ?? [])];
+  }
   const seasonStart = cadence === "seasonal_rounds" ? opt(formData, "season_start") : null;
   const seasonEnd = cadence === "seasonal_rounds" ? opt(formData, "season_end") : null;
   if (cadence === "seasonal_rounds" && (!seasonStart || !seasonEnd || !isIsoDate(seasonStart) || !isIsoDate(seasonEnd))) return { error: "A seasonal program needs a season start and end." };
@@ -100,6 +113,7 @@ export function readAgreementColumns(formData: FormData): { value: AgreementColu
     window_days: intOrNull(formData, "window_days") ?? (cadence === "custom" && rule.unit === "weeks" ? 7 : 30),
     terms_text: opt(formData, "terms_text"),
     notes: opt(formData, "notes"),
+    recognition: str(formData, "recognition") === "straight_line" ? "straight_line" : "per_visit",
   };
   if (value.term_months < 1 || value.term_months > 60) return { error: "The term is between 1 and 60 months." };
   if (value.window_days < 1 || value.window_days > 90) return { error: "A due window is between 1 and 90 days." };

@@ -10,6 +10,8 @@ import { onVisitCompleted } from "@/lib/compliance/db";
 import { decodeBase64File, putFile } from "@/lib/files";
 import { checkProblems, isDeviceKind, validPosition, ZONES } from "@/lib/commercial/devices";
 import { dateInZone } from "@/lib/dates";
+import { DISPOSITIONS } from "@/lib/specialty/materials";
+import { invoiceMaterials } from "@/lib/specialty/db";
 import { gapsFor } from "@/lib/tech/gaps";
 import { loadRouteVisit } from "@/lib/tech/route-db";
 import type { ChangePayload, QueuedChange, SyncResult } from "@/lib/tech/route-types";
@@ -138,6 +140,8 @@ async function apply(tx: Sql, actor: Actor, change: QueuedChange): Promise<SyncR
       await invoiceForVisit(tx, tenantId, visitId, tenant?.timezone ?? "UTC");
       await postVisit(tx, tenantId, visitId, tenant?.timezone ?? "UTC");
       await postProductUse(tx, tenantId, visitId, tenant?.timezone ?? "UTC");
+      // Billable materials used at the stop become their own invoice (spec 15 rule 5).
+      await invoiceMaterials(tx, tenantId, visitId, tenant?.timezone ?? "UTC");
       // The summary goes to the customer, carrying the post-application notice when it can (spec 11 rule 8).
       await safely(tx, "visit summary", (t) => queueVisitSummary(t, tenantId, visitId, tenant?.timezone ?? "UTC"));
       return { id: change.id, result: "applied" };
@@ -162,6 +166,10 @@ async function apply(tx: Sql, actor: Actor, change: QueuedChange): Promise<SyncR
       });
       return { id: change.id, result: "applied" };
     }
+    case "prep_check":
+    case "capture":
+    case "material":
+      return applySpecialtyChange(tx, actor, change, payload);
     case "device_check":
     case "device_add":
     case "device_move":
@@ -248,6 +256,51 @@ async function applySiteChange(tx: Sql, actor: Actor, change: QueuedChange, payl
       await tx`
         insert into public.recommendations (tenant_id, property_id, visit_id, category, description, responsibility, priority, client_id)
         values (${tenantId}, ${visit.property_id}, ${visitId}, ${payload.category}, ${payload.description.trim()}, ${payload.responsibility}, ${payload.priority}, ${change.id})`;
+      return { id: change.id, result: "applied" };
+    }
+    default:
+      return rejected(change.id, "unknown change kind");
+  }
+}
+
+/** Spec 15: the prep check, wildlife captures and materials, recorded while the visit is open (rules 4 to 6). */
+async function applySpecialtyChange(tx: Sql, actor: Actor, change: QueuedChange, payload: ChangePayload): Promise<SyncResult> {
+  const { tenantId, userId } = actor;
+  const visitId = change.visit_id;
+  const [visit] = await tx<{ status: string }[]>`select status from public.visits where id = ${visitId} and tenant_id = ${tenantId}`;
+  if (!visit) return rejected(change.id, "visit not found");
+  if (!["scheduled", "en_route", "in_progress"].includes(visit.status)) return rejected(change.id, "sync.visitClosed");
+  switch (payload.kind) {
+    case "prep_check": {
+      const missing = (payload.missing ?? []).map((m) => String(m).trim()).filter(Boolean);
+      const notes = payload.notes?.trim() || null;
+      if (!payload.ready && missing.length === 0 && !notes) return rejected(change.id, "sync.prepWhy");
+      await tx`
+        insert into public.prep_checks (tenant_id, visit_id, ready, missing, notes, checked_by, checked_at, client_id)
+        values (${tenantId}, ${visitId}, ${payload.ready}, ${missing}, ${notes}, ${userId}, ${instant(payload.at)}, ${change.id})
+        on conflict (visit_id) do update set ready = excluded.ready, missing = excluded.missing, notes = excluded.notes,
+          checked_by = excluded.checked_by, checked_at = excluded.checked_at, client_id = excluded.client_id`;
+      return { id: change.id, result: "applied" };
+    }
+    case "capture": {
+      const count = Number(payload.count);
+      if (!payload.species?.trim() || !Number.isInteger(count) || count < 1 || !(DISPOSITIONS as readonly string[]).includes(payload.disposition)) {
+        return rejected(change.id, "sync.captureIncomplete");
+      }
+      await tx`
+        insert into public.wildlife_captures (tenant_id, visit_id, species, count, disposition, location, notes, client_id, created_at, created_by)
+        values (${tenantId}, ${visitId}, ${payload.species.trim()}, ${count}, ${payload.disposition}, ${payload.location?.trim() || null}, ${payload.notes?.trim() || null},
+                ${change.id}, ${instant(payload.at)}, ${userId})`;
+      return { id: change.id, result: "applied" };
+    }
+    case "material": {
+      const quantity = Number(payload.quantity);
+      const price = Number(payload.unit_price_cents);
+      if (!payload.description?.trim() || !Number.isFinite(quantity) || quantity <= 0 || !Number.isInteger(price) || price < 0) return rejected(change.id, "sync.materialIncomplete");
+      await tx`
+        insert into public.visit_materials (tenant_id, visit_id, description, quantity, unit, unit_price_cents, billable, client_id, created_at, created_by)
+        values (${tenantId}, ${visitId}, ${payload.description.trim()}, ${quantity.toFixed(3)}, ${payload.unit?.trim() || "each"}, ${price}, ${Boolean(payload.billable)},
+                ${change.id}, ${instant(payload.at)}, ${userId})`;
       return { id: change.id, result: "applied" };
     }
     default:

@@ -117,6 +117,13 @@ export default async function DispatchVisitPage({ params, searchParams }: { para
           {detail.skip_reason ? ` Skipped: ${detail.skip_reason}.` : ""}
         </p>
         {detail.access_notes ? <p className="text-sm text-stone-600">Access: {detail.access_notes}</p> : null}
+        {visit.job_kind === "inspection" || visit.job_kind === "wdi_report" ? (
+          <p className="text-sm">
+            <Link href={`/visits/${visit.id}/wdi`} className="text-emerald-800 underline">
+              WDI report
+            </Link>
+          </p>
+        ) : null}
       </div>
       {error ? <Notice kind="error">{errorMessage(error)}</Notice> : null}
       {warn ? <Notice kind="info">{warn}</Notice> : null}

@@ -43,5 +43,7 @@ export function gapsFor(visit: RouteVisit): string[] {
     visit.captured.notes.length > 0 || visit.captured.photos.length > 0,
   )
     .map((g) => g.key)
-    .concat(devicesLeft(visit).length > 0 ? ["devices"] : []);
+    .concat(devicesLeft(visit).length > 0 ? ["devices"] : [])
+    // Spec 15 rule 6: a visit with a prep checklist asks whether the unit was ready.
+    .concat(visit.specialty?.prep_checklist.length && !visit.specialty.prep_check ? ["prep"] : []);
 }

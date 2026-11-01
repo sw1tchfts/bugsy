@@ -1975,3 +1975,125 @@ describe("spec 14 rules enforced in the database", () => {
     expect(result.onArchived).toMatch(/archived/);
   });
 });
+
+describe("spec 15 rules enforced in the database", () => {
+  const ownerEmail = seedUserEmail(lakeshore, "owner");
+  const techEmail = seedUserEmail(lakeshore, "technician");
+  const managerEmail = seedUserEmail(lakeshore, "compliance_manager");
+  let tech = "";
+  let manager = "";
+  const ROLLBACK = "rollback: spec 15";
+
+  async function rolledBack<T>(fn: (tx: Tx, as: (id: string, email: string) => Promise<void>) => Promise<T>): Promise<T> {
+    let out: T | undefined;
+    await admin
+      .begin(async (tx) => {
+        const as = async (id: string, email: string) => {
+          await tx.unsafe("reset role");
+          await tx.unsafe("set local role authenticated");
+          await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: id, email, role: "authenticated" })}, true)`;
+        };
+        out = await fn(tx, as);
+        throw new Error(ROLLBACK);
+      })
+      .catch((e: Error) => {
+        if (e.message !== ROLLBACK) throw e;
+      });
+    return out as T;
+  }
+  const attempt = (tx: Tx, q: (sp: Tx) => Promise<unknown>) =>
+    tx.savepoint((sp) => q(sp as unknown as Tx)).then((r) => `ok ${(r as { count?: number }).count ?? ""}`.trim(), (e: Error) => e.message);
+
+  beforeAll(async () => {
+    tech = await userId(techEmail);
+    manager = await userId(managerEmail);
+  });
+
+  it("lets only the crew of an open visit record captures, materials and prep checks, and nothing once it is completed (rules 4 to 6, 9)", async () => {
+    const [job] = await admin<{ id: string }[]>`
+      select v.id from public.visits v join public.agreements a on a.id = v.agreement_id
+      where a.tenant_id = ${lakeshoreId} and a.notes = 'seed:green-wildlife' order by v.due_start limit 1`;
+    expect(job, "the seed has a wildlife job").toBeTruthy();
+    const result = await rolledBack(async (tx, as) => {
+      // Not on the crew yet: refused.
+      await as(tech, techEmail);
+      const stranger = await attempt(tx, (sp) => sp`insert into public.wildlife_captures (tenant_id, visit_id, species, count, disposition) values (${lakeshoreId}, ${job.id}, 'Opossum', 1, 'relocated')`);
+      // On the crew of the open visit: the capture, a material and the prep check go in.
+      await tx.unsafe("reset role");
+      await tx.unsafe("set local session_replication_role = replica");
+      await tx`update public.visits set status = 'scheduled', scheduled_for = current_date, technician_id = ${tech} where id = ${job.id}`;
+      await tx`insert into public.visit_crew (tenant_id, visit_id, user_id, role) values (${lakeshoreId}, ${job.id}, ${tech}, 'lead') on conflict do nothing`;
+      await tx.unsafe("set local session_replication_role = origin");
+      await as(tech, techEmail);
+      const capture = await attempt(tx, (sp) => sp`insert into public.wildlife_captures (tenant_id, visit_id, species, count, disposition) values (${lakeshoreId}, ${job.id}, 'Opossum', 1, 'relocated')`);
+      const material = await attempt(tx, (sp) => sp`insert into public.visit_materials (tenant_id, visit_id, description, quantity, unit_price_cents) values (${lakeshoreId}, ${job.id}, 'Steel wool', 2, 300)`);
+      const zero = await attempt(tx, (sp) => sp`insert into public.wildlife_captures (tenant_id, visit_id, species, count, disposition) values (${lakeshoreId}, ${job.id}, 'Opossum', 0, 'relocated')`);
+      const notReady = await attempt(tx, (sp) => sp`insert into public.prep_checks (tenant_id, visit_id, ready) values (${lakeshoreId}, ${job.id}, false)`);
+      // Completed: what was recorded at it is closed.
+      await tx.unsafe("reset role");
+      await tx.unsafe("set local session_replication_role = replica");
+      await tx`update public.visits set status = 'completed', completed_at = now() where id = ${job.id}`;
+      await tx.unsafe("set local session_replication_role = origin");
+      await as(tech, techEmail);
+      const late = await attempt(tx, (sp) => sp`insert into public.visit_materials (tenant_id, visit_id, description, quantity, unit_price_cents) values (${lakeshoreId}, ${job.id}, 'Late add', 1, 100)`);
+      await as(lakeshoreOwner, ownerEmail);
+      const officeLate = await attempt(tx, (sp) => sp`update public.wildlife_captures set count = 3 where visit_id = ${job.id}`);
+      return { stranger, capture, material, zero, notReady, late, officeLate };
+    });
+    expect(result.stranger).toMatch(RLS_ERROR);
+    expect(result.capture).toBe("ok 1");
+    expect(result.material).toBe("ok 1");
+    expect(result.zero).toMatch(/check constraint/);
+    expect(result.notReady).toMatch(/prep_checks_not_ready/);
+    expect(result.late).toMatch(/completed|row-level security/);
+    expect(result.officeLate).toMatch(/completed/);
+  });
+
+  it("issues a WDI report only with compliance.write, and an issued report never changes (rule 7)", async () => {
+    const [report] = await admin<{ id: string; visit_id: string }[]>`select id, visit_id from public.wdi_reports where tenant_id = ${lakeshoreId} and status = 'draft' limit 1`;
+    const [other] = await admin<{ id: string }[]>`
+      select v.id from public.visits v join public.service_types st on st.id = v.service_type_id
+      where v.tenant_id = ${lakeshoreId} and st.job_kind not in ('inspection', 'wdi_report') limit 1`;
+    expect(report, "the seed has a draft WDI report").toBeTruthy();
+    const result = await rolledBack(async (tx, as) => {
+      await as(tech, techEmail);
+      const draft = await attempt(tx, (sp) => sp`update public.wdi_reports set inspected_areas = 'Crawlspace, garage, attic' where id = ${report.id}`);
+      const techIssue = await attempt(tx, (sp) => sp`update public.wdi_reports set status = 'issued' where id = ${report.id}`);
+      await as(manager, managerEmail);
+      const wrongVisit = await attempt(tx, (sp) => sp`insert into public.wdi_reports (tenant_id, visit_id) values (${lakeshoreId}, ${other.id})`);
+      const issued = await attempt(tx, (sp) => sp`update public.wdi_reports set status = 'issued' where id = ${report.id}`);
+      const [after] = await tx<{ number: number | null; issued_at: Date | null }[]>`select number, issued_at from public.wdi_reports where id = ${report.id}`;
+      const changed = await attempt(tx, (sp) => sp`update public.wdi_reports set notes = 'edited after issue' where id = ${report.id}`);
+      const removed = await attempt(tx, (sp) => sp`delete from public.wdi_reports where id = ${report.id}`);
+      return { draft, techIssue, wrongVisit, issued, after, changed, removed };
+    });
+    expect(result.draft).toBe("ok 1");
+    expect(result.techIssue).toMatch(/compliance\.write/);
+    expect(result.wrongVisit).toMatch(/inspection or WDI visit/);
+    expect(result.issued).toBe("ok 1");
+    expect(result.after.number).toBeGreaterThan(0);
+    expect(result.after.issued_at).not.toBeNull();
+    expect(result.changed).toMatch(/kept as issued/);
+    expect(result.removed).toMatch(/kept as issued/);
+  });
+
+  it("posts recognition only for a straight-line agreement, and a job plan needs its steps (rules 1 and 2)", async () => {
+    const [perVisit] = await admin<{ id: string }[]>`select id from public.agreements where tenant_id = ${lakeshoreId} and recognition = 'per_visit' limit 1`;
+    const [warranty] = await admin<{ id: string }[]>`select id from public.agreements where tenant_id = ${lakeshoreId} and notes = 'seed:patel-warranty'`;
+    const [{ posted }] = await admin<{ posted: number }[]>`
+      select count(*)::int as posted from public.journal_entries where tenant_id = ${lakeshoreId} and source_type = 'recognition' and source_id = ${warranty.id}`;
+    const result = await rolledBack(async (tx, as) => {
+      await as(lakeshoreOwner, ownerEmail);
+      const lines = [
+        { account_key: "contract_liability", debit_cents: 100, credit_cents: 0, agreement_id: perVisit.id },
+        { account_key: "revenue_general_pest", debit_cents: 0, credit_cents: 100 },
+      ];
+      const forged = await attempt(tx, (sp) => sp`select app.post_entry(${lakeshoreId}, ${sp.json({ source_type: "recognition", source_id: perVisit.id, source_key: "forged:recognition", posted_on: "2026-01-31" })}, ${sp.json(lines)}, ${sp.json([])})`);
+      const noSteps = await attempt(tx, (sp) => sp`update public.agreements set cadence = 'job_plan', cadence_rule = '{}'::jsonb where id = ${perVisit.id}`);
+      return { forged, noSteps };
+    });
+    expect(posted, "the seed posts the warranty's ended months").toBeGreaterThan(0);
+    expect(result.forged).toMatch(/needs its source row/);
+    expect(result.noSteps).toMatch(/agreements_job_plan_steps|check constraint/);
+  });
+});

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { MonthBars } from "@/components/charts";
 import { MapEditor } from "@/components/map-editor";
+import { MarkEditor } from "@/components/mark-editor";
+import { marksFor } from "@/lib/specialty/db";
 import { Badge, Button, Card, Empty, Field, Input, Notice, Select, Table, Textarea, errorMessage } from "@/components/ui";
 import { can } from "@/lib/auth/permissions";
 import { dbAs } from "@/lib/auth/session";
@@ -13,12 +15,14 @@ import { monthsBetween } from "@/lib/reports/metrics";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 import {
   addDevice,
+  addMark,
   addRecommendation,
   addSighting,
   archiveMap,
   placeDevice,
   recordCheck,
   removeDevice,
+  removeMark,
   resolveSighting,
   updateDevice,
   updateRecommendation,
@@ -41,10 +45,14 @@ export default async function SitePage({ params, searchParams }: { params: Promi
   const today = todayInZone(tz);
   const to = q.to && isIsoDate(q.to) ? q.to : today;
   const from = q.from && isIsoDate(q.from) && q.from <= to ? q.from : addMonths(to, -12);
-  const site = await dbAs(session, (tx) => loadSite(tx, active.tenantId, propertyId, tz, from, to));
-  if (!site) notFound();
+  const loaded = await dbAs(session, async (tx) => {
+    const s = await loadSite(tx, active.tenantId, propertyId, tz, from, to);
+    return s ? { site: s, marks: await marksFor(tx, active.tenantId, propertyId) } : null;
+  });
+  if (!loaded) notFound();
+  const { site, marks } = loaded;
   const canWrite = !active.support || active.support.access === "write" ? can(active.permissions, "customers.write") || can(active.permissions, "dispatch.write") : false;
-  const canDocs = can(active.permissions, "customers.write");
+  const canDocs = canWrite;
   const activeDevices = site.devices.filter((d) => d.status === "active");
   const hidden = (
     <>
@@ -102,6 +110,7 @@ export default async function SitePage({ params, searchParams }: { params: Promi
               maps={site.maps}
               devices={activeDevices}
               hot={[...site.hot]}
+              marks={marks}
               canWrite={canWrite}
               place={placeDevice}
             />
@@ -145,6 +154,14 @@ export default async function SitePage({ params, searchParams }: { params: Promi
           ) : null}
         </Card>
       </section>
+
+      {site.maps.length ? (
+        <section id="marks">
+          <Card title="Diagram marks" description="The termite graph: damage, evidence, treated areas, moisture and places that could not be inspected, marked on the plan with a label. Squares are marks; circles are devices.">
+            <MarkEditor tenantId={active.tenantId} propertyId={propertyId} maps={site.maps} devices={activeDevices} marks={marks} canWrite={canWrite} add={addMark} remove={removeMark} />
+          </Card>
+        </section>
+      ) : null}
 
       <section id="devices">
         <Card title={`Devices: ${activeDevices.length} active`}>

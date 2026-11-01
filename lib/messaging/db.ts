@@ -12,7 +12,7 @@ import { type CompanyFacts, noticeHtml, noticeText, summaryHtml, summaryText } f
 import { attempt, providerFor } from "./providers";
 import { type Channel, chooseChannel, e164, keyword, nextAllowed, normalizeAddress, smsSegments, withinQuietHours } from "./rules";
 import { safely } from "./safely";
-import { type TemplateKey, checkTemplate, render, templateFor, textToHtml } from "./templates";
+import { type TemplateKey, checkTemplate, prepText, render, templateFor, textToHtml } from "./templates";
 
 type Sql = postgres.Sql | postgres.TransactionSql;
 
@@ -368,8 +368,8 @@ function longDate(iso: string): string {
 export async function queueReminders(tx: Sql, tenantId: string, settings: MessagingSettings, timeZone: string, now: Date): Promise<number> {
   if (!settings.reminders_enabled) return 0;
   const target = addDays(todayInZone(timeZone), settings.reminder_days);
-  const visits = await tx<{ id: string; scheduled_for: string; arrival_window: string; service_name: string; address: string }[]>`
-    select v.id, v.scheduled_for::text, v.arrival_window, st.name as service_name, p.normalized_address as address
+  const visits = await tx<{ id: string; scheduled_for: string; arrival_window: string; service_name: string; address: string; prep_checklist: string[] | null }[]>`
+    select v.id, v.scheduled_for::text, v.arrival_window, st.name as service_name, p.normalized_address as address, st.prep_checklist
     from public.visits v join public.service_types st on st.id = v.service_type_id join public.properties p on p.id = v.property_id
     where v.tenant_id = ${tenantId} and v.status = 'scheduled' and v.scheduled_for = ${target}
       and not exists (select 1 from public.messages m where m.tenant_id = v.tenant_id and m.dedupe_key = 'reminder:' || v.id || ':' || v.scheduled_for::text)`;
@@ -382,7 +382,14 @@ export async function queueReminders(tx: Sql, tenantId: string, settings: Messag
       key: "reminder",
       purpose: "reminder",
       recipient,
-      vars: { ...commonVars(company, recipient, v.address), visit_date: longDate(v.scheduled_for), arrival_window: WINDOW_TEXT[v.arrival_window] ?? "", service_name: v.service_name },
+      vars: {
+        ...commonVars(company, recipient, v.address),
+        visit_date: longDate(v.scheduled_for),
+        arrival_window: WINDOW_TEXT[v.arrival_window] ?? "",
+        service_name: v.service_name,
+        // Spec 15 rule 6: the customer's prep list goes out with each visit's reminder.
+        prep_checklist: prepText(v.prep_checklist),
+      },
       dedupe_key: `reminder:${v.id}:${v.scheduled_for}`,
       ids: { visit_id: v.id },
       send_after: now,

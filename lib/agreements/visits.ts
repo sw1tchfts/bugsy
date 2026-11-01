@@ -8,6 +8,8 @@ export type PlannedVisit = {
   due_end: string;
   price_cents: number;
   interior_only: boolean;
+  /** The job plan step the visit comes from (spec 15). */
+  label?: string | null;
 };
 
 /** The visits for the whole term: the first window is the initial visit, the rest recur; skipped months carry none. */
@@ -22,6 +24,7 @@ export function planVisits(input: PlanInput): PlannedVisit[] {
     due_end: w.due_end,
     price_cents: i === 0 ? input.initial_price_cents : input.recurring_price_cents,
     interior_only: w.interior_only,
+    ...(w.label ? { label: w.label } : {}),
   }));
 }
 

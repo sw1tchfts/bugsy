@@ -16,8 +16,10 @@ import type {
   RoutePayload,
   RouteProduct,
   RouteSite,
+  RouteSpecialty,
   RouteVisit,
 } from "@/lib/tech/route-types";
+import { WILDLIFE_JOB_KINDS } from "@/lib/specialty/materials";
 import type { Conditions } from "@/lib/weather/provider";
 
 type Sql = postgres.Sql | postgres.TransactionSql;
@@ -53,6 +55,9 @@ type VisitRow = {
   service_type_id: string;
   service_type_name: string;
   device_kinds: string[];
+  prep_checklist: string[] | null;
+  step_label: string | null;
+  agreement_id: string | null;
   arrived_at: string | null;
   departed_at: string | null;
   completed_at: string | null;
@@ -69,7 +74,7 @@ const VISIT_SELECT = (tx: Sql) => tx`
          v.interior_only, v.reservice_reason, v.dispatch_notes, v.price_cents, ag.billing_mode, ag.agreement_number,
          ac.id as account_id, ac.name as account_name, ac.phone as account_phone,
          p.id as property_id, p.normalized_address as address, p.city, p.state_code, p.lat, p.lng, p.access_notes,
-         st.id as service_type_id, st.name as service_type_name, st.device_kinds,
+         st.id as service_type_id, st.name as service_type_name, st.device_kinds, st.prep_checklist, v.step_label, v.agreement_id,
          v.arrived_at, v.departed_at, v.completed_at, v.conditions, v.areas_treated, v.target_pests,
          r.required_cert_categories, r.pack_version, r.confirmed_at
   from public.visits v
@@ -134,6 +139,29 @@ async function siteFor(tx: Sql, tenantId: string, propertyId: string, visitId: s
   };
 }
 
+/** Spec 15: the prep checklist and its check, the job's authorization for wildlife work, captures and materials. */
+async function specialtyFor(tx: Sql, tenantId: string, row: VisitRow): Promise<RouteSpecialty> {
+  const [prep] = await tx<{ ready: boolean; missing: string[]; notes: string | null; checked_at: Date }[]>`
+    select ready, missing, notes, checked_at from public.prep_checks where tenant_id = ${tenantId} and visit_id = ${row.id}`;
+  const captures = await tx<{ id: string; species: string; count: number; disposition: string; location: string | null; notes: string | null; created_at: Date }[]>`
+    select id, species, count, disposition, location, notes, created_at from public.wildlife_captures where tenant_id = ${tenantId} and visit_id = ${row.id} order by created_at`;
+  const materials = await tx<{ id: string; description: string; quantity: string; unit: string; unit_price_cents: string; billable: boolean; created_at: Date }[]>`
+    select id, description, quantity::text, unit, unit_price_cents, billable, created_at from public.visit_materials where tenant_id = ${tenantId} and visit_id = ${row.id} order by created_at`;
+  const wildlife = (WILDLIFE_JOB_KINDS as readonly string[]).includes(row.job_kind);
+  const [auth] = wildlife && row.agreement_id
+    ? await tx<{ ok: boolean }[]>`select exists (select 1 from public.job_authorizations where tenant_id = ${tenantId} and agreement_id = ${row.agreement_id}) as ok`
+    : [{ ok: false }];
+  return {
+    step_label: row.step_label,
+    prep_checklist: row.prep_checklist ?? [],
+    prep_check: prep ? { ready: prep.ready, missing: prep.missing, notes: prep.notes, checked_at: new Date(prep.checked_at).toISOString() } : null,
+    wildlife,
+    authorized: auth?.ok ?? false,
+    captures: captures.map((c) => ({ ...c, created_at: new Date(c.created_at).toISOString() })),
+    materials: materials.map((m) => ({ ...m, unit_price_cents: Number(m.unit_price_cents), created_at: new Date(m.created_at).toISOString() })),
+  };
+}
+
 async function crewFor(tx: Sql, tenantId: string, visitId: string, stateCode: string, names: Map<string, string>): Promise<RouteCrewMember[]> {
   const rows = await tx<{ user_id: string; role: CrewRole; cert_number: string | null; categories: string[] | null; trainee_registered_on: string | null; cert_expires_on: string | null; has_credential: boolean }[]>`
     select c.user_id, c.role, cr.cert_number, cr.categories, cr.trainee_registered_on, cr.cert_expires_on, (cr.id is not null) as has_credential
@@ -149,7 +177,7 @@ async function crewFor(tx: Sql, tenantId: string, visitId: string, stateCode: st
   }));
 }
 
-function toRouteVisit(row: VisitRow, crew: RouteCrewMember[], captured: RouteVisit["captured"], site: RouteSite | null): RouteVisit {
+function toRouteVisit(row: VisitRow, crew: RouteCrewMember[], captured: RouteVisit["captured"], site: RouteSite | null, specialty: RouteSpecialty): RouteVisit {
   return {
     id: row.id,
     sequence: row.sequence,
@@ -175,6 +203,7 @@ function toRouteVisit(row: VisitRow, crew: RouteCrewMember[], captured: RouteVis
     state_rule: row.required_cert_categories ? { required_cert_categories: row.required_cert_categories, pack_version: row.pack_version, confirmed_at: row.confirmed_at } : null,
     required_fields: requiredRecordFields(row.job_kind, getStatePack(row.state_code)),
     site,
+    specialty,
     captured: {
       ...captured,
       arrived_at: row.arrived_at ? new Date(row.arrived_at).toISOString() : null,
@@ -194,7 +223,7 @@ export async function loadRouteVisit(tx: Sql, tenantId: string, visitId: string)
   const names = new Map((await listMembers(tx, tenantId)).map((m) => [m.user_id, m.name]));
   const crew = await crewFor(tx, tenantId, visitId, row.state_code, names);
   const captured = await captures(tx, tenantId, visitId);
-  return toRouteVisit(row, crew, captured, await siteFor(tx, tenantId, row.property_id, row.id, row.device_kinds));
+  return toRouteVisit(row, crew, captured, await siteFor(tx, tenantId, row.property_id, row.id, row.device_kinds), await specialtyFor(tx, tenantId, row));
 }
 
 export async function enabledProducts(tx: Sql, tenantId: string): Promise<RouteProduct[]> {
@@ -221,7 +250,7 @@ export async function loadRoute(
   const visits: RouteVisit[] = [];
   for (const row of rows) {
     const crew = await crewFor(tx, tenant.id, row.id, row.state_code, names);
-    visits.push(toRouteVisit(row, crew, await captures(tx, tenant.id, row.id), await siteFor(tx, tenant.id, row.property_id, row.id, row.device_kinds)));
+    visits.push(toRouteVisit(row, crew, await captures(tx, tenant.id, row.id), await siteFor(tx, tenant.id, row.property_id, row.id, row.device_kinds), await specialtyFor(tx, tenant.id, row)));
   }
   return {
     date,

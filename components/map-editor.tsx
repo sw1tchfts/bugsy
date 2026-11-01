@@ -15,6 +15,7 @@ export function MapEditor({
   maps,
   devices,
   hot,
+  marks = [],
   canWrite,
   place,
 }: {
@@ -23,6 +24,7 @@ export function MapEditor({
   maps: MapRow[];
   devices: DeviceRow[];
   hot: string[];
+  marks?: { id: string; map_id: string; kind: string; x: number; y: number; label: string }[];
   canWrite: boolean;
   place: (formData: FormData) => Promise<void>;
 }) {
@@ -80,6 +82,7 @@ export function MapEditor({
         width={map.width}
         height={map.height}
         devices={devices.filter((d) => d.map_id === map.id).map((d) => ({ ...d, hot: hotSet.has(d.id) }))}
+        marks={marks.filter((m) => m.map_id === map.id)}
         selectedId={deviceId || null}
         pending={pos}
         onPick={canWrite && deviceId ? (x, y) => setPos({ x, y }) : undefined}

@@ -2,10 +2,15 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import type { JobStep } from "@/lib/agreements/cadence";
 import { redirect } from "next/navigation";
 import { applyPriceIncrease as applyIncrease, bookReservice as bookReserviceRow, cancelAgreement as cancelRow, changeRecurringPrice, maintainTerms, renewAgreement as renewRow, syncVisits } from "@/lib/agreements/db";
 import { readAgreementColumns } from "@/lib/agreements/forms";
-import { dbAs, requirePermission } from "@/lib/auth/session";
+import { can } from "@/lib/auth/permissions";
+import { dbAs, requireMembership, requirePermission } from "@/lib/auth/session";
+import { imageInfo } from "@/lib/commercial/image";
+import { putFile } from "@/lib/files";
+import { RELATIONSHIPS } from "@/lib/specialty/materials";
 import { issuePrepayments, settleCancellation } from "@/lib/billing/db";
 import { intOrNull, opt, str } from "@/lib/customers/forms";
 import { addDays, isIsoDate, todayInZone } from "@/lib/dates";
@@ -38,7 +43,8 @@ export async function createAgreement(formData: FormData) {
   const serviceTypeId = str(formData, "service_type_id");
   const returnTo = `${LIST}/new?${new URLSearchParams({ account_id: accountId, property_id: propertyId })}`;
   if (!accountId || !propertyId || !serviceTypeId) back(returnTo, "An agreement needs an account, a property and a service type.");
-  const read = readAgreementColumns(formData);
+  const [plan] = await dbAs(session, (tx) => tx<{ job_plan: JobStep[] | null }[]>`select job_plan from public.service_types where id = ${serviceTypeId} and tenant_id = ${tenantId}`);
+  const read = readAgreementColumns(formData, { jobSteps: plan?.job_plan ?? null });
   if ("error" in read) back(returnTo, read.error);
   let id: string | null = null;
   let error: string | null = null;
@@ -73,7 +79,9 @@ export async function updateAgreement(formData: FormData) {
   const tenantId = str(formData, "tenant_id");
   const agreementId = str(formData, "agreement_id");
   const { session } = await requirePermission(tenantId, "agreements.write");
-  const read = readAgreementColumns(formData);
+  const [plan] = await dbAs(session, (tx) => tx<{ job_plan: JobStep[] | null }[]>`
+    select st.job_plan from public.service_types st join public.agreements a on a.service_type_id = st.id where a.id = ${agreementId} and a.tenant_id = ${tenantId}`);
+  const read = readAgreementColumns(formData, { jobSteps: plan?.job_plan ?? null });
   if ("error" in read) back(detail(agreementId), read.error);
   let error: string | null = null;
   try {
@@ -341,3 +349,41 @@ export async function previewPlanIssues(formData: FormData): Promise<string | nu
 }
 
 export { intOrNull as _agreementIntOrNull };
+
+/** Spec 15 rule 3: the landowner's written authorization for a wildlife job, with the signed form when there is one. */
+export async function recordAuthorization(formData: FormData) {
+  const tenantId = str(formData, "tenant_id");
+  const agreementId = str(formData, "agreement_id");
+  const ctx = await requireMembership(tenantId);
+  const perms = ctx.membership.permissions;
+  if (!(can(perms, "customers.write") || can(perms, "agreements.write") || can(perms, "dispatch.write"))) back(detail(agreementId), "forbidden");
+  const signer = str(formData, "signer_name").trim();
+  const relationship = str(formData, "relationship");
+  const signedOn = str(formData, "signed_on");
+  if (!signer || !(RELATIONSHIPS as readonly string[]).includes(relationship) || !isIsoDate(signedOn)) back(detail(agreementId), "An authorization needs who signed, their relationship to the property and the date.");
+  const file = formData.get("file");
+  let upload: { type: string; data: Uint8Array } | null = null;
+  if (file instanceof File && file.size > 0) {
+    const data = new Uint8Array(await file.arrayBuffer());
+    const type = signedFormType(data);
+    if (!type) back(detail(agreementId), "The signed form is a PDF, PNG, JPEG or WebP file.");
+    upload = { type: type!, data };
+  }
+  let error: string | null = null;
+  try {
+    await dbAs(ctx.session, async (tx) => {
+      const fileId = upload ? await putFile(tx, tenantId, { kind: "document", contentType: upload.type, data: upload.data }) : null;
+      await tx`insert into public.job_authorizations (tenant_id, agreement_id, signer_name, relationship, signed_on, scope, file_id)
+               values (${tenantId}, ${agreementId}, ${signer}, ${relationship}, ${signedOn}, ${opt(formData, "scope")}, ${fileId})`;
+    });
+  } catch (err) {
+    error = errorCode(err);
+  }
+  back(detail(agreementId), error);
+}
+
+/** A signed form's type read from its bytes: a PDF or a raster image, never anything that could run in the browser. */
+function signedFormType(data: Uint8Array): string | null {
+  if (data.length > 4 && data[0] === 0x25 && data[1] === 0x50 && data[2] === 0x44 && data[3] === 0x46) return "application/pdf";
+  return imageInfo(data)?.type ?? null;
+}

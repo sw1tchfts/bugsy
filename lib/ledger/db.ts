@@ -4,7 +4,9 @@
 // security applies to members and the jobs run privileged.
 import type postgres from "postgres";
 import { addDays, dateInZone, todayInZone } from "@/lib/dates";
+import { agreementSchedule } from "@/lib/agreements/db";
 import { localFeeCents } from "@/lib/payments/local";
+import { recognitionByMonth } from "@/lib/specialty/recognition";
 import { type CashBasisIncome, cashBasisIncome } from "./cash-basis";
 import { type AccountKey, type AccountType, CHART_TEMPLATE } from "./chart";
 import { isPeriod, lastEndedPeriod, nextPeriod, periodEnd, periodOf, periodStart, periodsBetween, prevPeriod } from "./periods";
@@ -26,7 +28,7 @@ import { type BalanceSheet, type DateRange, type IncomeStatement, type ReportAcc
 
 type Sql = postgres.Sql | postgres.TransactionSql;
 
-export type SourceType = "invoice" | "credit_memo" | "void" | "visit" | "product_use" | "payment" | "refund" | "payout" | "reclass" | "reclass_reversal" | "opening" | "manual" | "reversal";
+export type SourceType = "invoice" | "credit_memo" | "void" | "visit" | "product_use" | "payment" | "refund" | "payout" | "reclass" | "reclass_reversal" | "opening" | "manual" | "reversal" | "recognition";
 
 /** A line for app.post_entry: a template key, or an account id for manual entries. */
 export type EntryLine = { account?: AccountKey; gl_account_id?: string; debit_cents: number; credit_cents: number; agreement_id?: string | null; jurisdiction?: string | null; memo?: string | null };
@@ -143,11 +145,13 @@ export async function postVoid(tx: Sql, tenantId: string, invoiceId: string, tod
 
 /** A completed visit earns its price out of the contract balance (rule 3). */
 export async function postVisit(tx: Sql, tenantId: string, visitId: string, timeZone: string): Promise<string | null> {
-  const [v] = await tx<{ id: string; status: string; imported: boolean; sequence: number; price_cents: string | number; agreement_id: string | null; departed_at: Date | string | null; completed_at: Date | string | null; service_line: string; account_name: string }[]>`
-    select v.id, v.status, v.imported, v.sequence, v.price_cents, v.agreement_id, v.departed_at, v.completed_at, st.service_line, a.name as account_name
+  const [v] = await tx<{ id: string; status: string; imported: boolean; sequence: number; price_cents: string | number; agreement_id: string | null; departed_at: Date | string | null; completed_at: Date | string | null; service_line: string; account_name: string; recognition: string | null }[]>`
+    select v.id, v.status, v.imported, v.sequence, v.price_cents, v.agreement_id, v.departed_at, v.completed_at, st.service_line, a.name as account_name,
+           (select g.recognition from public.agreements g where g.id = v.agreement_id) as recognition
     from public.visits v join public.service_types st on st.id = v.service_type_id join public.accounts a on a.id = v.account_id
     where v.id = ${visitId} and v.tenant_id = ${tenantId}`;
-  if (!v || v.status !== "completed" || v.imported) return null;
+  // A warranty's visits earn nothing on completion; its fee is earned evenly over the term (spec 15 rule 2).
+  if (!v || v.status !== "completed" || v.imported || v.recognition === "straight_line") return null;
   const lines = visitLines({ price_cents: Number(v.price_cents), service_line: v.service_line, agreement_id: v.agreement_id });
   if (lines.length === 0) return null;
   const day = dateInZone(v.departed_at ?? v.completed_at ?? new Date(), timeZone);
@@ -349,6 +353,7 @@ export async function sweep(tx: Sql, tenantId: string, timeZone: string): Promis
   for (const i of voids) if (await postVoid(tx, tenantId, i.id, today)) counts.voids += 1;
   const visits = await tx<{ id: string }[]>`
     select v.id from public.visits v where v.tenant_id = ${tenantId} and v.status = 'completed' and not v.imported and v.agreement_id is not null and v.price_cents > 0
+      and not exists (select 1 from public.agreements g where g.id = v.agreement_id and g.recognition = 'straight_line')
       and not exists (select 1 from app.journal_entry_by_key(v.tenant_id, 'visit:' || v.id)) order by v.completed_at`;
   for (const v of visits) if (await postVisit(tx, tenantId, v.id, timeZone)) counts.visits += 1;
   const usage = await postProductUse(tx, tenantId, null, timeZone);
@@ -378,6 +383,8 @@ export async function unposted(tx: Sql, tenantId: string): Promise<{ invoices: n
       (select count(*)::int from public.invoices i where i.tenant_id = ${tenantId} and i.status in ('issued', 'partially_paid', 'paid', 'past_due')
          and not exists (select 1 from app.journal_entry_by_key(i.tenant_id, 'invoice:' || i.id))) as invoices,
       (select count(*)::int from public.visits v where v.tenant_id = ${tenantId} and v.status = 'completed' and not v.imported and v.agreement_id is not null and v.price_cents > 0
+         -- A straight-line agreement's visits earn nothing on completion (spec 15 rule 2): never unposted.
+         and not exists (select 1 from public.agreements g where g.id = v.agreement_id and g.recognition = 'straight_line')
          and not exists (select 1 from app.journal_entry_by_key(v.tenant_id, 'visit:' || v.id))) as visits,
       (select count(*)::int from public.payments p where p.tenant_id = ${tenantId} and p.status in ('succeeded', 'refunded')
          and not exists (select 1 from app.journal_entry_by_key(p.tenant_id, (case when p.kind = 'refund' then 'refund:' else 'payment:' end) || p.id))) as payments,
@@ -429,7 +436,38 @@ export async function localPayouts(tx: Sql, tenantId: string, gateway: string, t
   return made;
 }
 
-export type LedgerCounts = SweepCounts & { local_payouts: number; reclasses: number };
+export type LedgerCounts = SweepCounts & { local_payouts: number; reclasses: number; straight_line: number };
+
+/**
+ * Spec 15 rule 2: each straight-line agreement earns, for every month that has ended, the change in what its billed
+ * terms have earned by day; one entry per agreement and month, posted on the month's last day. A cancelled agreement
+ * stops the day before its cancellation took effect (settlement covers the rest).
+ */
+export async function postStraightLine(tx: Sql, tenantId: string, today: string): Promise<number> {
+  const agreements = await tx<{ id: string; number: number; starts_on: string; cancelled_on: string | null; service_line: string; account_name: string }[]>`
+    select g.id, g.number, g.starts_on::text, g.cancelled_on::text, st.service_line, a.name as account_name
+    from public.agreements g join public.service_types st on st.id = g.service_type_id join public.accounts a on a.id = g.account_id
+    where g.tenant_id = ${tenantId} and g.recognition = 'straight_line' and g.status in ('active', 'on_hold', 'ended', 'cancelled')`;
+  const lastEnded = addDays(`${today.slice(0, 7)}-01`, -1);
+  let posted = 0;
+  for (const g of agreements) {
+    const loaded = await agreementSchedule(tx, tenantId, g.id);
+    if (!loaded) continue;
+    const stop = g.cancelled_on ? addDays(g.cancelled_on, -1) : null;
+    const until = stop && stop < lastEnded ? stop : lastEnded;
+    if (until < g.starts_on) continue;
+    const billed = loaded.schedule.filter((e) => e.date <= until && (!g.cancelled_on || e.date < g.cancelled_on));
+    for (const m of recognitionByMonth(billed, loaded.agreement.term_months, g.starts_on.slice(0, 7), until.slice(0, 7), stop)) {
+      if (m.cents <= 0 || m.through > until) continue;
+      const key = `straight_line:${g.id}:${m.month}`;
+      const [exists] = await tx<{ id: string }[]>`select id from app.journal_entry_by_key(${tenantId}, ${key})`;
+      if (exists) continue;
+      const lines = visitLines({ price_cents: m.cents, service_line: g.service_line, agreement_id: g.id });
+      if ((await postEntry(tx, tenantId, { source_type: "recognition", source_key: key, source_id: g.id, posted_on: m.through, memo: `Warranty earned for ${m.month}, agreement #${g.number}, ${g.account_name}`, lines })) !== null) posted += 1;
+    }
+  }
+  return posted;
+}
 
 async function earliestPeriod(tx: Sql, tenantId: string): Promise<string | null> {
   const [row] = await tx<{ period: string | null }[]>`select min(period) as period from public.journal_entries where tenant_id = ${tenantId}`;
@@ -460,7 +498,8 @@ export async function runLedger(tx: Sql, tenantId: string, timeZone: string, tod
       }
     }
   }
-  return { ...swept, local_payouts, reclasses };
+  const straight_line = await postStraightLine(tx, tenantId, today);
+  return { ...swept, local_payouts, reclasses, straight_line };
 }
 
 // ---------------------------------------------------------------------------

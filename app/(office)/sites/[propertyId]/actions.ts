@@ -10,6 +10,7 @@ import { opt, str } from "@/lib/customers/forms";
 import { fromTenantLocal, isIsoDate, todayInZone } from "@/lib/dates";
 import { errorCode } from "@/lib/db";
 import { putFile } from "@/lib/files";
+import { isMarkKind } from "@/lib/specialty/marks";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 
 type Ctx = Awaited<ReturnType<typeof requireMembership>> & { tenantId: string; propertyId: string; timeZone: string; page: string };
@@ -252,4 +253,30 @@ export async function uploadDocument(formData: FormData) {
     "Document added.",
     "#documents",
   );
+}
+
+/** Spec 15 rule 8: a termite diagram mark at fractions of the floor plan, with a kind and a label. */
+export async function addMark(formData: FormData) {
+  const ctx = await writer(formData);
+  const x = num(formData, "x");
+  const y = num(formData, "y");
+  const mapId = opt(formData, "map_id");
+  const kind = str(formData, "kind");
+  const label = str(formData, "label").trim();
+  if (!mapId || x === null || !validPosition(x, y) || !isMarkKind(kind) || !label) back(ctx, { error: "Pick a kind, write a label and tap the plan where it is." }, "#marks");
+  await run(
+    ctx,
+    async (tx) => {
+      const [map] = await tx`select id from public.site_maps where id = ${mapId} and tenant_id = ${ctx.tenantId} and property_id = ${ctx.propertyId} and archived_at is null`;
+      if (!map) throw Object.assign(new Error("That floor plan is not in use at this site."), { code: "23514" });
+      await tx`insert into public.diagram_marks (tenant_id, property_id, map_id, kind, x, y, label) values (${ctx.tenantId}, ${ctx.propertyId}, ${mapId}, ${kind}, ${x}, ${y}, ${label.slice(0, 80)})`;
+    },
+    "Mark added.",
+    "#marks",
+  );
+}
+
+export async function removeMark(formData: FormData) {
+  const ctx = await writer(formData);
+  await run(ctx, (tx) => tx`delete from public.diagram_marks where id = ${str(formData, "mark_id")} and tenant_id = ${ctx.tenantId} and property_id = ${ctx.propertyId}`, "Mark removed.", "#marks");
 }

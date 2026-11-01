@@ -13,6 +13,8 @@ import {
   templateByKey,
 } from "@/lib/catalog/service-lines";
 import { ensureStateRules } from "@/lib/catalog/state-rules";
+import { type JobStep, jobStepIssues } from "@/lib/agreements/cadence";
+import { parseJobSteps } from "@/lib/agreements/forms";
 import { isDeviceKind } from "@/lib/commercial/devices";
 import { intOrNull, opt, str } from "@/lib/customers/forms";
 import { errorCode } from "@/lib/db";
@@ -41,6 +43,8 @@ type ServiceTypeInput = {
   pricing_method: string;
   default_duration_minutes: number;
   device_kinds: string[];
+  job_plan?: JobStep[] | null;
+  prep_checklist?: string[];
 };
 
 /** Reads the service type fields, falling back to a template for anything the form left out. */
@@ -58,6 +62,18 @@ function readServiceType(formData: FormData): { value: ServiceTypeInput } | { er
     default_duration_minutes: intOrNull(formData, "default_duration_minutes") ?? template?.defaultDurationMinutes ?? 60,
     device_kinds: formData.has("kinds_present") ? formData.getAll("device_kinds").map(String).filter(isDeviceKind) : (template?.deviceKinds ?? []),
   };
+  // Spec 15: a job plan template (steps with day offsets) and the customer's prep checklist.
+  if (formData.has("job_plan_present")) {
+    const steps = parseJobSteps(str(formData, "job_plan"));
+    if (steps.length) {
+      const issues = jobStepIssues(steps);
+      if (issues.length) return { error: issues.join(" ") };
+      value.job_plan = steps;
+    } else value.job_plan = null;
+  }
+  if (formData.has("prep_present")) {
+    value.prep_checklist = str(formData, "prep_checklist").split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(0, 30);
+  }
   if (!value.name) return { error: "A name is required." };
   if (!(SERVICE_LINES as readonly string[]).includes(value.service_line)) return { error: "Pick a service line." };
   if (!(JOB_KINDS as readonly string[]).includes(value.job_kind)) return { error: "Pick a job kind." };
@@ -77,7 +93,8 @@ export async function createServiceType(formData: FormData) {
   let error: string | null = null;
   try {
     await dbAs(session, async (tx) => {
-      const [row] = await tx<{ id: string }[]>`insert into public.service_types ${tx({ tenant_id: tenantId, ...read.value })} returning id`;
+      const { job_plan, ...rest } = read.value;
+      const [row] = await tx<{ id: string }[]>`insert into public.service_types ${tx({ tenant_id: tenantId, ...rest, ...(job_plan !== undefined ? { job_plan: job_plan === null ? null : tx.json(job_plan) } : {}) })} returning id`;
       id = row.id;
       await ensureStateRules(tx, tenantId, row.id);
     });
@@ -97,7 +114,8 @@ export async function updateServiceType(formData: FormData) {
   let error: string | null = null;
   try {
     await dbAs(session, async (tx) => {
-      await tx`update public.service_types set ${tx({ ...read.value, active: formData.get("active") !== "false" })} where id = ${serviceTypeId} and tenant_id = ${tenantId}`;
+      const { job_plan, ...rest } = read.value;
+      await tx`update public.service_types set ${tx({ ...rest, ...(job_plan !== undefined ? { job_plan: job_plan === null ? null : tx.json(job_plan) } : {}), active: formData.get("active") !== "false" })} where id = ${serviceTypeId} and tenant_id = ${tenantId}`;
       await ensureStateRules(tx, tenantId, serviceTypeId);
     });
   } catch (err) {

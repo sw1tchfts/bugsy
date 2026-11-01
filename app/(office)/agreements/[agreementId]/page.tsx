@@ -13,7 +13,9 @@ import { dbAs } from "@/lib/auth/session";
 import { addDays, formatBusinessDate, formatInstant, isIsoDate, todayInZone } from "@/lib/dates";
 import { formatCents } from "@/lib/money";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
-import { bookReservice, cancelAgreement, changeAgreementPrice, renewAgreement, signAgreement, updateAgreement } from "../actions";
+import { DISPOSITION_LABELS, RELATIONSHIPS, RELATIONSHIP_LABELS, WILDLIFE_JOB_KINDS, materialCents } from "@/lib/specialty/materials";
+import { authorizationsFor, jobRecords } from "@/lib/specialty/db";
+import { bookReservice, cancelAgreement, changeAgreementPrice, recordAuthorization, renewAgreement, signAgreement, updateAgreement } from "../actions";
 
 export const metadata: Metadata = { title: "Agreement" };
 
@@ -22,6 +24,7 @@ type Detail = {
   property_name: string | null;
   property_address: string;
   service_type_name: string;
+  job_kind: string;
   branch_name: string | null;
   quote_number: number | null;
   signed_at: string | null;
@@ -50,6 +53,7 @@ type Visit = {
   reservice_reason: string | null;
   completed_at: string | null;
   imported: boolean;
+  step_label: string | null;
 };
 
 type Change = { id: string; old_recurring_price_cents: string; new_recurring_price_cents: string; effective_on: string; reason: string; notified_at: string | null; created_at: string };
@@ -72,7 +76,7 @@ export default async function AgreementPage({ params, searchParams }: { params: 
     const agreement = await loadAgreement(tx, tenantId, agreementId);
     if (!agreement) return null;
     const [detail] = await tx<Detail[]>`
-      select ac.name as account_name, p.name as property_name, p.normalized_address as property_address, st.name as service_type_name, b.name as branch_name,
+      select ac.name as account_name, p.name as property_name, p.normalized_address as property_address, st.name as service_type_name, st.job_kind, b.name as branch_name,
              q.number as quote_number, a.signed_at, a.signed_name, c.name as signer_name, a.cancelled_on, cr.name as cancel_reason_name, a.cancel_note,
              a.save_offer_made, a.save_outcome, a.terms_text, a.notes, a.created_at
       from public.agreements a
@@ -85,7 +89,7 @@ export default async function AgreementPage({ params, searchParams }: { params: 
         left join public.cancel_reasons cr on cr.id = a.cancel_reason_id
       where a.id = ${agreementId} and a.tenant_id = ${tenantId}`;
     const visits = await tx<Visit[]>`
-      select id, kind, sequence, due_start, due_end, scheduled_for, status, price_cents, interior_only, reservice_reason, completed_at, imported
+      select id, kind, sequence, due_start, due_end, scheduled_for, status, price_cents, interior_only, reservice_reason, completed_at, imported, step_label
       from public.visits where agreement_id = ${agreementId} and tenant_id = ${tenantId} order by due_start, sequence`;
     const changes = await tx<Change[]>`
       select id, old_recurring_price_cents, new_recurring_price_cents, effective_on, reason, notified_at, created_at
@@ -95,10 +99,16 @@ export default async function AgreementPage({ params, searchParams }: { params: 
         and (account_id = ${agreement.account_id} or property_id = ${agreement.property_id}) order by case role when 'primary' then 0 when 'billing' then 1 else 2 end, name`;
     const reasons = await tx<Reason[]>`select id, name from public.cancel_reasons where tenant_id = ${tenantId} and active order by name`;
     const settlement = ["active", "on_hold"].includes(agreement.status) ? await settlementFor(tx, tenantId, agreementId, cancelOn) : null;
-    return { agreement, detail, visits, changes, contacts, reasons, settlement };
+    const authorizations = await authorizationsFor(tx, tenantId, agreementId);
+    const records = await jobRecords(tx, tenantId, agreementId);
+    return { agreement, detail, visits, changes, contacts, reasons, settlement, authorizations, records };
   });
   if (!data) notFound();
-  const { agreement, detail, visits, changes, contacts, reasons, settlement } = data;
+  const { agreement, detail, visits, changes, contacts, reasons, settlement, authorizations, records } = data;
+  const wildlife = (WILDLIFE_JOB_KINDS as readonly string[]).includes(detail.job_kind);
+  const canAuthorize = can(active.permissions, "customers.write") || canWrite || can(active.permissions, "dispatch.write");
+  const wdiKind = detail.job_kind === "inspection" || detail.job_kind === "wdi_report";
+  const sequenceOf = new Map(visits.map((v) => [v.id, v.sequence]));
 
   // Drafts show the plan they will generate; signed agreements show the visits they have.
   let preview: PlannedVisit[] = [];
@@ -204,7 +214,10 @@ export default async function AgreementPage({ params, searchParams }: { params: 
               {preview.map((v) => (
                 <tr key={v.sequence}>
                   <td className="py-2 pr-4 tabular-nums">{v.sequence}</td>
-                  <td className="py-2 pr-4">{VISIT_KIND_LABELS[v.kind]}</td>
+                  <td className="py-2 pr-4">
+                    {VISIT_KIND_LABELS[v.kind]}
+                    {v.label ? <span className="block text-xs text-stone-500">{v.label}</span> : null}
+                  </td>
                   <td className="py-2 pr-4 whitespace-nowrap">
                     {formatBusinessDate(v.due_start)} to {formatBusinessDate(v.due_end)}
                   </td>
@@ -227,6 +240,7 @@ export default async function AgreementPage({ params, searchParams }: { params: 
                 </td>
                 <td className="py-2 pr-4">
                   {VISIT_KIND_LABELS[v.kind]}
+                  {v.step_label ? <span className="block text-xs text-stone-500">{v.step_label}</span> : null}
                   {v.reservice_reason ? <span className="block text-xs text-stone-500">{v.reservice_reason}</span> : null}
                 </td>
                 <td className="py-2 pr-4 whitespace-nowrap">
@@ -238,12 +252,135 @@ export default async function AgreementPage({ params, searchParams }: { params: 
                   {!v.imported && v.status === "planned" && v.due_end < today ? <span className="ml-1 text-xs text-red-800">overdue</span> : null}
                 </td>
                 <td className="py-2 pr-4 tabular-nums">{formatCents(v.price_cents)}</td>
-                <td className="py-2 pr-4">{v.interior_only ? <Badge>interior only</Badge> : null}</td>
+                <td className="py-2 pr-4">
+                  {v.interior_only ? <Badge>interior only</Badge> : null}
+                  {wdiKind && v.kind !== "reservice" ? (
+                    <Link href={`/visits/${v.id}/wdi`} className="text-sm underline">
+                      WDI report
+                    </Link>
+                  ) : null}
+                </td>
               </tr>
             ))}
           </Table>
         )}
       </Card>
+
+      {wildlife || authorizations.length ? (
+        <Card
+          title="Landowner authorization"
+          description="Trapping, exclusion and repair are not scheduled until the owner's written authorization is on file. When the account is not the owner, record the owner's (or their agent's) signature."
+        >
+          {authorizations.length === 0 ? (
+            <Notice kind="error">No authorization on file. Dispatch refuses this job&apos;s wildlife visits until one is recorded.</Notice>
+          ) : (
+            <Table headers={["Signed by", "Relationship", "Signed on", "Scope", "Form"]}>
+              {authorizations.map((a) => (
+                <tr key={a.id} data-testid="authorization">
+                  <td className="py-2 pr-4">{a.signer_name}</td>
+                  <td className="py-2 pr-4">{RELATIONSHIP_LABELS[a.relationship as keyof typeof RELATIONSHIP_LABELS] ?? a.relationship}</td>
+                  <td className="py-2 pr-4">{formatBusinessDate(a.signed_on)}</td>
+                  <td className="py-2 pr-4">{a.scope ?? ""}</td>
+                  <td className="py-2 pr-4">
+                    {a.file_id ? (
+                      <a href={`/api/files/${a.file_id}`} className="underline">
+                        Signed form
+                      </a>
+                    ) : (
+                      <span className="text-stone-500">none uploaded</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          )}
+          {canAuthorize ? (
+            <form action={recordAuthorization} className="mt-4 grid gap-4 sm:grid-cols-2">
+              {hidden}
+              <Field label="Signed by" htmlFor="signer_name">
+                <Input id="signer_name" name="signer_name" required maxLength={120} />
+              </Field>
+              <Field label="Relationship to the property" htmlFor="relationship">
+                <Select id="relationship" name="relationship" defaultValue="owner">
+                  {RELATIONSHIPS.map((r) => (
+                    <option key={r} value={r}>
+                      {RELATIONSHIP_LABELS[r]}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Signed on" htmlFor="signed_on">
+                <Input id="signed_on" name="signed_on" type="date" required defaultValue={today} />
+              </Field>
+              <Field label="Scope" htmlFor="scope" hint="What it allows: traps on the grounds, exclusion work on the house, entry to the attic.">
+                <Input id="scope" name="scope" maxLength={300} />
+              </Field>
+              <Field label="Signed form (PDF or photo)" htmlFor="auth_file">
+                <Input id="auth_file" name="file" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" />
+              </Field>
+              <div className="sm:col-span-2">
+                <Button type="submit">Record authorization</Button>
+              </div>
+            </form>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {records.prep.length || records.captures.length || records.materials.length ? (
+        <Card title="Job records" description="What the technicians recorded at this job's visits: prep checks, animals caught and materials used.">
+          {records.prep.length ? (
+            <>
+              <h3 className="text-sm font-semibold">Prep checks</h3>
+              <Table headers={["Visit", "Ready", "Missing", "Notes"]}>
+                {records.prep.map((p) => (
+                  <tr key={p.visit_id} data-testid="prep-row">
+                    <td className="py-2 pr-4 tabular-nums">{sequenceOf.get(p.visit_id) ?? ""}</td>
+                    <td className="py-2 pr-4">{p.ready ? <Badge tone="good">ready</Badge> : <Badge tone="warn">not ready</Badge>}</td>
+                    <td className="py-2 pr-4">{p.missing.join("; ")}</td>
+                    <td className="py-2 pr-4">{p.notes ?? ""}</td>
+                  </tr>
+                ))}
+              </Table>
+            </>
+          ) : null}
+          {records.captures.length ? (
+            <>
+              <h3 className="mt-4 text-sm font-semibold">Animals caught</h3>
+              <Table headers={["Visit", "Species", "Count", "Disposition", "Where", "Notes"]}>
+                {records.captures.map((c) => (
+                  <tr key={c.id} data-testid="capture-row">
+                    <td className="py-2 pr-4 tabular-nums">{sequenceOf.get(c.visit_id) ?? ""}</td>
+                    <td className="py-2 pr-4">{c.species}</td>
+                    <td className="py-2 pr-4 tabular-nums">{c.count}</td>
+                    <td className="py-2 pr-4">{DISPOSITION_LABELS[c.disposition as keyof typeof DISPOSITION_LABELS] ?? c.disposition}</td>
+                    <td className="py-2 pr-4">{c.location ?? ""}</td>
+                    <td className="py-2 pr-4">{c.notes ?? ""}</td>
+                  </tr>
+                ))}
+              </Table>
+            </>
+          ) : null}
+          {records.materials.length ? (
+            <>
+              <h3 className="mt-4 text-sm font-semibold">Materials</h3>
+              <Table headers={["Visit", "Material", "Quantity", "Unit price", "Line", "Billed"]}>
+                {records.materials.map((m) => (
+                  <tr key={m.id} data-testid="material-row">
+                    <td className="py-2 pr-4 tabular-nums">{sequenceOf.get(m.visit_id) ?? ""}</td>
+                    <td className="py-2 pr-4">{m.description}</td>
+                    <td className="py-2 pr-4 tabular-nums">
+                      {Number(m.quantity)} {m.unit}
+                    </td>
+                    <td className="py-2 pr-4 tabular-nums">{formatCents(m.unit_price_cents)}</td>
+                    <td className="py-2 pr-4 tabular-nums">{formatCents(materialCents(m.quantity, m.unit_price_cents))}</td>
+                    <td className="py-2 pr-4">{m.billable ? "yes" : "job costing only"}</td>
+                  </tr>
+                ))}
+              </Table>
+            </>
+          ) : null}
+        </Card>
+      ) : null}
 
       <Card title="Billing schedule" description={`${BILLING_MODE_LABELS[agreement.billing_mode]}: ${schedule.length} billing event${schedule.length === 1 ? "" : "s"} totalling ${formatCents(contractTotal)}. Invoices themselves come from billing (spec 08).`}>
         {schedule.length === 0 ? (

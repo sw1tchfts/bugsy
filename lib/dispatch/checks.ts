@@ -1,5 +1,6 @@
 // The dispatch check: may this crew do this visit on this date at this property? Pure. Every rule value comes from
 // the state pack or the service type's state rules; nothing here names a state, a date range or a category.
+import { WILDLIFE_JOB_KINDS } from "@/lib/specialty/materials";
 import { type JobKind, PESTICIDE_JOB_KINDS, type TreatmentArea } from "@/lib/catalog/service-lines";
 import { type StatePack, blackoutRanges } from "@/lib/compliance/rules";
 import { daysBetween } from "@/lib/dates";
@@ -49,6 +50,8 @@ export type CheckVisit = {
   /** The account's past-due flag (spec 08): a warning, or a block when the company pauses service for it. */
   account_past_due_since?: string | null;
   pause_when_past_due?: boolean;
+  /** Spec 15 rule 3: the landowner's authorization for a wildlife job; absent means not looked up (not wildlife). */
+  authorization_on_file?: boolean;
 };
 
 export type StateRuleInput = { required_cert_categories: readonly string[]; pack_version: string | null; confirmed_at: string | null } | null;
@@ -182,6 +185,11 @@ export function checkAssignment(input: CheckInput): CheckResult {
         message: perLocation ? `${state} licenses each business location and this branch has none on file.` : "No business license is on file for this branch.",
       });
     }
+  }
+
+  // Spec 15 rule 3: no trap, exclusion or repair at a property without the landowner's written authorization.
+  if ((WILDLIFE_JOB_KINDS as readonly string[]).includes(visit.job_kind) && visit.authorization_on_file === false) {
+    blockers.push({ code: "no_authorization", message: "The landowner's authorization is not on file for this job. Record it on the agreement before scheduling the work." });
   }
 
   // A past-due account warns; it blocks when the company chose to hold service for it (spec 08 rule 10).

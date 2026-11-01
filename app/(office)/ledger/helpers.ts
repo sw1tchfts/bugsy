@@ -27,4 +27,5 @@ export const SOURCE_LABELS: Record<string, string> = {
   opening: "Opening position",
   manual: "Manual",
   reversal: "Reversal",
+  recognition: "Warranty recognition",
 };

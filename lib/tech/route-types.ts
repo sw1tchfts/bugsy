@@ -78,6 +78,22 @@ export type RouteSite = {
   recommendations: { id: string; category: string; description: string; status: string; due_on: string | null }[];
 };
 
+export type CapturedCapture = { id: string; species: string; count: number; disposition: string; location: string | null; notes: string | null; created_at: string };
+export type CapturedMaterial = { id: string; description: string; quantity: string; unit: string; unit_price_cents: number; billable: boolean; created_at: string };
+export type CapturedPrepCheck = { ready: boolean; missing: string[]; notes: string | null; checked_at: string };
+
+/** Specialty work at the stop (spec 15): the bed bug prep checklist and its check, wildlife captures with the job's
+ *  authorization, and the materials used (any visit). */
+export type RouteSpecialty = {
+  step_label: string | null;
+  prep_checklist: string[];
+  prep_check: CapturedPrepCheck | null;
+  wildlife: boolean;
+  authorized: boolean;
+  captures: CapturedCapture[];
+  materials: CapturedMaterial[];
+};
+
 export type CapturedNote = { id: string; kind: string; content: string; recorded_at: string };
 export type CapturedPhoto = { id: string; file_id: string; kind: string; caption: string | null; taken_at: string };
 export type CapturedSignature = { signer_name: string; signed_at: string; file_id: string } | null;
@@ -107,6 +123,7 @@ export type RouteVisit = {
   state_rule: { required_cert_categories: string[]; pack_version: string | null; confirmed_at: string | null } | null;
   required_fields: string[];
   site: RouteSite | null;
+  specialty?: RouteSpecialty;
   captured: {
     arrived_at: string | null;
     departed_at: string | null;
@@ -146,7 +163,10 @@ export type ChangeKind =
   | "device_add"
   | "device_move"
   | "device_remove"
-  | "recommendation";
+  | "recommendation"
+  | "prep_check"
+  | "capture"
+  | "material";
 
 export type DeviceCheckPayload = {
   device_id: string;
@@ -189,7 +209,10 @@ export type ChangePayload =
   | { kind: "device_add"; device_id: string; number: string; barcode: string | null; device_kind: string; zone: string; location: string; map_id: string | null; x: number | null; y: number | null; at: string }
   | { kind: "device_move"; device_id: string; zone: string; location: string; map_id: string | null; x: number | null; y: number | null; at: string }
   | { kind: "device_remove"; device_id: string; reason: string; at: string }
-  | { kind: "recommendation"; category: string; description: string; responsibility: string; priority: string; at: string };
+  | { kind: "recommendation"; category: string; description: string; responsibility: string; priority: string; at: string }
+  | { kind: "prep_check"; ready: boolean; missing: string[]; notes: string | null; at: string }
+  | { kind: "capture"; species: string; count: number; disposition: string; location: string | null; notes: string | null; at: string }
+  | { kind: "material"; description: string; quantity: string; unit: string; unit_price_cents: number; billable: boolean; at: string };
 
 export type QueuedChange = {
   id: string;

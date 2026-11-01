@@ -83,7 +83,7 @@ export type InvoiceDraft = {
   property_id: string | null;
   agreement_id?: string | null;
   visit_id?: string | null;
-  source: "visit" | "installment" | "prepay" | "settlement" | "late_fee" | "manual" | "opening";
+  source: "visit" | "installment" | "prepay" | "settlement" | "late_fee" | "manual" | "opening" | "materials";
   source_key: string;
   /** The business date the invoice is issued on; the draft stays a draft when `issue` is false. */
   issued_on: string;
@@ -723,7 +723,7 @@ export async function runBilling(
 ): Promise<BillingCounts> {
   const settings = await ensureSettings(tx, tenantId);
   const today = dateInZone(now, timeZone);
-  const counts: BillingCounts = { visits: 0, installments: 0, prepayments: 0, allocated_cents: 0, charged: 0, failed: 0, skipped: 0, statuses: 0, late_fees: 0, ledger: { invoices: 0, voids: 0, visits: 0, product_uses: 0, unpriced: 0, payments: 0, refunds: 0, payouts: 0, local_payouts: 0, reclasses: 0 } };
+  const counts: BillingCounts = { visits: 0, installments: 0, prepayments: 0, allocated_cents: 0, charged: 0, failed: 0, skipped: 0, statuses: 0, late_fees: 0, ledger: { invoices: 0, voids: 0, visits: 0, product_uses: 0, unpriced: 0, payments: 0, refunds: 0, payouts: 0, local_payouts: 0, reclasses: 0, straight_line: 0 } };
   const unbilled = await tx<{ id: string }[]>`
     select v.id from public.visits v left join public.agreements a on a.id = v.agreement_id
     where v.tenant_id = ${tenantId} and v.status = 'completed' and not v.imported and v.price_cents > 0 and (a.id is null or a.billing_mode = 'per_visit')

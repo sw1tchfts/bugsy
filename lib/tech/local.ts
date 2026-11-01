@@ -7,6 +7,7 @@ export function withLocalChanges(route: RoutePayload, visit: RouteVisit, changes
   let v: RouteVisit = {
     ...visit,
     site: visit.site ? { ...visit.site, devices: [...visit.site.devices], recommendations: [...visit.site.recommendations] } : null,
+    specialty: visit.specialty ? { ...visit.specialty, captures: [...visit.specialty.captures], materials: [...visit.specialty.materials] } : visit.specialty,
     captured: { ...visit.captured, products: [...visit.captured.products], notes: [...visit.captured.notes], photos: [...visit.captured.photos], device_checks: [...(visit.captured.device_checks ?? [])] },
   };
   const pending = changes.filter((c) => c.visit_id === visit.id && c.status === "pending").sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
@@ -80,6 +81,15 @@ export function withLocalChanges(route: RoutePayload, visit: RouteVisit, changes
         break;
       case "recommendation":
         v.site?.recommendations.unshift({ id: change.id, category: p.category, description: p.description, status: "open", due_on: null });
+        break;
+      case "prep_check":
+        if (v.specialty) v.specialty = { ...v.specialty, prep_check: { ready: p.ready, missing: p.missing, notes: p.notes, checked_at: p.at } };
+        break;
+      case "capture":
+        v.specialty?.captures.push({ id: change.id, species: p.species, count: p.count, disposition: p.disposition, location: p.location, notes: p.notes, created_at: p.at });
+        break;
+      case "material":
+        v.specialty?.materials.push({ id: change.id, description: p.description, quantity: p.quantity, unit: p.unit, unit_price_cents: p.unit_price_cents, billable: p.billable, created_at: p.at });
         break;
     }
   }

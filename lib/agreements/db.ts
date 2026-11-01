@@ -5,6 +5,7 @@ import { type BillingEvent, type Settlement, billedThrough, billingSchedule, set
 import type { BillingMode, Cadence, CadenceRule, PlanInput } from "@/lib/agreements/cadence";
 import { type IncreaseRule, increasedPrice } from "@/lib/agreements/increase";
 import { type ExistingVisit, type PlannedVisit, planVisits, regenerationPlan } from "@/lib/agreements/visits";
+import { straightLineRecognized } from "@/lib/specialty/recognition";
 import { addDays } from "@/lib/dates";
 
 type Sql = postgres.Sql | postgres.TransactionSql;
@@ -23,6 +24,8 @@ export type AgreementRow = PlanInput & {
   renewals: number;
   auto_renew: boolean;
   cancel_fee_cents: number;
+  /** Spec 15: per visit, or evenly over each term (warranties). */
+  recognition: "per_visit" | "straight_line";
 };
 
 type RawAgreement = Omit<AgreementRow, "initial_price_cents" | "recurring_price_cents" | "cancel_fee_cents" | "cadence_rule" | "cadence"> & {
@@ -37,7 +40,7 @@ export async function loadAgreement(tx: Sql, tenantId: string, agreementId: stri
   const [row] = await tx<RawAgreement[]>`
     select id, tenant_id, number, account_id, property_id, service_type_id, branch_id, status, cadence, cadence_rule, starts_on, ends_on, term_months, renewals,
            first_visit_on, season_start, season_end, skip_months, interior_only_months, window_days, initial_price_cents, recurring_price_cents,
-           billing_mode, auto_renew, cancel_fee_cents
+           billing_mode, auto_renew, cancel_fee_cents, recognition
     from public.agreements where id = ${agreementId} and tenant_id = ${tenantId}`;
   if (!row) return null;
   return {
@@ -60,9 +63,9 @@ async function existingVisits(tx: Sql, tenantId: string, agreementId: string): P
 async function insertPlanned(tx: Sql, agreement: AgreementRow, visits: readonly PlannedVisit[]): Promise<void> {
   for (const v of visits) {
     await tx`
-      insert into public.visits (tenant_id, agreement_id, account_id, property_id, service_type_id, branch_id, kind, sequence, due_start, due_end, price_cents, interior_only)
+      insert into public.visits (tenant_id, agreement_id, account_id, property_id, service_type_id, branch_id, kind, sequence, due_start, due_end, price_cents, interior_only, step_label)
       values (${agreement.tenant_id}, ${agreement.id}, ${agreement.account_id}, ${agreement.property_id}, ${agreement.service_type_id}, ${agreement.branch_id},
-              ${v.kind}, ${v.sequence}, ${v.due_start}, ${v.due_end}, ${v.price_cents}, ${v.interior_only})`;
+              ${v.kind}, ${v.sequence}, ${v.due_start}, ${v.due_end}, ${v.price_cents}, ${v.interior_only}, ${v.label ?? null})`;
   }
 }
 
@@ -206,6 +209,17 @@ export async function endExpiredAgreements(tx: Sql, tenantId: string, today: str
   return result.count;
 }
 
+/** An agreement's billing schedule from its live visits (the same plan settlement reads). */
+export async function agreementSchedule(tx: Sql, tenantId: string, agreementId: string): Promise<{ agreement: AgreementRow; schedule: BillingEvent[] } | null> {
+  const agreement = await loadAgreement(tx, tenantId, agreementId);
+  if (!agreement) return null;
+  const visits = await existingVisits(tx, tenantId, agreementId);
+  const plan: PlannedVisit[] = visits
+    .filter((v) => (v.kind === "initial" || v.kind === "recurring") && v.status !== "cancelled" && v.status !== "skipped")
+    .map((v) => ({ kind: v.kind as "initial" | "recurring", sequence: v.sequence, due_start: v.due_start, due_end: v.due_end, price_cents: Number(v.price_cents), interior_only: false }));
+  return { agreement, schedule: billingSchedule(agreement, plan) };
+}
+
 export type SettlementData = Settlement & { billedCents: number; recognizedCents: number; schedule: BillingEvent[] };
 
 /** What cancelling on `effectiveOn` settles (rule 10): recognized from completed visits, billed per the schedule to that date. */
@@ -216,8 +230,12 @@ export async function settlementFor(tx: Sql, tenantId: string, agreementId: stri
   const plan: PlannedVisit[] = visits
     .filter((v) => (v.kind === "initial" || v.kind === "recurring") && v.status !== "cancelled" && v.status !== "skipped")
     .map((v) => ({ kind: v.kind as "initial" | "recurring", sequence: v.sequence, due_start: v.due_start, due_end: v.due_end, price_cents: Number(v.price_cents), interior_only: false }));
-  const recognizedCents = visits.filter((v) => v.status === "completed").reduce((sum, v) => sum + Number(v.price_cents), 0);
   const schedule = billingSchedule(agreement, plan);
+  // A warranty earns its fee evenly over each term (spec 15 rule 2): through the day before the cancellation takes effect.
+  const recognizedCents =
+    agreement.recognition === "straight_line"
+      ? straightLineRecognized(schedule.filter((e) => e.date < effectiveOn), agreement.term_months, addDays(effectiveOn, -1))
+      : visits.filter((v) => v.status === "completed").reduce((sum, v) => sum + Number(v.price_cents), 0);
   // An imported agreement: the old system billed imported_billed_cents before the cutover; Bugsy billed its own schedule
   // from the cutover on, or for per-visit plans the visits completed in Bugsy (spec 10 rules 8 and 10).
   const [imported] = await tx<{ cutover_on: string | null; imported_billed_cents: string | number | null }[]>`

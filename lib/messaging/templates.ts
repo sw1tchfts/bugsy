@@ -26,7 +26,7 @@ const COMMON = ["company_name", "company_phone", "customer_name", "property_addr
 
 /** The variables each purpose may use; anything else in a template is refused when it is saved. */
 export const TEMPLATE_VARIABLES: Record<TemplateKey, readonly string[]> = {
-  reminder: [...COMMON, "visit_date", "arrival_window", "service_name"],
+  reminder: [...COMMON, "visit_date", "arrival_window", "service_name", "prep_checklist"],
   on_the_way: [...COMMON, "technician_name", "service_name"],
   summary: [...COMMON, "service_name", "visit_date", "technician_name", "summary_url", "summary_text"],
   review: [...COMMON, "review_url", "service_name"],
@@ -64,8 +64,8 @@ const D = (subject: string | null, body: string): Template => ({ subject, body }
 /** Built-in templates. SMS has no subject; mail uses the email text. */
 export const DEFAULT_TEMPLATES: Record<TemplateKey, Partial<Record<Channel, Template>>> = {
   reminder: {
-    sms: D(null, "{{company_name}}: reminder, your {{service_name}} visit at {{property_address}} is {{visit_date}}{{arrival_window}}. Reply here with any questions. Reply STOP to opt out."),
-    email: D("Your visit {{visit_date}}", "Hi {{customer_name}},\n\nThis is a reminder that your {{service_name}} visit at {{property_address}} is {{visit_date}}{{arrival_window}}.\n\nQuestions? Call {{company_phone}} or reply to this email.\n\n{{company_name}}"),
+    sms: D(null, "{{company_name}}: reminder, your {{service_name}} visit at {{property_address}} is {{visit_date}}{{arrival_window}}.{{prep_checklist}} Reply here with any questions. Reply STOP to opt out."),
+    email: D("Your visit {{visit_date}}", "Hi {{customer_name}},\n\nThis is a reminder that your {{service_name}} visit at {{property_address}} is {{visit_date}}{{arrival_window}}.{{prep_checklist}}\n\nQuestions? Call {{company_phone}} or reply to this email.\n\n{{company_name}}"),
   },
   on_the_way: {
     sms: D(null, "{{company_name}}: {{technician_name}} is on the way for your {{service_name}} visit."),
@@ -152,4 +152,10 @@ export function templateFor(key: TemplateKey, channel: Channel, overrides: reado
   if (own) return { subject: own.subject, body: own.body };
   const d = DEFAULT_TEMPLATES[key][channel] ?? (channel === "mail" ? DEFAULT_TEMPLATES[key].email : undefined);
   return d ?? null;
+}
+
+/** Spec 15 rule 6: the prep checklist as one sentence after the reminder's date; empty when the service type has none. */
+export function prepText(items: readonly string[] | null): string {
+  const list = (items ?? []).map((i) => i.trim().replace(/[.;]+$/, "")).filter(Boolean);
+  return list.length ? ` Before we arrive, please: ${list.join("; ")}.` : "";
 }

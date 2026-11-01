@@ -35,7 +35,7 @@ export async function runLedgerNow(formData: FormData) {
       const settings = await loadSettings(tx, tenantId);
       return runLedger(tx, tenantId, active.tenantTimezone, todayInZone(active.tenantTimezone), settings.gateway, { reclass: true, payouts: can(active.permissions, "billing.write") });
     });
-    const posted = c.invoices + c.voids + c.visits + c.product_uses + c.payments + c.refunds + c.payouts + c.local_payouts + c.reclasses;
+    const posted = c.invoices + c.voids + c.visits + c.product_uses + c.payments + c.refunds + c.payouts + c.local_payouts + c.reclasses + c.straight_line;
     note = `${posted} journal entr${posted === 1 ? "y" : "ies"} posted; ${c.unpriced} product use(s) still unpriced.`;
   } catch (err) {
     error = errorCode(err);

@@ -31,6 +31,8 @@ export type DispatchVisit = {
   registry_notice_dates: string[];
   branch_license: { expires_on: string | null } | null;
   account_past_due_since: string | null;
+  /** Wildlife work (spec 15 rule 3): whether the job's landowner authorization is on file. */
+  authorization_on_file: boolean;
 };
 
 export type Technician = { user_id: string; name: string; branch_ids: string[] | null };
@@ -43,7 +45,8 @@ export async function loadVisit(tx: Sql, tenantId: string, visitId: string): Pro
            coalesce((select array_agg(distinct n.for_scheduled_for::text) from public.notices n
                      where n.tenant_id = v.tenant_id and n.visit_id = v.id and n.kind = 'registry_advance' and n.status = 'sent' and n.for_scheduled_for is not null), '{}') as registry_notice_dates,
            case when b.id is null then null else jsonb_build_object('expires_on', b.license_expires_on::text) end as branch_license,
-           ac.past_due_since::text as account_past_due_since
+           ac.past_due_since::text as account_past_due_since,
+           exists (select 1 from public.job_authorizations ja where ja.tenant_id = v.tenant_id and ja.agreement_id = v.agreement_id) as authorization_on_file
     from public.visits v join public.service_types st on st.id = v.service_type_id join public.properties p on p.id = v.property_id
       join public.accounts ac on ac.id = v.account_id
       left join public.branches b on b.id = v.branch_id

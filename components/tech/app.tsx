@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { DevicesSection } from "@/components/tech/devices";
 import { Scanner } from "@/components/tech/scanner";
+import { SpecialtySection } from "@/components/tech/specialty";
 import { SignaturePad } from "@/components/tech/signature-pad";
 import { checkLabelRate } from "@/lib/catalog/label-rates";
 import { TREATMENT_AREAS } from "@/lib/catalog/service-lines";
@@ -87,21 +88,30 @@ export function TechApp({ tenantId, userId, locale, today: serverToday, timezone
   const syncing = useRef(false);
   const syncAgain = useRef(false);
 
-  const refresh = useCallback(async () => {
+  /** Fetches and stores the day's route (and tomorrow's) without showing it; null when offline or refused. */
+  const fetchRoute = useCallback(async (): Promise<RoutePayload | null> => {
     try {
       const res = await fetch(`/api/tech/route?date=${today}`, { cache: "no-store" });
-      if (!res.ok) return;
+      if (!res.ok) return null;
       const payload = (await res.json()) as RoutePayload;
       await techStore.saveRoute(tenantId, payload);
-      setRoute(payload);
-      setFromCache(false);
       // Tomorrow's stops ride along, so a phone opened the night before has the morning's route with no signal.
       const next = await fetch(`/api/tech/route?date=${addDays(today, 1)}`, { cache: "no-store" });
       if (next.ok) await techStore.saveRoute(tenantId, (await next.json()) as RoutePayload);
+      return payload;
     } catch {
       // Offline or the server is unreachable: the cached route stands.
+      return null;
     }
   }, [tenantId, today]);
+
+  const refresh = useCallback(async () => {
+    const payload = await fetchRoute();
+    if (payload) {
+      setRoute(payload);
+      setFromCache(false);
+    }
+  }, [fetchRoute]);
 
   const sync = useCallback(async () => {
     if (!navigator.onLine) return;
@@ -134,16 +144,23 @@ export function TechApp({ tenantId, userId, locale, today: serverToday, timezone
           sent += result.sent;
           failed = result.failed;
         } while (!failed && syncAgain.current);
-        // The store holds everything, including changes queued mid-sync; the screen shows the store.
-        setChanges(await techStore.listChanges());
-        if (sent > 0) await refresh();
+        // The store holds everything, including changes queued mid-sync; the screen shows the store. A change the
+        // server took stops being drawn from the queue in the same render the route that holds it arrives, so
+        // nothing on the stop flickers away (and the completion gate never reads a route without it).
+        const fresh = sent > 0 ? await fetchRoute() : null;
+        const stored = await techStore.listChanges();
+        if (fresh) {
+          setRoute(fresh);
+          setFromCache(false);
+        }
+        setChanges(stored);
         // Checked after the last await, so a change queued at any point of this pass gets another pass.
         again = !failed && syncAgain.current;
       } while (again);
     } finally {
       syncing.current = false;
     }
-  }, [refresh, t]);
+  }, [fetchRoute, t]);
 
   // The signal coming back is what drains the queue.
   useEffect(() => {
@@ -367,6 +384,7 @@ function StopScreen({ route, visit, changes, userId, locale, timezone, t, onQueu
         </div>
       ))}
 
+      <SpecialtySection visit={visit} t={t} onQueue={onQueue} disabled={done} />
       <DevicesSection visit={visit} t={t} onQueue={onQueue} disabled={done} />
       <ProductsSection route={route} visit={visit} userId={userId} t={t} onQueue={onQueue} disabled={done} nameOf={nameOf} />
       <AreasSection visit={visit} t={t} onQueue={onQueue} disabled={done} />
