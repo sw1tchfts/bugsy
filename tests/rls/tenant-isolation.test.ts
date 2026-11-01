@@ -1207,3 +1207,121 @@ describe("spec 10 rules enforced in the database", () => {
     expect(theirs.map((r) => r.tenant_id)).toEqual([lakeshoreId]);
   });
 });
+
+describe("spec 10 import outcomes on the seeded go-live", () => {
+  const lakeshoreTz = () => SEED_TENANTS[1].timezone;
+  class Rollback extends Error {}
+  const rolledBack = async <T,>(fn: (tx: postgres.TransactionSql) => Promise<T>): Promise<T> => {
+    let out: T | undefined;
+    await admin
+      .begin(async (tx) => {
+        out = await fn(tx);
+        throw new Rollback();
+      })
+      .catch((e) => {
+        if (!(e instanceof Rollback)) throw e;
+      });
+    return out as T;
+  };
+  const agreement = async (ext: string) => (await admin<{ id: string }[]>`select id from public.agreements where tenant_id = ${lakeshoreId} and external_id = ${ext}`)[0];
+
+  it("never bills what the old system billed: no installment or prepay before the cutover, no invoice for an imported visit (rule 8)", async () => {
+    const early = await admin<{ n: number }[]>`
+      select count(*)::int as n from public.invoices i join public.agreements a on a.id = i.agreement_id
+      where i.tenant_id = ${lakeshoreId} and a.cutover_on is not null and i.source in ('installment', 'prepay') and i.issued_on < a.cutover_on`;
+    expect(early[0].n).toBe(0);
+    const g2 = await agreement("G-2");
+    const prepay = await admin<{ n: number }[]>`select count(*)::int as n from public.invoices where agreement_id = ${g2.id} and source = 'prepay'`;
+    expect(prepay[0].n).toBe(0);
+    const visitInvoices = await admin<{ n: number }[]>`select count(*)::int as n from public.invoices i join public.visits v on v.id = i.visit_id where v.imported`;
+    expect(visitInvoices[0].n).toBe(0);
+  });
+
+  it("keeps imported visits out of records, notices and revenue (rule 12)", async () => {
+    const counts = await admin<{ records: number; notices: number; postings: number }[]>`
+      select (select count(*)::int from public.application_records r join public.visits v on v.id = r.visit_id where v.imported) as records,
+             (select count(*)::int from public.notices n join public.visits v on v.id = n.visit_id where v.imported) as notices,
+             (select count(*)::int from public.journal_entries e join public.visits v on v.id = e.source_id where v.imported) as postings`;
+    expect(counts[0]).toEqual({ records: 0, notices: 0, postings: 0 });
+  });
+
+  it("issues opening balances as they were: PO-required accounts too, the old due date, and never a late fee (rule 11)", async () => {
+    const rows = await admin<{ external_id: string; status: string; due_on: string; po_required: boolean }[]>`
+      select a.external_id, i.status, i.due_on::text, a.po_required from public.invoices i join public.accounts a on a.id = i.account_id
+      where i.tenant_id = ${lakeshoreId} and i.source = 'opening' order by a.external_id`;
+    expect(rows.find((r) => r.external_id === "A-1002")).toMatchObject({ po_required: true, due_on: "2026-10-30" });
+    expect(rows.every((r) => r.status !== "draft")).toBe(true);
+    const fees = await rolledBack(async (tx) => {
+      await tx`update public.billing_settings set late_fee_cents = 1500 where tenant_id = ${lakeshoreId}`;
+      const { applyLateFees, ensureSettings } = await import("../../lib/billing/db");
+      const settings = await ensureSettings(tx, lakeshoreId);
+      await applyLateFees(tx, lakeshoreId, settings, "2027-01-15");
+      return tx<{ n: number }[]>`select count(*)::int as n from public.invoices f join public.invoices o on f.source_key = 'late_fee:' || o.id where o.tenant_id = ${lakeshoreId} and o.source = 'opening'`;
+    });
+    expect(fees[0].n).toBe(0);
+  });
+
+  it("settles an imported agreement on the old system's billing plus Bugsy's own, through a renewal (rule 10)", async () => {
+    const { settlementFor, renewAgreement } = await import("../../lib/agreements/db");
+    const g1 = await agreement("G-1");
+    const s1 = await admin.begin((tx) => settlementFor(tx, lakeshoreId, g1.id, "2026-10-15"));
+    // 40500 before go-live plus October's 4500; three visits (42000) were done before Bugsy.
+    expect({ billed: s1.billedCents, recognized: s1.recognizedCents }).toEqual({ billed: 45000, recognized: 42000 });
+    const g2 = await agreement("G-2");
+    const renewed = await rolledBack(async (tx) => {
+      await renewAgreement(tx, lakeshoreId, g2.id);
+      const termTwo = await tx<{ cents: string }[]>`select coalesce(sum(price_cents), 0)::text as cents from public.visits where agreement_id = ${g2.id} and due_start >= '2027-03-01'`;
+      return { settlement: await settlementFor(tx, lakeshoreId, g2.id, "2027-04-15"), termTwo: Number(termTwo[0].cents) };
+    });
+    expect(renewed.termTwo).toBeGreaterThan(0);
+    expect(renewed.settlement.billedCents).toBe(45000 + renewed.termTwo);
+  });
+
+  it("imports an agreement whose term ended as ended, two balances for one account, and posts into the first open day after a closed cutover", async () => {
+    const { runImport } = await import("../../lib/import/db");
+    const { stubProvider } = await import("../../lib/geo/stub");
+    const result = await rolledBack(async (tx) => {
+      await tx`insert into public.period_closes (tenant_id, period) values (${lakeshoreId}, '2099-04') on conflict (tenant_id, period) do update set status = 'closed'`;
+      const report = await runImport(tx, lakeshoreId, {
+        cutoverOn: "2099-04-10",
+        timeZone: lakeshoreTz(),
+        batchId: crypto.randomUUID(),
+        geocoder: stubProvider,
+        files: {
+          accounts: "external_id,name\nRLS-A,Edge Case Co\n",
+          properties: "external_id,account_external_id,line1,city,state,postal_code,property_type\nRLS-P,RLS-A,9 Edge St,Columbus,OH,43215,house\n",
+          agreements:
+            "external_id,account_external_id,property_external_id,service_type,cadence,billing_mode,starts_on,initial_price,recurring_price,last_service_on\n" +
+            "RLS-OLD,RLS-A,RLS-P,General pest plan,quarterly,flat_monthly,2097-01-01,100,100,2097-12-20\n" +
+            "RLS-NOW,RLS-A,RLS-P,General pest plan,quarterly,flat_monthly,2099-01-01,180,120,2099-04-05\n",
+          balances: "account_external_id,amount,as_of,reference\nRLS-A,10.00,2099-03-01,OLD-1\nRLS-A,20.00,2099-03-15,OLD-2\n",
+        },
+      });
+      const ended = await tx<{ external_id: string; status: string }[]>`select external_id, status from public.agreements where tenant_id = ${lakeshoreId} and external_id like 'RLS-%' order by external_id`;
+      const openings = await tx<{ posted_on: string }[]>`
+        select e.posted_on::text from public.journal_entries e join public.agreements a on a.id = e.source_id where a.external_id = 'RLS-NOW' and e.source_type = 'opening'`;
+      const invoices = await tx<{ n: number }[]>`select count(*)::int as n from public.invoices i join public.accounts a on a.id = i.account_id where a.external_id = 'RLS-A' and i.source = 'opening'`;
+      return { report, ended, openings, invoices: invoices[0].n };
+    });
+    expect(result.report.errors).toEqual([]);
+    expect(result.ended).toEqual([
+      { external_id: "RLS-NOW", status: "active" },
+      { external_id: "RLS-OLD", status: "ended" },
+    ]);
+    expect(result.openings).toEqual([{ posted_on: "2099-05-01" }]);
+    expect(result.invoices).toBe(2);
+    expect(result.report.warnings.map((w) => w.message).join(" ")).toMatch(/imported as ended.*|closed for 2099-04/);
+  });
+
+  it("lets no member mark a visit done before Bugsy outside an import (rules 12 and 14)", async () => {
+    const techEmail = seedUserEmail(lakeshore, "technician");
+    const tech = await userId(techEmail);
+    const [visit] = await admin<{ id: string }[]>`select v.id from public.visits v join public.visit_crew c on c.visit_id = v.id where v.tenant_id = ${lakeshoreId} and c.user_id = ${tech} and not v.imported limit 1`;
+    await expect(asUser(tech, techEmail, (tx) => tx`update public.visits set imported = true where id = ${visit.id}`)).rejects.toThrow(/only an import/);
+    const dispatcherEmail = seedUserEmail(lakeshore, "dispatcher");
+    const dispatcher = await userId(dispatcherEmail);
+    await expect(
+      asUser(dispatcher, dispatcherEmail, (tx) => tx`insert into public.visits (tenant_id, account_id, property_id, service_type_id, kind, due_start, due_end, status, imported) select tenant_id, account_id, property_id, service_type_id, 'one_time', current_date, current_date, 'completed', true from public.visits where id = ${visit.id}`),
+    ).rejects.toThrow(/only an import/);
+  });
+});

@@ -79,8 +79,8 @@ export default async function BatchPage({ params }: { params: Promise<{ batchId:
           <Table headers={["File", "Row", "Column", "Problem"]}>
             {batch.errors.map((e, i) => (
               <tr key={i} data-testid="row-error">
-                <td className="py-2 pr-4">{e.file}.csv</td>
-                <td className="py-2 pr-4 tabular-nums">{e.row}</td>
+                <td className="py-2 pr-4">{e.file === "upload" ? "upload" : `${e.file}.csv`}</td>
+                <td className="py-2 pr-4 tabular-nums">{e.row || ""}</td>
                 <td className="py-2 pr-4">{e.column ?? ""}</td>
                 <td className="py-2 pr-4">{e.message}</td>
               </tr>

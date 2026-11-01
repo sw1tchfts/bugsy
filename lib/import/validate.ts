@@ -187,6 +187,7 @@ export function validateAgreement(row: Row, cutoverOn: string): Checked<Agreemen
   if (initial !== null && initial < 0) errors.push({ column: "initial_price", message: "a price cannot be negative" });
   if (recurring !== null && recurring < 0) errors.push({ column: "recurring_price", message: "a price cannot be negative" });
   const cancelFee = take("cancel_fee", money(v.cancel_fee ?? ""), null) ?? 0;
+  if (cancelFee < 0) errors.push({ column: "cancel_fee", message: "a cancellation fee cannot be negative" });
   const termMonths = take("term_months", int(v.term_months ?? "", { min: 1, max: 60 }), null) ?? 12;
   const every = take("every", int(v.every ?? "", { min: 1, max: 52 }), null);
   const unit = take("unit", oneOf(v.unit ?? "", ["weeks", "months"] as const, null), null);

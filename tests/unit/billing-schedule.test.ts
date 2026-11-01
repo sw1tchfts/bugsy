@@ -107,3 +107,15 @@ describe("cancellation settlement (rule 10, fixture scenario E)", () => {
     expect(settlement).toEqual({ finalInvoiceCents: 0, refundCents: 36000, feeCents: 5000, positionAfterCents: 0 });
   });
 });
+
+describe("annual prepay across renewals (spec 08 rule 4, spec 10 review fix)", () => {
+  it("bills each term on its first day for that term's visits, not the whole run up front", () => {
+    const visit = (seq: number, due: string, cents: number) => ({ kind: seq === 1 ? ("initial" as const) : ("recurring" as const), sequence: seq, due_start: due, due_end: due, price_cents: cents, interior_only: false });
+    const planned = [visit(1, "2026-03-10", 15000), visit(2, "2026-06-01", 10000), visit(3, "2026-09-01", 10000), visit(4, "2026-12-01", 10000), visit(5, "2027-03-10", 10000), visit(6, "2027-06-01", 10000)];
+    expect(billingSchedule({ billing_mode: "annual_prepay", starts_on: "2026-03-01", term_months: 12, renewals: 1 }, planned)).toEqual([
+      { date: "2026-03-01", amount_cents: 45000 },
+      { date: "2027-03-01", amount_cents: 20000 },
+    ]);
+    expect(billingSchedule({ billing_mode: "annual_prepay", starts_on: "2026-03-01", term_months: 12 }, planned.slice(0, 4))).toEqual([{ date: "2026-03-01", amount_cents: 45000 }]);
+  });
+});

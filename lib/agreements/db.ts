@@ -53,7 +53,7 @@ export async function loadAgreement(tx: Sql, tenantId: string, agreementId: stri
 
 async function existingVisits(tx: Sql, tenantId: string, agreementId: string): Promise<ExistingVisit[]> {
   return tx<ExistingVisit[]>`
-    select id, kind, sequence, due_start, due_end, status, price_cents from public.visits
+    select id, kind, sequence, due_start, due_end, status, price_cents, imported from public.visits
     where agreement_id = ${agreementId} and tenant_id = ${tenantId} order by sequence`;
 }
 
@@ -218,16 +218,21 @@ export async function settlementFor(tx: Sql, tenantId: string, agreementId: stri
     .map((v) => ({ kind: v.kind as "initial" | "recurring", sequence: v.sequence, due_start: v.due_start, due_end: v.due_end, price_cents: Number(v.price_cents), interior_only: false }));
   const recognizedCents = visits.filter((v) => v.status === "completed").reduce((sum, v) => sum + Number(v.price_cents), 0);
   const schedule = billingSchedule(agreement, plan);
-  // An imported agreement: the old system billed imported_billed_cents before the cutover, Bugsy its schedule from
-  // the cutover on (spec 10 rules 8 and 10).
+  // An imported agreement: the old system billed imported_billed_cents before the cutover; Bugsy billed its own schedule
+  // from the cutover on, or for per-visit plans the visits completed in Bugsy (spec 10 rules 8 and 10).
   const [imported] = await tx<{ cutover_on: string | null; imported_billed_cents: string | number | null }[]>`
     select cutover_on, imported_billed_cents from public.agreements where id = ${agreementId} and tenant_id = ${tenantId}`;
-  const billedCents =
-    agreement.billing_mode === "per_visit"
-      ? recognizedCents
-      : imported?.cutover_on
-        ? Number(imported.imported_billed_cents ?? 0) + billedThrough(schedule.filter((e) => e.date >= (imported.cutover_on as string)), effectiveOn)
-        : billedThrough(schedule, effectiveOn);
+  let billedCents: number;
+  if (imported?.cutover_on) {
+    const cutover = imported.cutover_on;
+    const before = Number(imported.imported_billed_cents ?? 0);
+    billedCents =
+      agreement.billing_mode === "per_visit"
+        ? before + visits.filter((v) => v.status === "completed" && !v.imported).reduce((sum, v) => sum + Number(v.price_cents), 0)
+        : before + billedThrough(schedule.filter((e) => e.date >= cutover), effectiveOn);
+  } else {
+    billedCents = agreement.billing_mode === "per_visit" ? recognizedCents : billedThrough(schedule, effectiveOn);
+  }
   return { ...settlementPreview({ billedCents, recognizedCents, cancelFeeCents: agreement.cancel_fee_cents }), billedCents, recognizedCents, schedule };
 }
 

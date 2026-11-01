@@ -3,7 +3,8 @@ import { isIsoDate } from "@/lib/dates";
 import { parseDollarsToCents } from "@/lib/money";
 import { type ImportKind, TEMPLATES } from "./templates";
 
-export type RowError = { file: ImportKind; row: number; column: string | null; message: string };
+/** A problem with a row, or with the upload itself (file "upload", row 0). */
+export type RowError = { file: ImportKind | "upload"; row: number; column: string | null; message: string };
 export type Row = { row: number; values: Record<string, string> };
 export type FileRead = { rows: Row[]; errors: RowError[] };
 

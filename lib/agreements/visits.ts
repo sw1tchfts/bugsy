@@ -37,6 +37,8 @@ export type ExistingVisit = {
   due_end: string;
   status: string;
   price_cents: number | string | bigint;
+  /** Done before Bugsy (spec 10). */
+  imported?: boolean;
 };
 
 export type RegenerationPlan = {

@@ -87,6 +87,7 @@ Migration `supabase/migrations/20261101150000_import.sql`.
 ## Open questions
 - Which old systems get a mapping first (GorillaDesk and PestPac exports are the likely pair): not blocking.
 - Whether opening balances should carry the old invoice's original issue date for aging rather than as_of: as_of is used for both today; not blocking.
+- Large history files on Vercel: a function accepts request bodies up to about 4.5 MB there, whatever the server action limit, so history files above that need a direct upload to storage. That arrives when files move to Supabase Storage (lib/files.ts); until then large old records upload in pieces or after deployment by the platform team. Blocks only files over that size in production.
 
 ## Verification
 1. `npm test`: `tests/unit/import-parse.test.ts` (headers, coercers, CSV quirks: BOM, quoted commas, blank lines), `tests/unit/import-validate.test.ts` (each template's required fields and value checks), `tests/unit/import-cutover.test.ts` loads `fixtures/import/expected.json` and checks, for each agreement in `fixtures/import/agreements.csv`, the visits done before cutover, the default billed-to-date and the opening position against the planned visits.

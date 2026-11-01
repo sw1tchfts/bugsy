@@ -6,7 +6,7 @@ import { syncVisits } from "@/lib/agreements/db";
 import { planVisits } from "@/lib/agreements/visits";
 import { createInvoice } from "@/lib/billing/db";
 import { fromTenantLocal } from "@/lib/dates";
-import { putFile } from "@/lib/files";
+import { MAX_IMPORT_FILE_BYTES, putFile } from "@/lib/files";
 import type { GeoProvider, GeoResult } from "@/lib/geo/provider";
 import { postOpening } from "@/lib/ledger/db";
 import { defaultBilledToDate, deliveredCents, doneBeforeCutover, openingPosition } from "./cutover";
@@ -294,7 +294,10 @@ export async function runImport(tx: Sql, tenantId: string, input: ImportInput): 
       warn("agreements", row.row, "starts_on", `the term ended ${made.ends_on}, before go-live; imported as ended`);
     }
     if (openingPosition(billed, done) !== 0) {
-      await postOpening(tx, tenantId, { agreement_id: made.id, billed_cents: billed, recognized_cents: deliveredCents(done), as_of: input.cutoverOn });
+      // A cutover in a closed month posts on the first open day after it (edge case; spec 09 rule 9).
+      const [{ day }] = await tx<{ day: string }[]>`select app.first_open_day(${tenantId}, ${input.cutoverOn})::text as day`;
+      if (day !== input.cutoverOn) warn("agreements", row.row, "billed_to_date", `the ledger is closed for ${input.cutoverOn.slice(0, 7)}; the opening position posts on ${day}`);
+      await postOpening(tx, tenantId, { agreement_id: made.id, billed_cents: billed, recognized_cents: deliveredCents(done), as_of: day });
     }
     (summary.agreements as FileSummary).created += 1;
   }
@@ -356,6 +359,14 @@ const MAX_STORED = 500;
 /** A dry run or a commit (rule 6): the import runs in one transaction, kept only for a clean commit; the report is stored either way. */
 export async function importBatch(run: <T>(fn: (tx: postgres.TransactionSql) => Promise<T>) => Promise<T>, tenantId: string, input: BatchInput): Promise<BatchResult> {
   const batchId = crypto.randomUUID();
+  // Every upload is checked before anything runs, in both modes, so a dry run cannot pass what the commit refuses.
+  const uploadErrors: RowError[] = [];
+  for (const [kind, f] of Object.entries(input.templates) as [ImportKind, UploadedFile][]) {
+    if (f.data.byteLength > MAX_IMPORT_FILE_BYTES) uploadErrors.push({ file: kind, row: 0, column: null, message: `${f.name} is larger than 20 MB` });
+  }
+  for (const h of input.history) {
+    if (h.file.data.byteLength < 1 || h.file.data.byteLength > MAX_IMPORT_FILE_BYTES) uploadErrors.push({ file: "upload", row: 0, column: null, message: `${h.file.name} must be between 1 byte and 20 MB` });
+  }
   const files = Object.fromEntries(Object.entries(input.templates).map(([k, f]) => [k, new TextDecoder("utf-8").decode((f as UploadedFile).data)])) as Partial<Record<ImportKind, string>>;
   const record = async (tx: Sql, status: BatchResult["status"], report: ImportReport) => {
     await tx`
@@ -364,7 +375,16 @@ export async function importBatch(run: <T>(fn: (tx: postgres.TransactionSql) => 
   };
   try {
     const report = await run(async (tx) => {
-      const r = await runImport(tx, tenantId, { files, cutoverOn: input.cutoverOn, timeZone: input.timeZone, batchId, geocoder: input.geocoder });
+      let r: ImportReport;
+      try {
+        r = await runImport(tx, tenantId, { files, cutoverOn: input.cutoverOn, timeZone: input.timeZone, batchId, geocoder: input.geocoder });
+      } catch (err) {
+        // Whatever the database refused that the row checks did not catch still ends in a stored report (rule 6).
+        const e = err as { message?: string; code?: string };
+        if (e.code === "42501") throw err;
+        r = { summary: {}, errors: [{ file: "upload", row: 0, column: null, message: `the import stopped: ${e.message ?? "unknown error"}` }], warnings: [] };
+      }
+      r.errors.unshift(...uploadErrors);
       if (input.mode === "dry_run" || r.errors.length) throw new Rollback(r);
       await record(tx, "committed", r);
       for (const [kind, f] of Object.entries(input.templates) as [ImportKind, UploadedFile][]) {

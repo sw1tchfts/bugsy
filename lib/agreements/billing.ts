@@ -34,8 +34,19 @@ export function billingSchedule(agreement: BillingAgreement, planned: readonly P
       const count = agreement.term_months * (1 + (agreement.renewals ?? 0));
       return installments(total, count).map((amount_cents, i) => ({ date: addMonths(agreement.starts_on, i), amount_cents }));
     }
-    case "annual_prepay":
-      return [{ date: agreement.starts_on, amount_cents: total }];
+    case "annual_prepay": {
+      // One prepayment per term, on the term's first day, for the visits due in that term (spec 08 rule 4).
+      const terms = 1 + (agreement.renewals ?? 0);
+      const events: BillingEvent[] = [];
+      for (let term = 0; term < terms; term += 1) {
+        const start = addMonths(agreement.starts_on, term * agreement.term_months);
+        const next = addMonths(agreement.starts_on, (term + 1) * agreement.term_months);
+        const last = term === terms - 1;
+        const amount = planned.filter((v) => (term === 0 || v.due_start >= start) && (last || v.due_start < next)).reduce((sum, v) => sum + v.price_cents, 0);
+        if (term === 0 || amount > 0) events.push({ date: start, amount_cents: amount });
+      }
+      return events;
+    }
   }
 }
 

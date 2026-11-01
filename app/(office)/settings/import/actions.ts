@@ -10,7 +10,6 @@ import { errorCode } from "@/lib/db";
 import { geoProvider } from "@/lib/geo/provider";
 import { type UploadedFile, importBatch } from "@/lib/import/db";
 import { IMPORT_KINDS, type ImportKind } from "@/lib/import/templates";
-import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 
 const HOME = "/settings/import";
 
@@ -33,8 +32,8 @@ export async function runImportAction(formData: FormData) {
   const tenantId = str(formData, "tenant_id");
   const mode = str(formData, "mode") === "commit" ? "commit" : "dry_run";
   const cutoverOn = str(formData, "cutover_on");
-  const { session } = await requirePermission(tenantId, "data.import");
-  const { active } = await requireActiveTenant();
+  // The form's company decides the permissions and the zone, never whichever company another tab switched to.
+  const { session, membership } = await requirePermission(tenantId, "data.import");
   if (!isIsoDate(cutoverOn)) redirect(`${HOME}?error=${encodeURIComponent("The go-live date is a date.")}`);
   const templates: Partial<Record<ImportKind, UploadedFile>> = {};
   for (const kind of IMPORT_KINDS) {
@@ -47,12 +46,12 @@ export async function runImportAction(formData: FormData) {
     if (f) history.push({ file: f, label: str(formData, "history_label") || null });
   }
   if (Object.keys(templates).length === 0 && history.length === 0) redirect(`${HOME}?error=${encodeURIComponent("Pick at least one file.")}`);
-  const missing = (Object.keys(templates) as ImportKind[]).flatMap((k) => NEEDS[k].filter((p) => !can(active.permissions, p)).map((p) => `${k} needs ${p}`));
+  const missing = (Object.keys(templates) as ImportKind[]).flatMap((k) => NEEDS[k].filter((p) => !can(membership.permissions, p)).map((p) => `${k} needs ${p}`));
   if (missing.length) redirect(`${HOME}?error=${encodeURIComponent(`Your role cannot import this: ${missing.join("; ")}.`)}`);
   let batchId: string | null = null;
   let error: string | null = null;
   try {
-    const result = await importBatch((fn) => dbAs(session, fn), tenantId, { templates, history, mode, cutoverOn, timeZone: active.tenantTimezone, geocoder: geoProvider() });
+    const result = await importBatch((fn) => dbAs(session, fn), tenantId, { templates, history, mode, cutoverOn, timeZone: membership.tenantTimezone, geocoder: geoProvider() });
     batchId = result.batch_id;
   } catch (err) {
     error = errorCode(err);
