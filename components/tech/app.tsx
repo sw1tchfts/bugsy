@@ -350,10 +350,7 @@ function StopScreen({ route, visit, changes, userId, locale, timezone, t, onQueu
       <SignatureSection visit={visit} t={t} onQueue={onQueue} disabled={done} locale={locale} timezone={timezone} />
 
       {visit.billing_mode === "per_visit" && visit.price_cents > 0 ? (
-        <section className="rounded-lg border border-stone-200 bg-white p-3 text-sm">
-          <h2 className="font-semibold">{t("payment.title")}</h2>
-          <p className="text-stone-600">{t("payment.perVisit", { amount: formatCents(visit.price_cents) })}</p>
-        </section>
+        <PaymentSection visit={visit} changes={changes} t={t} onQueue={onQueue} />
       ) : null}
 
       {!done ? (
@@ -773,6 +770,60 @@ function PhotosSection({ visit, t, onQueue, disabled }: SectionProps) {
           </label>
           {error ? <p className="text-xs text-red-800">{error}</p> : null}
         </div>
+      ) : null}
+    </section>
+  );
+}
+
+function PaymentSection({ visit, changes, t, onQueue }: { visit: RouteVisit; changes: QueuedChange[]; t: SectionProps["t"]; onQueue: SectionProps["onQueue"] }) {
+  const [method, setMethod] = useState<"cash" | "check">("cash");
+  const [amount, setAmount] = useState("");
+  const [reference, setReference] = useState("");
+  const taken = changes.filter((c) => c.payload.kind === "payment" && c.status !== "rejected");
+  return (
+    <section className="rounded-lg border border-stone-200 bg-white p-3 text-sm" data-testid="payment">
+      <h2 className="font-semibold">{t("payment.title")}</h2>
+      <p className="text-stone-600">{t("payment.perVisit", { amount: formatCents(visit.price_cents) })}</p>
+      {taken.map((c) => {
+        const p = c.payload as Extract<ChangePayload, { kind: "payment" }>;
+        return (
+          <p key={c.id} className="text-emerald-800" data-testid="payment-taken">
+            {t("payment.taken", { amount: formatCents(p.amount_cents), method: t(`payment.${p.method}`) })}
+            {c.status === "pending" ? ` (${t("pending.queued")})` : ""}
+          </p>
+        );
+      })}
+      {visit.status === "completed" ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const cents = Math.round(Number(amount) * 100);
+            if (!Number.isInteger(cents) || cents <= 0) return;
+            void onQueue({ kind: "payment", method, amount_cents: cents, reference: reference.trim() || null, received_at: new Date().toISOString() });
+            setAmount("");
+            setReference("");
+          }}
+          className="mt-2 grid grid-cols-2 gap-2"
+        >
+          <label className="grid gap-1">
+            <span>{t("payment.method")}</span>
+            <select value={method} onChange={(e) => setMethod(e.target.value as "cash" | "check")} className="rounded border border-stone-300 px-2 py-2">
+              <option value="cash">{t("payment.cash")}</option>
+              <option value="check">{t("payment.check")}</option>
+            </select>
+          </label>
+          <label className="grid gap-1">
+            <span>{t("payment.amount")}</span>
+            <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" className="rounded border border-stone-300 px-2 py-2" required />
+          </label>
+          <label className="col-span-2 grid gap-1">
+            <span>{t("payment.reference")}</span>
+            <input value={reference} onChange={(e) => setReference(e.target.value)} className="rounded border border-stone-300 px-2 py-2" />
+          </label>
+          <button type="submit" className="col-span-2 justify-self-start rounded border border-emerald-800 px-3 py-2 text-emerald-900">
+            {t("payment.record")}
+          </button>
+        </form>
       ) : null}
     </section>
   );

@@ -135,8 +135,10 @@ describe("as a Northwind owner", () => {
 
   it("is stopped by row level security when inserting into another tenant in any tenant table", async () => {
     for (const t of tenantTables()) {
-      // Copy real Lakeshore rows without their generated columns, so the only thing wrong with the insert is the
-      // tenant. Some rows are rejected by business-rule triggers before the policy runs (a won lead, for example),
+      // Copy real Lakeshore rows as they are, id included, without their generated columns, so the only thing wrong
+      // with the insert is the tenant (a trigger that sums a row's siblings excludes the row itself by id, so a copy
+      // under a fresh id would be refused for double counting before the policy ever ran). Some rows are rejected by
+      // business-rule triggers before the policy runs (a won lead, for example),
       // so several samples are tried: none may succeed, and at least one must fail on row level security itself.
       // Oldest rows first: the seed's first rows are the plain ones (a planned visit, an open lead), later rows carry
       // states that insert triggers refuse.
@@ -149,7 +151,7 @@ describe("as a Northwind owner", () => {
       const otherErrors: string[] = [];
       for (const sample of samples) {
         const copy = { ...sample.row };
-        for (const key of ["id", "token", "created_at", "updated_at", ...generated.map((g) => g.column_name)]) delete copy[key];
+        for (const key of ["token", "created_at", "updated_at", ...generated.map((g) => g.column_name)]) delete copy[key];
         try {
           await asUser(...owner(), (tx) => tx`insert into public.${tx(t.name)} ${tx(copy)}`);
           expect.fail(`${t.name}: insert into Lakeshore succeeded`);
@@ -907,5 +909,77 @@ describe("spec 07 rules enforced in the database", () => {
     await admin.begin((tx) => runCompliance(tx, lakeshoreId, tenant.timezone));
     const again = await admin.begin((tx) => runCompliance(tx, lakeshoreId, tenant.timezone));
     expect(again).toEqual({ records: 0, locked: 0, notices: 0, tasks: 0 });
+  });
+});
+
+describe("spec 08 rules enforced in the database", () => {
+  const officeEmail = seedUserEmail(lakeshore, "office");
+  const bookkeeperEmail = seedUserEmail(lakeshore, "bookkeeper");
+  const techEmail = seedUserEmail(lakeshore, "technician");
+  let office = "";
+  let bookkeeper = "";
+  let tech = "";
+  let issuedId = "";
+  let paidId = "";
+
+  beforeAll(async () => {
+    office = await userId(officeEmail);
+    bookkeeper = await userId(bookkeeperEmail);
+    tech = await userId(techEmail);
+    const [issued] = await admin<{ id: string }[]>`select id from public.invoices where tenant_id = ${lakeshoreId} and status <> 'draft' and status <> 'void' order by issued_on limit 1`;
+    const [paid] = await admin<{ id: string }[]>`select i.id from public.invoices i where i.tenant_id = ${lakeshoreId} and i.status = 'paid' and exists (select 1 from public.payment_allocations a where a.invoice_id = i.id) limit 1`;
+    if (!issued || !paid) throw new Error("the seed issues and pays Lakeshore invoices; run npm run seed");
+    issuedId = issued.id;
+    paidId = paid.id;
+  });
+
+  it("never changes an issued invoice's number, lines, totals or source (rule 1)", async () => {
+    await expect(asUser(office, officeEmail, (tx) => tx`update public.invoices set total_cents = total_cents + 1 where id = ${issuedId}`)).rejects.toThrow(/never changes/);
+    await expect(asUser(office, officeEmail, (tx) => tx`update public.invoices set number = 999999 where id = ${issuedId}`)).rejects.toThrow(/never changes/);
+    await expect(asUser(office, officeEmail, (tx) => tx`insert into public.invoice_lines (tenant_id, invoice_id, position, description, amount_cents) values (${lakeshoreId}, ${issuedId}, 99, 'late line', 100)`)).rejects.toThrow(/draft invoice/);
+    await expect(admin`delete from public.invoices where id = ${issuedId}`).rejects.toThrow(/never deleted/);
+    await expect(asUser(office, officeEmail, (tx) => tx`update public.invoices set status = 'draft' where id = ${issuedId}`)).rejects.toThrow(/cannot go back to draft/);
+  });
+
+  it("refuses to void a paid invoice and refuses allocations beyond the payment or the invoice (rules 7 and 9)", async () => {
+    await expect(asUser(office, officeEmail, (tx) => tx`update public.invoices set status = 'void', void_reason = 'rls suite' where id = ${paidId}`)).rejects.toThrow(/cannot be voided/);
+    const [paidInvoice] = await admin<{ account_id: string }[]>`select account_id from public.invoices where id = ${paidId}`;
+    const [payment] = await asUser(office, officeEmail, (tx) => tx<{ id: string }[]>`insert into public.payments (tenant_id, account_id, method, amount_cents, recorded_by) values (${lakeshoreId}, ${paidInvoice.account_id}, 'cash', 100, ${office}) returning id`);
+    try {
+      await expect(asUser(office, officeEmail, (tx) => tx`insert into public.payment_allocations (tenant_id, payment_id, invoice_id, amount_cents) values (${lakeshoreId}, ${payment.id}, ${paidId}, 200)`)).rejects.toThrow(/exceed the payment/);
+      await expect(asUser(office, officeEmail, (tx) => tx`insert into public.payment_allocations (tenant_id, payment_id, invoice_id, amount_cents) values (${lakeshoreId}, ${payment.id}, ${paidId}, 1)`)).rejects.toThrow(/exceed the invoice/);
+    } finally {
+      await admin`delete from public.payments where id = ${payment.id}`;
+    }
+  });
+
+  it("lets the crew record cash for their own visit and nobody else's, and keeps the bookkeeper reading only (rule 15)", async () => {
+    const [mine] = await admin<{ id: string; account_id: string }[]>`
+      select v.id, v.account_id from public.visits v join public.visit_crew c on c.visit_id = v.id where v.tenant_id = ${lakeshoreId} and c.user_id = ${tech} limit 1`;
+    const [theirs] = await admin<{ id: string; account_id: string }[]>`
+      select v.id, v.account_id from public.visits v where v.tenant_id = ${lakeshoreId} and not exists (select 1 from public.visit_crew c where c.visit_id = v.id and c.user_id = ${tech}) limit 1`;
+    expect(mine && theirs, "the seed gives the technician a crew visit and leaves others").toBeTruthy();
+    const [cash] = await asUser(tech, techEmail, (tx) => tx<{ id: string }[]>`insert into public.payments (tenant_id, account_id, method, amount_cents, visit_id, recorded_by) values (${lakeshoreId}, ${mine.account_id}, 'cash', 2500, ${mine.id}, ${tech}) returning id`);
+    try {
+      expect(cash.id).toBeTruthy();
+      await expect(asUser(tech, techEmail, (tx) => tx`insert into public.payments (tenant_id, account_id, method, amount_cents, visit_id, recorded_by) values (${lakeshoreId}, ${theirs.account_id}, 'cash', 2500, ${theirs.id}, ${tech})`)).rejects.toThrow(/only billing staff|row-level security/);
+      await expect(asUser(tech, techEmail, (tx) => tx`insert into public.payments (tenant_id, account_id, method, amount_cents, recorded_by) values (${lakeshoreId}, ${mine.account_id}, 'cash', 2500, ${tech})`)).rejects.toThrow(/only billing staff|row-level security/);
+    } finally {
+      await admin`delete from public.payments where id = ${cash.id}`;
+    }
+    const read = await asUser(bookkeeper, bookkeeperEmail, (tx) => tx`select id from public.invoices where tenant_id = ${lakeshoreId}`);
+    expect(read.length).toBeGreaterThan(0);
+    await expect(asUser(bookkeeper, bookkeeperEmail, (tx) => tx`insert into public.invoices (tenant_id, account_id, source, source_key) values (${lakeshoreId}, ${mine.account_id}, 'manual', 'manual:rls')`)).rejects.toThrow(RLS_ERROR);
+    await expect(asUser(office, officeEmail, (tx) => tx`insert into public.tax_rates (state_code, postal_code, jurisdiction_kind, jurisdiction_name, rate, effective_from, source) values ('ZZ', '99999', 'state', 'RLS', 0.01, '2026-01-01', 'rls suite')`)).rejects.toThrow(RLS_ERROR);
+    const foreign = await asUser(northwindOwner, seedUserEmail(northwind, "owner"), (tx) => tx`select id from public.invoices where tenant_id = ${lakeshoreId}`);
+    expect(foreign.length).toBe(0);
+  });
+
+  it("runs the billing job twice without creating anything the second time (rules 2 to 4, 8, 11)", async () => {
+    const { runBilling } = await import("../../lib/billing/db");
+    const [tenant] = await admin<{ timezone: string }[]>`select timezone from public.tenants where id = ${lakeshoreId}`;
+    await admin.begin((tx) => runBilling(tx, lakeshoreId, tenant.timezone));
+    const again = await admin.begin((tx) => runBilling(tx, lakeshoreId, tenant.timezone));
+    expect(again).toMatchObject({ visits: 0, installments: 0, prepayments: 0, charged: 0, failed: 0, skipped: 0, late_fees: 0, allocated_cents: 0 });
   });
 });

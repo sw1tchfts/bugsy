@@ -1,6 +1,7 @@
 // Dispatch operations against the database: load what the check needs, then write only when the check passes.
 // Typed structurally so the office actions (under RLS) and the seed (superuser) share it.
 import type postgres from "postgres";
+import { loadSettings } from "@/lib/billing/db";
 import type { JobKind, TreatmentArea } from "@/lib/catalog/service-lines";
 import { getStatePack } from "@/lib/compliance/rules";
 import { type ArrivalWindow, type CheckResult, type CrewMember, type CrewRole, type Credential, type StateRuleInput, checkAssignment } from "@/lib/dispatch/checks";
@@ -29,6 +30,7 @@ export type DispatchVisit = {
   /** Dates for which a registry advance notice is already sent (spec 07). */
   registry_notice_dates: string[];
   branch_license: { expires_on: string | null } | null;
+  account_past_due_since: string | null;
 };
 
 export type Technician = { user_id: string; name: string; branch_ids: string[] | null };
@@ -40,8 +42,10 @@ export async function loadVisit(tx: Sql, tenantId: string, visitId: string): Pro
            v.technician_id, v.route_position, v.arrival_window, st.job_kind, st.treatment_areas, p.state_code as property_state, p.registry_matches,
            coalesce((select array_agg(distinct n.for_scheduled_for::text) from public.notices n
                      where n.tenant_id = v.tenant_id and n.visit_id = v.id and n.kind = 'registry_advance' and n.status = 'sent' and n.for_scheduled_for is not null), '{}') as registry_notice_dates,
-           case when b.id is null then null else jsonb_build_object('expires_on', b.license_expires_on::text) end as branch_license
+           case when b.id is null then null else jsonb_build_object('expires_on', b.license_expires_on::text) end as branch_license,
+           ac.past_due_since::text as account_past_due_since
     from public.visits v join public.service_types st on st.id = v.service_type_id join public.properties p on p.id = v.property_id
+      join public.accounts ac on ac.id = v.account_id
       left join public.branches b on b.id = v.branch_id
     where v.id = ${visitId} and v.tenant_id = ${tenantId}`;
   return row ?? null;
@@ -109,8 +113,9 @@ export async function runCheck(tx: Sql, tenantId: string, visit: DispatchVisit, 
           and status in ('scheduled', 'en_route', 'in_progress')`
     : [];
   const myPosition = position ?? Math.max(0, ...others.map((o) => o.route_position)) + 1;
+  const billing = visit.account_past_due_since ? await loadSettings(tx, tenantId) : null;
   return checkAssignment({
-    visit: { ...visit, scheduled_for: date, registry_notice_sent: visit.registry_notice_dates.includes(date) },
+    visit: { ...visit, scheduled_for: date, registry_notice_sent: visit.registry_notice_dates.includes(date), pause_when_past_due: billing?.pause_when_past_due ?? false },
     stateRule: await stateRuleFor(tx, tenantId, visit.service_type_id, visit.property_state),
     crew: await buildCrew(tx, tenantId, visit.property_state, spec),
     pack: getStatePack(visit.property_state),

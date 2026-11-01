@@ -51,6 +51,12 @@ export type Database = {
 "role_is_owner":
 { Args: { "role": string }; Returns: boolean
                            },
+"set_account_gateway_customer":
+{ Args: { "p_account": string,"p_customer": string,"p_tenant": string }; Returns: boolean
+                           },
+"set_account_tax_exemption":
+{ Args: { "p_account": string,"p_expires": string,"p_file": string,"p_number": string,"p_tenant": string }; Returns: boolean
+                           },
 "set_branch_license":
 { Args: { "p_branch": string,"p_expires": string,"p_number": string,"p_tenant": string,"p_year": number }; Returns: boolean
                            },
@@ -74,17 +80,23 @@ export type Database = {
           Tables: {
             "accounts": {
                   Row: {
-                    "archived_at": string | null,"billing_city": string | null,"billing_line1": string | null,"billing_line2": string | null,"billing_postal_code": string | null,"billing_state_code": string | null,"created_at": string,"created_by": string | null,"email": string | null,"id": string,"lead_id": string | null,"name": string,"notes": string | null,"phone": string | null,"phone_digits": string | null,"po_required": boolean,"status": string,"tenant_id": string,"terms_days": number,"type": string,"updated_at": string
+                    "archived_at": string | null,"billing_city": string | null,"billing_line1": string | null,"billing_line2": string | null,"billing_postal_code": string | null,"billing_state_code": string | null,"created_at": string,"created_by": string | null,"email": string | null,"gateway_customer_id": string | null,"id": string,"lead_id": string | null,"name": string,"notes": string | null,"past_due_since": string | null,"phone": string | null,"phone_digits": string | null,"po_required": boolean,"status": string,"tax_exempt_expires_on": string | null,"tax_exempt_file_id": string | null,"tax_exempt_number": string | null,"tenant_id": string,"terms_days": number,"type": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "archived_at"?: string | null,"billing_city"?: string | null,"billing_line1"?: string | null,"billing_line2"?: string | null,"billing_postal_code"?: string | null,"billing_state_code"?: string | null,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"id"?: string,"lead_id"?: string | null,"name": string,"notes"?: string | null,"phone"?: string | null,"phone_digits"?: never,"po_required"?: boolean,"status"?: string,"tenant_id": string,"terms_days"?: number,"type": string,"updated_at"?: string
+                    "archived_at"?: string | null,"billing_city"?: string | null,"billing_line1"?: string | null,"billing_line2"?: string | null,"billing_postal_code"?: string | null,"billing_state_code"?: string | null,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"gateway_customer_id"?: string | null,"id"?: string,"lead_id"?: string | null,"name": string,"notes"?: string | null,"past_due_since"?: string | null,"phone"?: string | null,"phone_digits"?: never,"po_required"?: boolean,"status"?: string,"tax_exempt_expires_on"?: string | null,"tax_exempt_file_id"?: string | null,"tax_exempt_number"?: string | null,"tenant_id": string,"terms_days"?: number,"type": string,"updated_at"?: string
                   }
                   Update: {
-                    "archived_at"?: string | null,"billing_city"?: string | null,"billing_line1"?: string | null,"billing_line2"?: string | null,"billing_postal_code"?: string | null,"billing_state_code"?: string | null,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"id"?: string,"lead_id"?: string | null,"name"?: string,"notes"?: string | null,"phone"?: string | null,"phone_digits"?: never,"po_required"?: boolean,"status"?: string,"tenant_id"?: string,"terms_days"?: number,"type"?: string,"updated_at"?: string
+                    "archived_at"?: string | null,"billing_city"?: string | null,"billing_line1"?: string | null,"billing_line2"?: string | null,"billing_postal_code"?: string | null,"billing_state_code"?: string | null,"created_at"?: string,"created_by"?: string | null,"email"?: string | null,"gateway_customer_id"?: string | null,"id"?: string,"lead_id"?: string | null,"name"?: string,"notes"?: string | null,"past_due_since"?: string | null,"phone"?: string | null,"phone_digits"?: never,"po_required"?: boolean,"status"?: string,"tax_exempt_expires_on"?: string | null,"tax_exempt_file_id"?: string | null,"tax_exempt_number"?: string | null,"tenant_id"?: string,"terms_days"?: number,"type"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "accounts_tax_exempt_file_id_fkey"
+      columns: ["tax_exempt_file_id"]
+isOneToOne: false
+      referencedRelation: "files"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "accounts_tenant_id_fkey"
       columns: ["tenant_id"]
 isOneToOne: false
@@ -278,6 +290,64 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"autopay_attempts": {
+                  Row: {
+                    "attempt": number,"attempted_at": string | null,"created_at": string,"created_by": string | null,"error": string | null,"id": string,"invoice_id": string,"payment_id": string | null,"payment_method_id": string | null,"result": string | null,"scheduled_for": string,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "attempt": number,"attempted_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"error"?: string | null,"id"?: string,"invoice_id": string,"payment_id"?: string | null,"payment_method_id"?: string | null,"result"?: string | null,"scheduled_for": string,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "attempt"?: number,"attempted_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"error"?: string | null,"id"?: string,"invoice_id"?: string,"payment_id"?: string | null,"payment_method_id"?: string | null,"result"?: string | null,"scheduled_for"?: string,"tenant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "autopay_attempts_invoice_id_fkey"
+      columns: ["invoice_id"]
+isOneToOne: false
+      referencedRelation: "invoices"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "autopay_attempts_payment_id_fkey"
+      columns: ["payment_id"]
+isOneToOne: false
+      referencedRelation: "payments"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "autopay_attempts_payment_method_id_fkey"
+      columns: ["payment_method_id"]
+isOneToOne: false
+      referencedRelation: "payment_methods"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "autopay_attempts_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"billing_settings": {
+                  Row: {
+                    "autopay_retry_days": (number)[],"created_at": string,"created_by": string | null,"gateway": string,"gateway_account_id": string | null,"gateway_onboarded_at": string | null,"grace_days": number,"id": string,"invoice_footer": string | null,"late_fee_cents": number,"late_fee_percent": number,"pause_when_past_due": boolean,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "autopay_retry_days"?: (number)[],"created_at"?: string,"created_by"?: string | null,"gateway"?: string,"gateway_account_id"?: string | null,"gateway_onboarded_at"?: string | null,"grace_days"?: number,"id"?: string,"invoice_footer"?: string | null,"late_fee_cents"?: number,"late_fee_percent"?: number,"pause_when_past_due"?: boolean,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "autopay_retry_days"?: (number)[],"created_at"?: string,"created_by"?: string | null,"gateway"?: string,"gateway_account_id"?: string | null,"gateway_onboarded_at"?: string | null,"grace_days"?: number,"id"?: string,"invoice_footer"?: string | null,"late_fee_cents"?: number,"late_fee_percent"?: number,"pause_when_past_due"?: boolean,"tenant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "billing_settings_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: true
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"branches": {
                   Row: {
                     "address": string,"archived_at": string | null,"business_license_number": string | null,"created_at": string,"created_by": string | null,"id": string,"license_expires_on": string | null,"license_year": number | null,"name": string,"state_code": string,"tenant_id": string,"updated_at": string
@@ -436,6 +506,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"gateway_events": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"event_id": string,"gateway": string,"id": string,"payload": NonNullable<Json>,"received_at": string,"tenant_id": string | null,"type": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"event_id": string,"gateway": string,"id"?: string,"payload"?: NonNullable<Json>,"received_at"?: string,"tenant_id"?: string | null,"type": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"event_id"?: string,"gateway"?: string,"id"?: string,"payload"?: NonNullable<Json>,"received_at"?: string,"tenant_id"?: string | null,"type"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "gateway_events_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"invitations": {
                   Row: {
                     "accepted_at": string | null,"accepted_by": string | null,"branch_ids": (string)[] | null,"created_at": string,"created_by": string | null,"email": string,"expires_at": string,"id": string,"role_id": string,"tenant_id": string,"token": string,"updated_at": string
@@ -460,6 +550,76 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "tenants"
       referencedColumns: ["id"]
+    }
+                  ]
+                },"invoice_lines": {
+                  Row: {
+                    "agreement_id": string | null,"amount_cents": number,"created_at": string,"created_by": string | null,"description": string,"id": string,"invoice_id": string,"position": number,"service_line": string | null,"service_type_id": string | null,"tax_breakdown": NonNullable<Json>,"tax_cents": number,"tax_class": string,"tax_rate": number,"tenant_id": string,"updated_at": string,"visit_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "agreement_id"?: string | null,"amount_cents": number,"created_at"?: string,"created_by"?: string | null,"description": string,"id"?: string,"invoice_id": string,"position"?: number,"service_line"?: string | null,"service_type_id"?: string | null,"tax_breakdown"?: NonNullable<Json>,"tax_cents"?: number,"tax_class"?: string,"tax_rate"?: number,"tenant_id": string,"updated_at"?: string,"visit_id"?: string | null
+                  }
+                  Update: {
+                    "agreement_id"?: string | null,"amount_cents"?: number,"created_at"?: string,"created_by"?: string | null,"description"?: string,"id"?: string,"invoice_id"?: string,"position"?: number,"service_line"?: string | null,"service_type_id"?: string | null,"tax_breakdown"?: NonNullable<Json>,"tax_cents"?: number,"tax_class"?: string,"tax_rate"?: number,"tenant_id"?: string,"updated_at"?: string,"visit_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "invoice_lines_invoice_id_fkey"
+      columns: ["invoice_id"]
+isOneToOne: false
+      referencedRelation: "invoices"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "invoice_lines_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"invoices": {
+                  Row: {
+                    "account_id": string,"agreement_id": string | null,"created_at": string,"created_by": string | null,"due_on": string | null,"id": string,"issued_on": string | null,"kind": string,"memo": string | null,"number": number | null,"paid_cents": number,"po_number": string | null,"property_id": string | null,"source": string,"source_key": string,"status": string,"subtotal_cents": number,"tax_cents": number,"tax_unconfirmed": boolean,"tenant_id": string,"terms_days": number,"total_cents": number,"updated_at": string,"visit_id": string | null,"void_reason": string | null,"voided_at": string | null,"voided_by": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"agreement_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"due_on"?: string | null,"id"?: string,"issued_on"?: string | null,"kind"?: string,"memo"?: string | null,"number"?: number | null,"paid_cents"?: number,"po_number"?: string | null,"property_id"?: string | null,"source": string,"source_key": string,"status"?: string,"subtotal_cents"?: number,"tax_cents"?: number,"tax_unconfirmed"?: boolean,"tenant_id": string,"terms_days"?: number,"total_cents"?: number,"updated_at"?: string,"visit_id"?: string | null,"void_reason"?: string | null,"voided_at"?: string | null,"voided_by"?: string | null
+                  }
+                  Update: {
+                    "account_id"?: string,"agreement_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"due_on"?: string | null,"id"?: string,"issued_on"?: string | null,"kind"?: string,"memo"?: string | null,"number"?: number | null,"paid_cents"?: number,"po_number"?: string | null,"property_id"?: string | null,"source"?: string,"source_key"?: string,"status"?: string,"subtotal_cents"?: number,"tax_cents"?: number,"tax_unconfirmed"?: boolean,"tenant_id"?: string,"terms_days"?: number,"total_cents"?: number,"updated_at"?: string,"visit_id"?: string | null,"void_reason"?: string | null,"voided_at"?: string | null,"voided_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "invoices_tenant_id_account_id_fkey"
+      columns: ["tenant_id","account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "invoices_tenant_id_agreement_id_fkey"
+      columns: ["tenant_id","agreement_id"]
+isOneToOne: false
+      referencedRelation: "agreements"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "invoices_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "invoices_tenant_id_property_id_fkey"
+      columns: ["tenant_id","property_id"]
+isOneToOne: false
+      referencedRelation: "properties"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "invoices_tenant_id_visit_id_fkey"
+      columns: ["tenant_id","visit_id"]
+isOneToOne: false
+      referencedRelation: "visits"
+      referencedColumns: ["tenant_id","id"]
     }
                   ]
                 },"lead_sources": {
@@ -620,6 +780,108 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "tenants"
       referencedColumns: ["id"]
+    }
+                  ]
+                },"payment_allocations": {
+                  Row: {
+                    "amount_cents": number,"created_at": string,"created_by": string | null,"id": string,"invoice_id": string,"payment_id": string,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount_cents": number,"created_at"?: string,"created_by"?: string | null,"id"?: string,"invoice_id": string,"payment_id": string,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "amount_cents"?: number,"created_at"?: string,"created_by"?: string | null,"id"?: string,"invoice_id"?: string,"payment_id"?: string,"tenant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "payment_allocations_invoice_id_fkey"
+      columns: ["invoice_id"]
+isOneToOne: false
+      referencedRelation: "invoices"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "payment_allocations_payment_id_fkey"
+      columns: ["payment_id"]
+isOneToOne: false
+      referencedRelation: "payments"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "payment_allocations_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"payment_methods": {
+                  Row: {
+                    "account_id": string,"added_by": string | null,"autopay": boolean,"brand": string | null,"created_at": string,"created_by": string | null,"exp_month": number | null,"exp_year": number | null,"gateway": string,"gateway_payment_method_id": string,"id": string,"is_default": boolean,"kind": string,"last4": string,"status": string,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"added_by"?: string | null,"autopay"?: boolean,"brand"?: string | null,"created_at"?: string,"created_by"?: string | null,"exp_month"?: number | null,"exp_year"?: number | null,"gateway": string,"gateway_payment_method_id": string,"id"?: string,"is_default"?: boolean,"kind": string,"last4": string,"status"?: string,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "account_id"?: string,"added_by"?: string | null,"autopay"?: boolean,"brand"?: string | null,"created_at"?: string,"created_by"?: string | null,"exp_month"?: number | null,"exp_year"?: number | null,"gateway"?: string,"gateway_payment_method_id"?: string,"id"?: string,"is_default"?: boolean,"kind"?: string,"last4"?: string,"status"?: string,"tenant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "payment_methods_tenant_id_account_id_fkey"
+      columns: ["tenant_id","account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "payment_methods_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"payments": {
+                  Row: {
+                    "account_id": string,"amount_cents": number,"created_at": string,"created_by": string | null,"failure_reason": string | null,"gateway": string | null,"gateway_payment_id": string | null,"id": string,"kind": string,"memo": string | null,"method": string,"payment_method_id": string | null,"received_at": string,"recorded_by": string | null,"reference": string | null,"refund_of": string | null,"status": string,"tenant_id": string,"updated_at": string,"visit_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id": string,"amount_cents": number,"created_at"?: string,"created_by"?: string | null,"failure_reason"?: string | null,"gateway"?: string | null,"gateway_payment_id"?: string | null,"id"?: string,"kind"?: string,"memo"?: string | null,"method": string,"payment_method_id"?: string | null,"received_at"?: string,"recorded_by"?: string | null,"reference"?: string | null,"refund_of"?: string | null,"status"?: string,"tenant_id": string,"updated_at"?: string,"visit_id"?: string | null
+                  }
+                  Update: {
+                    "account_id"?: string,"amount_cents"?: number,"created_at"?: string,"created_by"?: string | null,"failure_reason"?: string | null,"gateway"?: string | null,"gateway_payment_id"?: string | null,"id"?: string,"kind"?: string,"memo"?: string | null,"method"?: string,"payment_method_id"?: string | null,"received_at"?: string,"recorded_by"?: string | null,"reference"?: string | null,"refund_of"?: string | null,"status"?: string,"tenant_id"?: string,"updated_at"?: string,"visit_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "payments_payment_method_id_fkey"
+      columns: ["payment_method_id"]
+isOneToOne: false
+      referencedRelation: "payment_methods"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "payments_refund_of_fkey"
+      columns: ["refund_of"]
+isOneToOne: false
+      referencedRelation: "payments"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "payments_tenant_id_account_id_fkey"
+      columns: ["tenant_id","account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "payments_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "payments_tenant_id_visit_id_fkey"
+      columns: ["tenant_id","visit_id"]
+isOneToOne: false
+      referencedRelation: "visits"
+      referencedColumns: ["tenant_id","id"]
     }
                   ]
                 },"platform_admins": {
@@ -927,6 +1189,20 @@ isOneToOne: false
       referencedRelation: "tenants"
       referencedColumns: ["id"]
     }
+                  ]
+                },"tax_rates": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"effective_from": string,"effective_to": string | null,"id": string,"jurisdiction_kind": string,"jurisdiction_name": string,"postal_code": string,"rate": number,"source": string,"state_code": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"effective_from": string,"effective_to"?: string | null,"id"?: string,"jurisdiction_kind": string,"jurisdiction_name": string,"postal_code": string,"rate": number,"source": string,"state_code": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"effective_from"?: string,"effective_to"?: string | null,"id"?: string,"jurisdiction_kind"?: string,"jurisdiction_name"?: string,"postal_code"?: string,"rate"?: number,"source"?: string,"state_code"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
                   ]
                 },"tenant_products": {
                   Row: {

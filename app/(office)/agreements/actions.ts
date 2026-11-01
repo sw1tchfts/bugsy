@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { applyPriceIncrease as applyIncrease, bookReservice as bookReserviceRow, cancelAgreement as cancelRow, changeRecurringPrice, maintainTerms, renewAgreement as renewRow, syncVisits } from "@/lib/agreements/db";
 import { readAgreementColumns } from "@/lib/agreements/forms";
 import { dbAs, requirePermission } from "@/lib/auth/session";
+import { issuePrepayments, settleCancellation } from "@/lib/billing/db";
 import { intOrNull, opt, str } from "@/lib/customers/forms";
 import { addDays, isIsoDate, todayInZone } from "@/lib/dates";
 import { errorCode } from "@/lib/db";
@@ -99,7 +100,7 @@ export async function updateAgreement(formData: FormData) {
 export async function signAgreement(formData: FormData) {
   const tenantId = str(formData, "tenant_id");
   const agreementId = str(formData, "agreement_id");
-  const { session } = await requirePermission(tenantId, "agreements.write");
+  const { session, membership } = await requirePermission(tenantId, "agreements.write");
   const signedName = str(formData, "signed_name");
   const contactId = opt(formData, "signed_by_contact_id");
   const agreed = formData.get("agree_terms") === "true";
@@ -118,6 +119,8 @@ export async function signAgreement(formData: FormData) {
         update public.agreements set status = 'active', signed_at = now(), signed_name = ${signedName}, signed_by_contact_id = ${contactId}, signed_ip = ${ip}
         where id = ${agreementId} and tenant_id = ${tenantId}`;
       await syncVisits(tx, tenantId, agreementId);
+      // Annual prepay bills at signing when the term has started (spec 08 rule 4); installments wait for the job.
+      await issuePrepayments(tx, tenantId, todayInZone(membership.tenantTimezone), membership.tenantTimezone);
       if (consent && contactId) {
         await tx`
           update public.contacts set e_notice_consent_at = coalesce(e_notice_consent_at, now()),
@@ -216,6 +219,8 @@ export async function cancelAgreement(formData: FormData) {
         saveOfferMade: formData.get("save_offer_made") === "true",
         saveOutcome: (saveOutcome as "saved" | "lost" | null) ?? null,
       });
+      // The settlement the preview promised becomes money: a final invoice, or a credit memo and refund (spec 08 rule 12).
+      if (current.status === "active" || current.status === "on_hold") await settleCancellation(tx, tenantId, agreementId, effectiveOn, session.userId);
     });
   } catch (err) {
     error = errorCode(err);

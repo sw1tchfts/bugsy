@@ -172,3 +172,14 @@ describe("registry notices and branch licenses (spec 07)", () => {
     expect(codes(checkAssignment(input({}, { branch_id: null, branch_license: null }))).w).not.toContain("branch_license_unconfirmed");
   });
 });
+
+describe("past-due accounts (spec 08 rule 10)", () => {
+  it("warns on a past-due account, and blocks when the company holds service for it", () => {
+    const warned = checkAssignment(input({}, { account_past_due_since: "2026-10-01" }));
+    expect(codes(warned).w).toContain("account_past_due");
+    expect(codes(warned).b).not.toContain("account_past_due");
+    const held = checkAssignment(input({}, { account_past_due_since: "2026-10-01", pause_when_past_due: true }));
+    expect(codes(held).b).toContain("account_past_due");
+    expect(codes(checkAssignment(input({}, { account_past_due_since: null, pause_when_past_due: true }))).b).not.toContain("account_past_due");
+  });
+});

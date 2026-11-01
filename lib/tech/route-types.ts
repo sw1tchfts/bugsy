@@ -91,7 +91,7 @@ export type RoutePayload = {
   products: RouteProduct[];
 };
 
-export type ChangeKind = "en_route" | "arrive" | "conditions" | "areas_pests" | "product" | "note" | "photo" | "signature" | "complete";
+export type ChangeKind = "en_route" | "arrive" | "conditions" | "areas_pests" | "product" | "note" | "photo" | "signature" | "complete" | "payment";
 
 export type ProductPayload = {
   product_id: string;
@@ -116,7 +116,8 @@ export type ChangePayload =
   | { kind: "note"; note_kind: string; content: string; recorded_at: string }
   | { kind: "photo"; photo_kind: string; caption: string | null; taken_at: string; data_url: string }
   | { kind: "signature"; signer_name: string; signed_at: string; data_url: string }
-  | { kind: "complete"; at: string };
+  | { kind: "complete"; at: string }
+  | { kind: "payment"; method: "cash" | "check"; amount_cents: number; reference: string | null; received_at: string };
 
 export type QueuedChange = {
   id: string;

@@ -53,6 +53,9 @@ export function withLocalChanges(route: RoutePayload, visit: RouteVisit, changes
       case "complete":
         v = { ...v, status: "completed", captured: { ...v.captured, departed_at: p.at, completed_at: p.at } };
         break;
+      case "payment":
+        // Money taken at the stop shows in the queue; the office's invoice reflects it after sync.
+        break;
     }
   }
   return v;

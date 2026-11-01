@@ -100,12 +100,15 @@ erDiagram
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| invoices | tenant_id, account_id, number, issued_on, due_on, status, po_number, subtotal_cents, tax_cents, total_cents | |
-| invoice_lines | tenant_id, invoice_id, agreement_id null, visit_id null, description, amount_cents, tax_class, tax_jurisdiction_id, tax_cents | |
-| payments | tenant_id, account_id, amount_cents, method, stripe_payment_intent_id, received_at, status | |
-| payment_allocations | tenant_id, payment_id, invoice_id, amount_cents | |
-| payment_methods | tenant_id, account_id, stripe_payment_method_id, brand, last4, autopay | No card data stored |
-| tax_jurisdictions / tax_rates | (shared) code, name, type [state, county, city, district], rate, effective_from | Loaded from each state revenue department's rate tables |
+| invoices | tenant_id, number (per tenant from counters, assigned at issue), kind [invoice, credit_memo], account_id, property_id null, agreement_id null, visit_id null, status [draft, issued, partially_paid, paid, past_due, void], issued_on, due_on, terms_days, po_number, subtotal_cents, tax_cents, total_cents, paid_cents, memo, source [visit, installment, prepay, settlement, late_fee, manual], source_key (unique per tenant), tax_unconfirmed, void_reason, voided_at, voided_by | Immutable once issued (trigger); void only with a reason and no payments; tenant deletion restricted |
+| invoice_lines | tenant_id, invoice_id, position, agreement_id null, visit_id null, service_type_id null, service_line, description, amount_cents, tax_class [taxable, exempt, unknown, exempt_certificate], tax_rate numeric, tax_breakdown jsonb [{kind, name, rate, cents}], tax_cents | Lines change only on a draft |
+| payments | tenant_id, account_id, kind [payment, refund], method [card, us_bank_account, cash, check, other], status [pending, succeeded, failed, refunded], amount_cents, gateway, gateway_payment_id, payment_method_id, refund_of, reference, failure_reason, received_at, visit_id null, recorded_by, memo | A refund is its own row pointing at the payment; the crew records cash and checks for their own visit |
+| payment_allocations | tenant_id, payment_id, invoice_id, amount_cents | Never more than the payment or the invoice (trigger); paid_cents and paid or partially paid status follow |
+| payment_methods | tenant_id, account_id, gateway, gateway_payment_method_id, kind [card, us_bank_account], brand, last4, exp_month, exp_year, autopay, is_default, status [active, removed], added_by | No card or bank numbers; one default per account |
+| tax_rates | (shared) state_code, postal_code, jurisdiction_kind [state, county, city, district], jurisdiction_name, rate numeric, effective_from, effective_to, source | From each state revenue department, written by platform admins; empty until a launch state is loaded |
+| billing_settings | tenant_id (unique), late_fee_cents, late_fee_percent, grace_days, pause_when_past_due, autopay_retry_days int[], invoice_footer, gateway [local, stripe], gateway_account_id, gateway_onboarded_at | One row per company |
+| autopay_attempts | tenant_id, invoice_id, payment_method_id, attempt, scheduled_for, attempted_at, result [succeeded, failed, skipped], payment_id, error | Unique per invoice and attempt |
+| gateway_events | (shared) gateway, event_id (unique), type, received_at, payload, tenant_id null | The webhook idempotency ledger |
 
 ## General ledger
 

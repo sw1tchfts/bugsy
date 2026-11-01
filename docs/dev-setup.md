@@ -53,9 +53,23 @@ npm run test:rls    # tenant isolation suite against DATABASE_URL
 npm run test:e2e    # Playwright against the dev server; screenshots land in test-results/
 npm run db:types    # regenerate lib/supabase/types.ts after a migration
 npm run compliance:run  # the compliance job for every company: records, locks, notices, alert tasks
+npm run billing:run     # the billing job for every company: invoices, autopay, past due, late fees
 ```
 
 The compliance job is idempotent and meant to run hourly. On Vercel, a cron calls `POST /api/compliance/run` with the `x-compliance-secret` header set to `COMPLIANCE_RUN_SECRET`; locally the script above does the same, and a licensed manager can press "Run the compliance job now" on the Compliance page for their own company.
+
+The billing job is idempotent too and meant to run daily after midnight in each company's zone, hourly is fine. On Vercel, a cron calls `POST /api/billing/run` with the `x-billing-secret` header set to `BILLING_RUN_SECRET` (it falls back to `COMPLIANCE_RUN_SECRET`); locally the script above does the same, and anyone with billing write access can press "Run the billing job now" on the Billing page for their own company. It issues per-visit invoices for completed stops, the installments and prepayments whose dates have come, applies unallocated credit, charges autopay on due dates with retries on the configured days, marks invoices past due after the grace period, and adds late fees.
+
+### Payments locally
+
+Without `STRIPE_SECRET_KEY` the gateway is the local one: the same flows, ids and webhook shapes as Stripe Connect, with nothing leaving the machine and no card data kept (only brand, last four and expiry). Test numbers for the office's "add a payment method" form:
+
+- any card number with a valid length is approved, for example `4242 4242 4242 4242`
+- a card ending `0002` is declined on every charge
+- a card ending `0341` fails its first autopay attempt and succeeds on the retry
+- a bank account is any routing-free account number; the last four are kept
+
+With `STRIPE_SECRET_KEY` set, "Connect Stripe" on the billing settings page starts Stripe Connect onboarding for the company (a Standard account; charges are direct charges on it with `PLATFORM_FEE_BPS` as the application fee), and `POST /api/payments/webhook` verifies events with `STRIPE_WEBHOOK_SECRET` and records them idempotently in `gateway_events`.
 
 The RLS suite discovers every table in the `public` schema. A new table without row level security or without a select policy fails it, and a new tenant table needs a seeded Lakeshore row so the isolation checks have something to test against.
 
@@ -72,4 +86,4 @@ The technician app is the web layer of the native wrapper the PRD chose: a Capac
 
 ## Hosted Supabase and Vercel
 
-Set the same variables in Vercel: `DATABASE_URL` (the project's pooler connection string), `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server only). Do not set `SUPABASE_AUTH_INTERNAL_URL`. Apply migrations with `npx supabase db push` from a linked project.
+Set the same variables in Vercel: `DATABASE_URL` (the project's pooler connection string), `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server only), the job secrets `COMPLIANCE_RUN_SECRET` and `BILLING_RUN_SECRET` for the crons, and for live payments `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and `PLATFORM_FEE_BPS`. Do not set `SUPABASE_AUTH_INTERNAL_URL`. Apply migrations with `npx supabase db push` from a linked project.

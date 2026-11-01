@@ -12,6 +12,7 @@ import { seedAgreements } from "./seed-agreements";
 import { seedCatalog, seedMasterProducts } from "./seed-catalog";
 import { seedDispatch } from "./seed-dispatch";
 import { seedCustomers } from "./seed-customers";
+import { seedBilling } from "./seed-billing";
 import { seedCompliance } from "./seed-compliance";
 import { seedProductUpcs, seedTechnician } from "./seed-technician";
 import {
@@ -129,6 +130,7 @@ async function seedTenant(tenant: SeedTenant, useAuthServer: boolean) {
   await seedDispatch(sql, tenant, tenantId, SEED_TENANTS.indexOf(tenant));
   await seedTechnician(sql, tenant, tenantId);
   await seedCompliance(sql, tenant, tenantId);
+  await seedBilling(sql, tenant, tenantId);
 
   console.log(`seeded ${tenant.name} (${tenantId})`);
 }

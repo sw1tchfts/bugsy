@@ -15,7 +15,8 @@
     "db:shim": "tsx scripts/db-shim.ts",
     "db:reset-local": "tsx scripts/db-reset-local.ts",
     "db:types": "tsx scripts/db-types.ts",
-    "compliance:run": "tsx scripts/compliance-run.ts"
+    "compliance:run": "tsx scripts/compliance-run.ts",
+    "billing:run": "tsx scripts/billing-run.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -27,7 +28,8 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-leaflet": "^5.0.0",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "stripe": "^23.1.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

@@ -1,6 +1,7 @@
 // Applies one queued change from a device, under the technician's session. Every change is recorded once in sync_log
 // by its client id; the completion gate runs here for real.
 import type postgres from "postgres";
+import { invoiceForVisit, recordPayment } from "@/lib/billing/db";
 import { checkLabelRate } from "@/lib/catalog/label-rates";
 import { onVisitCompleted } from "@/lib/compliance/db";
 import { decodeBase64File, putFile } from "@/lib/files";
@@ -123,6 +124,27 @@ async function apply(tx: Sql, actor: Actor, change: QueuedChange): Promise<SyncR
       // The application record and the notice obligations are born in the same transaction (spec 07 rule 1).
       const [tenant] = await tx<{ timezone: string }[]>`select timezone from public.tenants where id = ${tenantId}`;
       await onVisitCompleted(tx, tenantId, visitId, tenant?.timezone ?? "UTC");
+      // Per-visit billing invoices the stop in the same transaction (spec 08 rule 2).
+      await invoiceForVisit(tx, tenantId, visitId, tenant?.timezone ?? "UTC");
+      return { id: change.id, result: "applied" };
+    }
+    case "payment": {
+      // Cash or a check taken at the stop lands on the stop's own invoice (spec 08 rule 15); without one it stays as credit.
+      const amount = Number(payload.amount_cents);
+      if (!Number.isInteger(amount) || amount <= 0) return rejected(change.id, "a payment is a positive number of cents");
+      const [v] = await tx<{ account_id: string }[]>`select account_id from public.visits where id = ${visitId} and tenant_id = ${tenantId}`;
+      if (!v) return rejected(change.id, "visit not found");
+      const [inv] = await tx<{ id: string }[]>`select id from public.invoices where tenant_id = ${tenantId} and source_key = ${`visit:${visitId}`}`;
+      await recordPayment(tx, tenantId, {
+        account_id: v.account_id,
+        method: payload.method,
+        amount_cents: amount,
+        received_at: new Date(instant(payload.received_at)),
+        reference: payload.reference,
+        visit_id: visitId,
+        recorded_by: actor.userId,
+        invoice_id: inv?.id ?? null,
+      });
       return { id: change.id, result: "applied" };
     }
     default:

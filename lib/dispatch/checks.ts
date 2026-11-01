@@ -46,6 +46,9 @@ export type CheckVisit = {
   registry_notice_sent?: boolean;
   /** The branch's business license, when the visit has a branch (spec 07): null when none is on file. */
   branch_license?: { expires_on: string | null } | null;
+  /** The account's past-due flag (spec 08): a warning, or a block when the company pauses service for it. */
+  account_past_due_since?: string | null;
+  pause_when_past_due?: boolean;
 };
 
 export type StateRuleInput = { required_cert_categories: readonly string[]; pack_version: string | null; confirmed_at: string | null } | null;
@@ -179,6 +182,13 @@ export function checkAssignment(input: CheckInput): CheckResult {
         message: perLocation ? `${state} licenses each business location and this branch has none on file.` : "No business license is on file for this branch.",
       });
     }
+  }
+
+  // A past-due account warns; it blocks when the company chose to hold service for it (spec 08 rule 10).
+  if (visit.account_past_due_since) {
+    const message = `The account has been past due since ${visit.account_past_due_since}.`;
+    if (visit.pause_when_past_due) blockers.push({ code: "account_past_due", message: `${message} Service is on hold until the balance is settled (billing).` });
+    else warnings.push({ code: "account_past_due", message });
   }
 
   if (date < visit.due_start || date > visit.due_end) {
