@@ -42,7 +42,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       where i.tenant_id = ${tenantId} and i.status = 'draft' order by i.created_at desc limit 50`;
     const [totals] = await tx<{ open_cents: string | number; unallocated: string | number }[]>`
       select (select coalesce(sum(total_cents - paid_cents), 0) from public.invoices where tenant_id = ${tenantId} and kind = 'invoice' and status in ('issued', 'partially_paid', 'past_due')) as open_cents,
-             (select coalesce(sum(p.amount_cents - coalesce((select sum(x.amount_cents) from public.payment_allocations x where x.payment_id = p.id), 0) - coalesce((select sum(r.amount_cents) from public.payments r where r.refund_of = p.id and r.status = 'succeeded'), 0)), 0)
+             (select coalesce(sum(greatest(0, p.amount_cents - coalesce((select sum(x.amount_cents) from public.payment_allocations x where x.payment_id = p.id), 0) - coalesce((select sum(r.amount_cents) from public.payments r where r.refund_of = p.id and r.status = 'succeeded'), 0))), 0)
               from public.payments p where p.tenant_id = ${tenantId} and p.kind = 'payment' and p.status = 'succeeded') as unallocated`;
     return { aging, pastDue, attempts, drafts, totals, settings: await loadSettings(tx, tenantId) };
   });

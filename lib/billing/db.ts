@@ -226,11 +226,13 @@ type VisitForInvoice = {
 export async function invoiceForVisit(tx: Sql, tenantId: string, visitId: string, timeZone: string): Promise<{ id: string; created: boolean } | null> {
   const [v] = await tx<VisitForInvoice[]>`
     select v.id, v.sequence, v.kind, v.price_cents, v.account_id, v.property_id, v.agreement_id, v.service_type_id, st.name as service_type_name, st.service_line,
-           a.billing_mode, v.departed_at, v.completed_at, v.status
-    from public.visits v join public.service_types st on st.id = v.service_type_id left join public.agreements a on a.id = v.agreement_id
+           ag.billing_mode, v.departed_at, v.completed_at, v.status
+    from public.visits v join public.service_types st on st.id = v.service_type_id left join lateral app.visit_agreement(v.id) ag on true
     where v.id = ${visitId} and v.tenant_id = ${tenantId}`;
   if (!v || v.status !== "completed" || Number(v.price_cents) <= 0) return null;
-  if (v.billing_mode && v.billing_mode !== "per_visit") return null;
+  // The completion runs under the technician's session, which cannot read agreements: app.visit_agreement answers for
+  // the crew. An agreement whose mode is still unknown is not billed per visit.
+  if (v.agreement_id && v.billing_mode !== "per_visit") return null;
   const issuedOn = dateInZone(v.departed_at ?? v.completed_at ?? new Date(), timeZone);
   return createInvoice(tx, tenantId, {
     account_id: v.account_id,
@@ -255,17 +257,19 @@ async function plannedFor(tx: Sql, tenantId: string, agreementId: string): Promi
 
 type AgreementBilling = { id: string; number: number; account_id: string; property_id: string; service_type_id: string; service_type_name: string; service_line: string; billing_mode: string; starts_on: string; term_months: number; renewals: number; signed_at: string | null; cancelled_on: string | null };
 
-async function agreementsToBill(tx: Sql, tenantId: string, mode: "flat_monthly" | "annual_prepay"): Promise<AgreementBilling[]> {
+/** Signed agreements on the mode, cancelled ones included: their installments up to the cancellation date still bill (rule 3). */
+async function agreementsToBill(tx: Sql, tenantId: string, mode: "flat_monthly" | "annual_prepay", agreementId: string | null = null): Promise<AgreementBilling[]> {
   return tx<AgreementBilling[]>`
     select a.id, a.number, a.account_id, a.property_id, a.service_type_id, st.name as service_type_name, st.service_line, a.billing_mode, a.starts_on, a.term_months, a.renewals, a.signed_at, a.cancelled_on
     from public.agreements a join public.service_types st on st.id = a.service_type_id
-    where a.tenant_id = ${tenantId} and a.billing_mode = ${mode} and a.status in ('active', 'ended') and a.signed_at is not null`;
+    where a.tenant_id = ${tenantId} and a.billing_mode = ${mode} and a.status in ('active', 'ended', 'cancelled') and a.signed_at is not null
+      and (${agreementId}::uuid is null or a.id = ${agreementId}::uuid)`;
 }
 
 /** Flat monthly: one invoice per installment whose date has come (rule 3). */
-export async function issueInstallments(tx: Sql, tenantId: string, today: string): Promise<number> {
+export async function issueInstallments(tx: Sql, tenantId: string, today: string, agreementId: string | null = null): Promise<number> {
   let created = 0;
-  for (const a of await agreementsToBill(tx, tenantId, "flat_monthly")) {
+  for (const a of await agreementsToBill(tx, tenantId, "flat_monthly", agreementId)) {
     const planned = await plannedFor(tx, tenantId, a.id);
     const schedule = billingSchedule({ billing_mode: "flat_monthly", starts_on: a.starts_on, term_months: a.term_months, renewals: a.renewals }, planned);
     const count = schedule.length;
@@ -356,6 +360,8 @@ export type PaymentInput = {
   recorded_by: string | null;
   /** Allocate to this invoice only (the stop's own invoice for a technician), else oldest due first. */
   invoice_id?: string | null;
+  /** False leaves the money as credit on the account (a stop with no invoice of its own); the job applies it later. */
+  allocate?: boolean;
 };
 
 /** A cash, check or other payment, recorded and allocated (rule 7). */
@@ -375,7 +381,7 @@ export async function recordPayment(tx: Sql, tenantId: string, input: PaymentInp
       recorded_by: input.recorded_by,
       memo: input.memo ?? null,
     })} returning id`;
-  const allocated_cents = await allocate(tx, tenantId, row.id, input.account_id, input.amount_cents, input.invoice_id ?? null);
+  const allocated_cents = input.allocate === false ? 0 : await allocate(tx, tenantId, row.id, input.account_id, input.amount_cents, input.invoice_id ?? null);
   return { payment_id: row.id, allocated_cents };
 }
 
@@ -487,7 +493,15 @@ export async function chargeInvoice(
 }
 
 /** Refunds part or all of a payment: a refund row, the gateway where the money came that way, allocations reduced. */
-export async function refundPayment(tx: Sql, tenantId: string, paymentId: string, amountCents: number, memo: string | null, recordedBy: string | null): Promise<{ refund_id: string }> {
+export async function refundPayment(
+  tx: Sql,
+  tenantId: string,
+  paymentId: string,
+  amountCents: number,
+  memo: string | null,
+  recordedBy: string | null,
+  options: { keepAllocations?: boolean } = {},
+): Promise<{ refund_id: string }> {
   const [p] = await tx<{ id: string; account_id: string; method: string; status: string; kind: string; amount_cents: string | number; gateway: string | null; gateway_payment_id: string | null; refunded: string | number }[]>`
     select p.id, p.account_id, p.method, p.status, p.kind, p.amount_cents, p.gateway, p.gateway_payment_id,
            coalesce((select sum(r.amount_cents) from public.payments r where r.refund_of = p.id and r.status = 'succeeded'), 0) as refunded
@@ -502,8 +516,8 @@ export async function refundPayment(tx: Sql, tenantId: string, paymentId: string
     if (result.status === "failed") throw Object.assign(new Error(`the gateway refused the refund: ${result.failure_reason ?? "unknown"}`), { code: "23514" });
     gatewayId = result.gateway_refund_id;
   }
-  // The invoices this payment covered give the money back, newest allocation first.
-  let left = amountCents;
+  // The invoices this payment covered give the money back, newest allocation first, unless a credit memo already did.
+  let left = options.keepAllocations ? 0 : amountCents;
   const allocations = await tx<{ id: string; amount_cents: string | number }[]>`select id, amount_cents from public.payment_allocations where payment_id = ${paymentId} order by created_at desc`;
   for (const a of allocations) {
     if (left <= 0) break;
@@ -623,6 +637,9 @@ export async function settleCancellation(tx: Sql, tenantId: string, agreementId:
   const agreement = await loadAgreement(tx, tenantId, agreementId);
   if (!agreement) throw new Error("agreement not found");
   const [st] = await tx<{ name: string; service_line: string }[]>`select name, service_line from public.service_types where id = ${agreement.service_type_id}`;
+  // The installments the schedule counts as billed through the effective date are invoiced first, so the position the
+  // preview shows is the position the books carry (rules 3 and 12).
+  if (agreement.billing_mode === "flat_monthly") await issueInstallments(tx, tenantId, effectiveOn, agreementId);
   const preview = await settlementFor(tx, tenantId, agreementId, effectiveOn);
   const documents = settlementDocuments(preview, { number: agreement.number, service_type_name: st?.name ?? "Service" });
   let invoices = 0;
@@ -654,7 +671,9 @@ export async function settleCancellation(tx: Sql, tenantId: string, agreementId:
         if (left <= 0) break;
         const amount = Math.min(left, Number(p.amount_cents) - Number(p.refunded));
         if (amount <= 0) continue;
-        await refundPayment(tx, tenantId, p.id, amount, `Cancellation of agreement #${agreement.number}`, recordedBy);
+        // The credit memo is the document that offsets the prepay invoice; the refund leaves its allocations alone so the
+        // invoice stays paid and autopay never charges it again.
+        await refundPayment(tx, tenantId, p.id, amount, `Cancellation of agreement #${agreement.number}`, recordedBy, { keepAllocations: true });
         refunded += amount;
         left -= amount;
       }

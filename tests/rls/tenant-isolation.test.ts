@@ -953,6 +953,26 @@ describe("spec 08 rules enforced in the database", () => {
     }
   });
 
+  it("keeps the crew to the invoice of their own stop, and lets the office void a draft (rules 9 and 15)", async () => {
+    const [mine] = await admin<{ id: string; account_id: string; property_id: string }[]>`
+      select v.id, v.account_id, v.property_id from public.visits v join public.visit_crew c on c.visit_id = v.id where v.tenant_id = ${lakeshoreId} and c.user_id = ${tech} limit 1`;
+    expect(mine, "the seed gives the technician a crew visit").toBeTruthy();
+    // A one-off charge is the office's to write, not the crew's.
+    await expect(
+      asUser(tech, techEmail, (tx) => tx`insert into public.payments (tenant_id, account_id, method, amount_cents, recorded_by) values (${lakeshoreId}, ${mine.account_id}, 'cash', 100, ${tech})`),
+    ).rejects.toThrow(/row-level security/);
+    await expect(
+      asUser(tech, techEmail, (tx) => tx`insert into public.invoices (tenant_id, account_id, property_id, source, source_key, issued_on) values (${lakeshoreId}, ${mine.account_id}, ${mine.property_id}, 'manual', ${`rls:${Date.now()}`}, current_date)`),
+    ).rejects.toThrow(/row-level security/);
+    // A draft voids with a reason, number or not.
+    const [draft] = await asUser(office, officeEmail, (tx) => tx<{ id: string }[]>`
+      insert into public.invoices (tenant_id, account_id, property_id, source, source_key, issued_on) values (${lakeshoreId}, ${mine.account_id}, ${mine.property_id}, 'manual', ${`rls-draft:${Date.now()}`}, current_date) returning id`);
+    // The void row stays: a void invoice is never deleted, by the same trigger that protects issued ones.
+    await asUser(office, officeEmail, (tx) => tx`update public.invoices set status = 'void', void_reason = 'typed twice' where id = ${draft.id}`);
+    const [after] = await admin<{ status: string; number: number | null }[]>`select status, number from public.invoices where id = ${draft.id}`;
+    expect(after).toEqual({ status: "void", number: null });
+  });
+
   it("tells the crew a stop's billing mode without opening the agreement (rule 15)", async () => {
     const [mine] = await admin<{ id: string; billing_mode: string }[]>`
       select v.id, a.billing_mode from public.visits v join public.agreements a on a.id = v.agreement_id join public.visit_crew c on c.visit_id = v.id

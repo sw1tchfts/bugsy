@@ -212,6 +212,9 @@ export async function cancelAgreement(formData: FormData) {
       if (!current) throw new Error("not found");
       if (current.status !== "draft" && !reasonId) throw Object.assign(new Error("cancelling an agreement needs a reason"), { code: "23514" });
       if (current.last_completed && effectiveOn < current.last_completed) throw Object.assign(new Error("the cancellation date cannot be before the last completed visit"), { code: "23514" });
+      // The settlement the preview promised becomes money: a final invoice, or a credit memo and refund (spec 08 rule 12).
+      // It settles before the visits are cancelled, so the plan it reads is the plan the preview read.
+      if (current.status === "active" || current.status === "on_hold") await settleCancellation(tx, tenantId, agreementId, effectiveOn, session.userId);
       await cancelRow(tx, tenantId, agreementId, {
         effectiveOn,
         reasonId,
@@ -219,8 +222,6 @@ export async function cancelAgreement(formData: FormData) {
         saveOfferMade: formData.get("save_offer_made") === "true",
         saveOutcome: (saveOutcome as "saved" | "lost" | null) ?? null,
       });
-      // The settlement the preview promised becomes money: a final invoice, or a credit memo and refund (spec 08 rule 12).
-      if (current.status === "active" || current.status === "on_hold") await settleCancellation(tx, tenantId, agreementId, effectiveOn, session.userId);
     });
   } catch (err) {
     error = errorCode(err);

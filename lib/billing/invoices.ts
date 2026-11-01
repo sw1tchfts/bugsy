@@ -1,5 +1,6 @@
 // Invoice arithmetic and the status machine (spec 08 rules 1, 3, 6, 9 and 11), pure and fixture tested.
 import type { BillingEvent } from "@/lib/agreements/billing";
+import { centsAtRate, scaledRate } from "@/lib/billing/tax";
 import { addDays } from "@/lib/dates";
 
 export type InvoiceKind = "invoice" | "credit_memo";
@@ -48,8 +49,9 @@ export function installmentsDue(agreementId: string, schedule: readonly BillingE
 
 /** A late fee: the fixed amount plus a percent of the open balance, half up to the cent; zero when neither is set. */
 export function lateFee(balanceCents: number, settings: { late_fee_cents: number; late_fee_percent: string | number }): number {
-  const percent = Number(settings.late_fee_percent);
   if (balanceCents <= 0) return 0;
-  const fromPercent = percent > 0 ? Math.floor((balanceCents * Math.round(percent * 10000) + 500_000) / 1_000_000) : 0;
+  // The percent is a rate like any other: scaled integer arithmetic, half up (rule 14).
+  const scaled = scaledRate(String(settings.late_fee_percent)) / BigInt(100);
+  const fromPercent = scaled > BigInt(0) ? centsAtRate(balanceCents, scaled) : 0;
   return Math.max(0, settings.late_fee_cents) + fromPercent;
 }

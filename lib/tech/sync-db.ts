@@ -144,6 +144,7 @@ async function apply(tx: Sql, actor: Actor, change: QueuedChange): Promise<SyncR
         visit_id: visitId,
         recorded_by: actor.userId,
         invoice_id: inv?.id ?? null,
+        allocate: Boolean(inv),
       });
       return { id: change.id, result: "applied" };
     }
