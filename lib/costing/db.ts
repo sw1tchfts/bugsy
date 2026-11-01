@@ -35,7 +35,7 @@ export async function jobCosts(tx: Sql, tenantId: string, from: string, to: stri
   const ids = visits.map((v) => v.id);
   const usage = await tx<{ visit_id: string; amount: string; amount_unit: string; unit: string | null; unit_cost_cents: string | null; moved_value: string | null }[]>`
     select vp.visit_id, vp.amount::text, vp.amount_unit, tp.unit, tp.unit_cost_cents::text,
-           (select m.value_cents::text from public.stock_movements m where m.visit_product_id = vp.id) as moved_value
+           (select m.value_cents::text from public.stock_movements m where m.visit_product_id = vp.id and m.unit_cost_cents > 0) as moved_value
     from public.visit_products vp left join public.tenant_products tp on tp.tenant_id = vp.tenant_id and tp.product_id = vp.product_id
     where vp.visit_id = any(${ids}::uuid[])`;
   const product = new Map<string, { cents: number; unpriced: number }>();

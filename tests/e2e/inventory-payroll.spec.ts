@@ -165,6 +165,16 @@ test("inventory and payroll: stock received and loaded, a clocked shift and a st
   // 6. The bookkeeper exports last week and posts the payroll register.
   await signIn(page, seedUserEmail(northwind, "bookkeeper"));
   await page.goto("/payroll");
+  // Sam's pay from today on: production with a draw (the period being exported keeps the rate it ended under).
+  const rate = page.getByTestId("rate-form");
+  await rate.getByLabel("Person").selectOption({ label: "Sam Rivera" });
+  await rate.getByLabel("Pay", { exact: true }).selectOption("production");
+  await rate.getByLabel("Production percent").fill("23");
+  await rate.getByLabel("Draw per period").fill("800.00");
+  await rate.getByLabel("Labor cost per hour").fill("33.00");
+  await rate.getByRole("button", { name: "Save pay" }).click();
+  await expect(page.getByText("Pay saved.")).toBeVisible();
+  await expect(page.getByTestId("pay-rate-row").filter({ hasText: "Sam Rivera" })).toContainText("23% of production");
   const exportButton = page.getByRole("button", { name: "Export this period" });
   if (await exportButton.isVisible()) {
     await expect(page.getByTestId("payroll-preview").filter({ hasText: "Sam Rivera" })).toBeVisible();

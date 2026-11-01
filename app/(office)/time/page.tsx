@@ -3,7 +3,7 @@ import { Badge, Button, Card, Empty, Field, Input, Notice, Select, Table, errorM
 import { can } from "@/lib/auth/permissions";
 import { dbAs } from "@/lib/auth/session";
 import { addDays, fromTenantLocal, isIsoDate, todayInZone } from "@/lib/dates";
-import { entriesBetween, longOpen, openEntry } from "@/lib/payroll/db";
+import { entriesBetween, longOpen, openEntry, refusedClockChanges } from "@/lib/payroll/db";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 import { addAction, clockAction, correctAction } from "./actions";
 
@@ -32,8 +32,9 @@ export default async function Time({ searchParams }: { searchParams: Promise<{ n
     const mine = await openEntry(tx, active.tenantId, session.userId);
     const entries = await entriesBetween(tx, active.tenantId, fromTenantLocal(`${from}T00:00`, tz) as Date, fromTenantLocal(`${addDays(to, 1)}T00:00`, tz) as Date, team ? null : session.userId);
     const stale = team ? await longOpen(tx, active.tenantId, new Date()) : [];
+    const refused = team ? await refusedClockChanges(tx, active.tenantId) : [];
     const people = write ? await tx<{ user_id: string; name: string | null }[]>`select user_id, display_name as name from public.memberships where tenant_id = ${active.tenantId} order by 2` : [];
-    return { mine, entries, stale, people };
+    return { mine, entries, stale, people, refused };
   });
   const hidden = <input type="hidden" name="tenant_id" value={active.tenantId} />;
   const at = (d: Date) => d.toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
@@ -56,6 +57,17 @@ export default async function Time({ searchParams }: { searchParams: Promise<{ n
         <Notice kind="error">
           Left open more than 16 hours: {data.stale.map((e) => `${e.name ?? "Member"} since ${at(e.started_at)}`).join("; ")}. Close each with a reason below.
         </Notice>
+      ) : null}
+      {data.refused.length ? (
+        <Card title="Clock changes refused" description="Sent from a phone and not saved: add the time by hand, with its reason, in the right period.">
+          <ul className="grid gap-1 text-sm" data-testid="refused-clock">
+            {data.refused.map((r) => (
+              <li key={r.id}>
+                {r.name}, {at(r.applied_at)}: {r.error}
+              </li>
+            ))}
+          </ul>
+        </Card>
       ) : null}
       <Card title={team ? "Team time" : "My time"} description={`${from} to ${to}`}>
         <form method="get" className="mb-3 flex flex-wrap items-end gap-2">

@@ -6,7 +6,7 @@ import { can } from "@/lib/auth/permissions";
 import { dbAs } from "@/lib/auth/session";
 import { todayInZone } from "@/lib/dates";
 import { formatCents } from "@/lib/money";
-import { buildExport, paySettings, payRates, rateOn } from "@/lib/payroll/db";
+import { buildExport, openInPeriod, paySettings, payRates, rateOn } from "@/lib/payroll/db";
 import { lastClosedPeriod } from "@/lib/payroll/periods";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 import { exportAction, postAction, saveRate, saveSettings } from "./actions";
@@ -35,9 +35,11 @@ export default async function Payroll({ searchParams }: { searchParams: Promise<
              (select coalesce(sum(l.pay_due_cents), 0)::text from public.pay_period_lines l where l.pay_period_id = p.id) as pay_due
       from public.pay_periods p where p.tenant_id = ${t} order by p.starts_on desc limit 26`;
     const next = settings ? lastClosedPeriod(settings, today) : null;
-    const taken = next ? periods.some((p) => p.starts_on === next.starts_on) : false;
+    // Any overlap with a period already sent counts (a changed setting must not pay days twice).
+    const taken = next ? periods.some((p) => p.starts_on <= next.ends_on && p.ends_on >= next.starts_on) : false;
     const preview = settings && next && !taken ? await buildExport(tx, t, settings, next, tz) : [];
-    return { settings, rates, people, periods, next, taken, preview };
+    const open = next && !taken ? await openInPeriod(tx, t, next, tz) : [];
+    return { settings, rates, people, periods, next, taken, preview, open };
   });
   const hidden = <input type="hidden" name="tenant_id" value={t} />;
   return (
@@ -65,7 +67,10 @@ export default async function Payroll({ searchParams }: { searchParams: Promise<
       </Card>
 
       {data.next ? (
-        <Card title={`Next export: ${data.next.starts_on} to ${data.next.ends_on}`} description={data.taken ? "Already exported." : "What the file will carry. Correct time on the Time page before exporting."}>
+        <Card title={`Next export: ${data.next.starts_on} to ${data.next.ends_on}`} description={data.taken ? "Already exported, or overlapping a period already exported." : "What the file will carry. Correct time on the Time page before exporting."}>
+          {data.open.length ? (
+            <Notice kind="error">Still clocked in from this period: {data.open.map((o) => o.name).join(", ")}. Close those entries on the Time page before exporting.</Notice>
+          ) : null}
           {data.taken ? null : data.preview.length === 0 ? (
             <Empty>No time, pay or commissions in this period.</Empty>
           ) : (

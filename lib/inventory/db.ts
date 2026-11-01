@@ -7,6 +7,8 @@ import { postEntry } from "@/lib/ledger/db";
 import { stockAdjustmentLines, stockReceiptLines } from "@/lib/ledger/post";
 import { type LocationKind, type StockFlag, levels, stockFlag, usageInStockUnit, valueCents } from "./stock";
 
+// The unit conversion in app.record_usage mirrors lib/catalog/label-rates.ts; tests/unit/inventory.test.ts holds both.
+
 type Sql = postgres.Sql | postgres.TransactionSql;
 
 export type Location = { id: string; branch_id: string; branch_name: string; kind: LocationKind; name: string; user_id: string | null; user_name: string | null; active: boolean };
@@ -124,8 +126,8 @@ async function usageCandidates(tx: Sql, tenantId: string, visitId: string | null
   return tx<UsageRow[]>`
     select vp.id as visit_product_id, v.id as visit_id, vp.product_id, vp.amount::text, vp.amount_unit, tp.unit as stock_unit, tp.unit_cost_cents::text,
            (select l.id from public.stock_locations l where l.tenant_id = v.tenant_id and l.kind = 'truck' and l.active and l.user_id = v.technician_id) as truck_id,
-           (select l.id from public.stock_locations l where l.tenant_id = v.tenant_id and l.kind = 'warehouse' and l.active
-             order by (l.branch_id = v.branch_id) desc nulls last, l.created_at limit 1) as warehouse_id,
+           (select l.id from public.stock_locations l where l.tenant_id = v.tenant_id and l.kind = 'warehouse' and l.active and l.branch_id = v.branch_id
+             order by l.created_at limit 1) as warehouse_id,
            v.completed_at
     from public.visit_products vp
       join public.visits v on v.id = vp.visit_id
@@ -139,29 +141,13 @@ async function usageCandidates(tx: Sql, tenantId: string, visitId: string | null
 }
 
 /**
- * Rules 1 and 3: each application line at a completed stop comes off the lead technician's truck (or a warehouse)
- * once, in the product's unit, at the current cost. Lines whose units do not convert are left for the office.
+ * Rules 1 and 3: each application line at a completed stop comes off the lead technician's truck (or the visit's
+ * branch warehouse) once, in the product's unit, at the current cost. The database works the quantity out from the
+ * record (app.record_usage), so any member's job run can take it and nobody can send a different figure.
  */
 export async function recordUsage(tx: Sql, tenantId: string, visitId: string | null): Promise<{ recorded: number; unconverted: number }> {
-  let recorded = 0;
-  let unconverted = 0;
-  for (const u of await usageCandidates(tx, tenantId, visitId)) {
-    const from = u.truck_id ?? u.warehouse_id;
-    if (!from || !u.stock_unit) continue;
-    const qty = usageInStockUnit(u.amount, u.amount_unit, u.stock_unit);
-    if (qty === null) {
-      unconverted += 1;
-      continue;
-    }
-    if (qty <= 0) continue;
-    const cost = Number(u.unit_cost_cents ?? 0);
-    const r = await tx`
-      insert into public.stock_movements (tenant_id, product_id, kind, from_location_id, quantity, unit, unit_cost_cents, value_cents, visit_id, visit_product_id, occurred_at)
-      values (${tenantId}, ${u.product_id}, 'usage', ${from}, ${qty}, ${u.stock_unit}, ${cost}, ${valueCents(qty, cost)}, ${u.visit_id}, ${u.visit_product_id}, ${u.completed_at})
-      on conflict (visit_product_id) do nothing`;
-    recorded += r.count;
-  }
-  return { recorded, unconverted };
+  const [{ r }] = await tx<{ r: { recorded: number; unconverted: number } }[]>`select app.record_usage(${tenantId}, ${visitId}::uuid) as r`;
+  return { recorded: Number(r.recorded), unconverted: Number(r.unconverted) };
 }
 
 /** Application lines that could not come off the shelves: units that do not convert into the product's unit. */

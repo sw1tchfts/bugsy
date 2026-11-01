@@ -4,7 +4,8 @@ import { dateInZone, todayInZone } from "@/lib/dates";
 import { postEntry } from "@/lib/ledger/db";
 import { payrollLines } from "@/lib/ledger/post";
 import { payCommissions } from "@/lib/sales/db";
-import { type ExportLine, type PaySettings, type Period, type Rate, crewSplit, exportCsv, hoursInPeriod, payDue, periodClosed, registerProblems, type Register } from "./periods";
+import { type ExportLine, type PaySettings, type Period, type Rate, crewSplit, exportCsv, hoursInPeriod, payDue, periodClosed, periodFor, registerProblems, type Register } from "./periods";
+import { fromTenantLocal } from "@/lib/dates";
 
 type Sql = postgres.Sql | postgres.TransactionSql;
 
@@ -88,14 +89,17 @@ export function rateOn(rates: readonly RateRow[], userId: string, day: string): 
 
 /** Rules 10 to 12: one line per person with time, pay or commissions in the period. */
 export async function buildExport(tx: Sql, tenantId: string, settings: PaySettings, period: Period, timeZone: string): Promise<ExportLine[]> {
+  // Everyone with time, pay or commissions here, members or not: someone who left still gets their last pay.
   const people = await tx<{ user_id: string; name: string | null; email: string; payroll_id: string | null }[]>`
-    select m.user_id, m.display_name as name, u.email, m.payroll_id from public.memberships m join auth.users u on u.id = m.user_id where m.tenant_id = ${tenantId}`;
+    select user_id, name, email, payroll_id from app.payroll_people(${tenantId})`;
   const from = new Date(`${period.starts_on}T00:00:00Z`);
   from.setUTCDate(from.getUTCDate() - 1);
   const to = new Date(`${period.ends_on}T00:00:00Z`);
   to.setUTCDate(to.getUTCDate() + 2);
+  // Time already sent with an earlier period is not counted again (rule 12).
   const entries = await tx<{ user_id: string; started_at: Date; ended_at: Date | null }[]>`
-    select user_id, started_at, ended_at from public.time_entries where tenant_id = ${tenantId} and started_at < ${to} and coalesce(ended_at, 'infinity'::timestamptz) > ${from}`;
+    select user_id, started_at, ended_at from public.time_entries
+    where tenant_id = ${tenantId} and pay_period_id is null and started_at < ${to} and coalesce(ended_at, 'infinity'::timestamptz) > ${from}`;
   const visits = await tx<{ id: string; price_cents: string; technician_id: string | null; completed_at: Date; crew: string[] }[]>`
     select v.id, v.price_cents, v.technician_id, v.completed_at,
            coalesce((select array_agg(c.user_id) from public.visit_crew c where c.visit_id = v.id), '{}') as crew
@@ -145,15 +149,40 @@ export async function buildExport(tx: Sql, tenantId: string, settings: PaySettin
   return lines.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/** Entries left open that started before the period's end: exporting now would drop their hours. */
+export async function openInPeriod(tx: Sql, tenantId: string, period: Period, timeZone: string): Promise<{ user_id: string; name: string; started_at: Date }[]> {
+  const end = fromTenantLocal(`${period.ends_on}T23:59:59`, timeZone) as Date;
+  return tx<{ user_id: string; name: string; started_at: Date }[]>`
+    select e.user_id, coalesce(m.display_name, 'Member') as name, e.started_at from public.time_entries e
+      left join public.memberships m on m.tenant_id = e.tenant_id and m.user_id = e.user_id
+    where e.tenant_id = ${tenantId} and e.ended_at is null and e.started_at <= ${end}`;
+}
+
+/** Refused clock changes from the phones (an exported period, a double clock-in), for payroll to settle. */
+export async function refusedClockChanges(tx: Sql, tenantId: string): Promise<{ id: string; name: string; error: string; applied_at: Date }[]> {
+  return tx<{ id: string; name: string; error: string; applied_at: Date }[]>`
+    select s.id, coalesce(m.display_name, 'Member') as name, coalesce(s.detail->>'error', 'refused') as error, s.applied_at
+    from public.sync_log s left join public.memberships m on m.tenant_id = s.tenant_id and m.user_id = s.user_id
+    where s.tenant_id = ${tenantId} and s.kind = 'clock' and s.result = 'rejected' and s.applied_at > now() - interval '30 days'
+    order by s.applied_at desc limit 50`;
+}
+
 /** Rule 12: the export as sent, the period's time locked, payroll-paid commissions recorded (posted by the journal). */
 export async function exportPeriod(tx: Sql, tenantId: string, period: Period, timeZone: string): Promise<string> {
   const settings = await paySettings(tx, tenantId);
   if (!settings) fail("Set the pay period first.");
   if (!periodClosed(period, todayInZone(timeZone))) fail("A period exports once its last day has passed.");
-  const [taken] = await tx<{ id: string }[]>`select id from public.pay_periods where tenant_id = ${tenantId} and starts_on = ${period.starts_on}`;
-  if (taken) fail("This period was already exported; a correction goes in the next one.");
+  // Rule 9: only a period the setting makes, and never one that overlaps a period already sent.
+  const proper = periodFor(settings!, period.starts_on);
+  if (proper.starts_on !== period.starts_on || proper.ends_on !== period.ends_on) fail("That is not one of the company's pay periods.");
+  const [taken] = await tx<{ starts_on: string; ends_on: string }[]>`
+    select starts_on::text, ends_on::text from public.pay_periods where tenant_id = ${tenantId} and daterange(starts_on, ends_on, '[]') && daterange(${period.starts_on}::date, ${period.ends_on}::date, '[]')`;
+  if (taken) fail(`Days in this period were already exported (${taken.starts_on} to ${taken.ends_on}); a correction goes in the next period.`);
+  // Rule 12: an entry still open from inside the period would lose its hours; it is closed first.
+  const open = await openInPeriod(tx, tenantId, period, timeZone);
+  if (open.length) fail(`Still clocked in from this period: ${open.map((o) => o.name).join(", ")}. Close those entries on the Time page first.`);
   const lines = await buildExport(tx, tenantId, settings!, period, timeZone);
-  const people = await tx<{ user_id: string; email: string }[]>`select m.user_id, u.email from public.memberships m join auth.users u on u.id = m.user_id where m.tenant_id = ${tenantId}`;
+  const people = await tx<{ user_id: string; email: string }[]>`select user_id, email from app.payroll_people(${tenantId})`;
   const userOf = new Map(people.map((p) => [p.email, p.user_id]));
   const commissions = lines.reduce((s, l) => s + l.commissions_cents, 0);
   const [pp] = await tx<{ id: string }[]>`

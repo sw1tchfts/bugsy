@@ -2703,4 +2703,41 @@ describe("spec 18 rules enforced in the database", () => {
     expect(result.lockedChange).toMatch(/exported with its pay period/);
     expect(result.officePost).toMatch(/needs its source row/);
   });
+  it("keeps exported time fixed, periods apart, other trucks and labor costs private, and usage to the database (review fixes)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      const [period] = await tx<{ id: string; starts_on: string; ends_on: string }[]>`select id, starts_on::text, ends_on::text from public.pay_periods where tenant_id = ${lakeshoreId} order by starts_on limit 1`;
+      const [branch] = await tx<{ id: string }[]>`select id from public.branches where tenant_id = ${lakeshoreId} order by created_at limit 1`;
+      await tx`insert into public.stock_locations (tenant_id, branch_id, kind, name, user_id) values (${lakeshoreId}, ${branch.id}, 'truck', 'Other truck', ${dispatcher})`;
+      const [m] = await tx<{ id: string }[]>`select id from public.stock_movements where tenant_id = ${lakeshoreId} and kind = 'receipt' limit 1`;
+      await as(tech, techEmail);
+      const [{ trucks }] = await tx<{ trucks: number }[]>`select count(*)::int as trucks from public.stock_locations where kind = 'truck' and user_id <> ${tech}`;
+      const intoExported = await attempt(tx, (sp) => sp`
+        insert into public.time_entries (tenant_id, user_id, started_at, source) values (${lakeshoreId}, ${tech}, (${period.ends_on}::date + time '20:00') at time zone 'America/Chicago', 'app')`);
+      const closedSelf = await attempt(tx, (sp) => sp`
+        insert into public.time_entries (tenant_id, user_id, started_at, ended_at, source) values (${lakeshoreId}, ${tech}, now() - interval '3 hours', now() - interval '2 hours', 'app')`);
+      const techPost = await attempt(tx, (sp) => sp`select app.post_entry(${lakeshoreId}, ${sp.json({ source_type: "stock_receipt", source_key: `stock_receipt:${m.id}:forged`, source_id: m.id, posted_on: "2026-10-31" })}, ${sp.json([{ account_key: "chemical_cost", debit_cents: 1, credit_cents: 0 }, { account_key: "operating_bank", debit_cents: 0, credit_cents: 1 }])})`);
+      const techUsage = await attempt(tx, (sp) => sp`
+        insert into public.stock_movements (tenant_id, product_id, kind, from_location_id, quantity, unit, visit_id, visit_product_id)
+        select vp.tenant_id, vp.product_id, 'usage', l.id, 99, 'fl_oz', vp.visit_id, gen_random_uuid() from public.visit_products vp, public.stock_locations l
+        where vp.tenant_id = ${lakeshoreId} and l.user_id = ${tech} limit 1`);
+      const [{ usage }] = await tx<{ usage: { recorded: number } }[]>`select app.record_usage(${lakeshoreId}, null) as usage`;
+      await as(office, officeEmail);
+      const [{ costs }] = await tx<{ costs: number }[]>`select count(*)::int as costs from app.labor_costs(${lakeshoreId})`;
+      const [{ people }] = await tx<{ people: number }[]>`select count(*)::int as people from app.payroll_people(${lakeshoreId})`;
+      await as(bookkeeper, bookkeeperEmail);
+      const overlap = await attempt(tx, (sp) => sp`
+        insert into public.pay_periods (tenant_id, starts_on, ends_on) values (${lakeshoreId}, ${period.starts_on}::date + 3, ${period.ends_on}::date + 3)`);
+      const [{ bookPeople }] = await tx<{ bookPeople: number }[]>`select count(*)::int as "bookPeople" from app.payroll_people(${lakeshoreId})`;
+      return { trucks, intoExported, closedSelf, techPost, techUsage, recordedAgain: Number(usage.recorded), costs, people, overlap, bookPeople };
+    });
+    expect(result.trucks).toBe(0);
+    expect(result.intoExported).toMatch(/already exported/);
+    expect(result.closedSelf).toMatch(/only payroll adds time/);
+    expect(result.techPost).toMatch(/needs its source row/);
+    expect(result.techUsage).toMatch(RLS_ERROR);
+    expect(result.recordedAgain).toBe(0);
+    expect(result).toMatchObject({ costs: 0, people: 0 });
+    expect(result.overlap).toMatch(/pay_periods_no_overlap|conflicting key/);
+    expect(result.bookPeople).toBeGreaterThan(1);
+  });
 });
