@@ -4,7 +4,7 @@ One spec per slice. Everything ships in one build; specs are sequenced by depend
 
 ## Build order
 
-Specs 01 to 10 sit in `phase-1/` for historical reasons; the folder name does not mean a phase. Specs 11 to 21 have no file yet: run `/write-spec` with a new path such as `specs/11-messaging.md`.
+Specs 01 to 10 sit in `phase-1/` for historical reasons; the folder name does not mean a phase. A spec with no file yet gets one from `/write-spec` with a new path such as `specs/19-routing.md`.
 
 | # | Spec | Status | Depends on |
 | --- | --- | --- | --- |
@@ -24,7 +24,7 @@ Specs 01 to 10 sit in `phase-1/` for historical reasons; the folder name does no
 | 14 | [Commercial programs: devices, maps, trends, audits](14-commercial-programs.md) | done | 04, 06 |
 | 15 | [Specialty services: termite, wildlife, bed bug](15-specialty-services.md) | done | 04, 06 |
 | 16 | [Customer portal and online booking](16-portal-and-booking.md) | done | 02, 08 |
-| 17 | Sales and growth: door-to-door, commissions, campaigns | not written | 02, 04, 11 |
+| 17 | [Sales and growth: door-to-door, commissions, campaigns](17-sales-and-growth.md) | done | 02, 04, 11 |
 | 18 | Inventory, job costing, time and payroll export | not written | 06, 09 |
 | 19 | Routing and fleet: route optimization, GPS | not written | 05 |
 | 20 | Integrations and API: QuickBooks sync, webhooks, phone systems | not written | 01, 09 |

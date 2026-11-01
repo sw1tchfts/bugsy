@@ -65,7 +65,7 @@ async function overrides(tx: Sql, tenantId: string): Promise<Override[]> {
   return tx<Override[]>`select key, channel, subject, body from public.message_templates where tenant_id = ${tenantId}`;
 }
 
-async function optedOut(tx: Sql, tenantId: string, channel: "sms" | "email", address: string | null): Promise<{ out: boolean; reason: string | null }> {
+export async function optedOut(tx: Sql, tenantId: string, channel: "sms" | "email", address: string | null): Promise<{ out: boolean; reason: string | null }> {
   if (!address) return { out: false, reason: null };
   const [row] = await tx<{ reason: string }[]>`select reason from public.message_opt_outs where tenant_id = ${tenantId} and channel = ${channel} and address = ${normalizeAddress(channel, address)}`;
   return { out: Boolean(row), reason: row?.reason ?? null };

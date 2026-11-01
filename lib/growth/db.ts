@@ -4,7 +4,8 @@ import { randomBytes } from "node:crypto";
 import type postgres from "postgres";
 import { createInvoice } from "@/lib/billing/db";
 import { addDays } from "@/lib/dates";
-import { appUrl, queueMessage } from "@/lib/messaging/db";
+import { appUrl, optedOut, queueMessage } from "@/lib/messaging/db";
+import { e164 } from "@/lib/messaging/rules";
 import { render, textToHtml } from "@/lib/messaging/templates";
 import { type Step, type Trigger, nextAt } from "./sequences";
 
@@ -106,7 +107,9 @@ export async function runSequences(tx: Sql, tenantId: string, today: string, now
     }
     const step = e.steps[e.step];
     // The account's decision maker for this channel: the primary contact, then billing, then a property manager (a
-    // managed account may have no primary), then the account's own address; never a resident or a site contact.
+    // managed account may have no primary), then the account's own address; never a resident or a site contact. A text
+    // goes only to someone who agreed to texts (spec 11), so there is no fallback for one (edge case: skipped, not
+    // sent another way).
     const wantEmail = step?.channel === "email";
     const [who] = e.account_id
       ? await tx<{ contact_id: string | null; name: string; email: string | null; phone: string | null }[]>`
@@ -114,13 +117,20 @@ export async function runSequences(tx: Sql, tenantId: string, today: string, now
             select c.id as contact_id, c.name, c.email, c.phone, (case c.role when 'primary' then 0 when 'billing' then 1 else 2 end) as rank, c.created_at
             from public.contacts c
             where c.account_id = ${e.account_id} and c.archived_at is null and c.role in ('primary', 'billing', 'property_manager')
-              and (case when ${wantEmail} then c.email is not null else c.phone is not null end)
+              and (case when ${wantEmail} then c.email is not null else c.phone is not null and c.sms_opt_in end)
             union all
             select null::uuid, a.name, a.email, a.phone, 3, a.created_at from public.accounts a
-            where a.id = ${e.account_id} and (case when ${wantEmail} then a.email is not null else a.phone is not null end)
+            where a.id = ${e.account_id} and ${wantEmail} and a.email is not null
           ) w order by rank, created_at limit 1`
-      : await tx<{ contact_id: string | null; name: string; email: string | null; phone: string | null }[]>`select null::uuid as contact_id, name, email, phone from public.leads where id = ${e.lead_id}`;
-    const to = step && who ? (step.channel === "email" ? who.email : who.phone) : null;
+      : await tx<{ contact_id: string | null; name: string; email: string | null; phone: string | null }[]>`
+          select null::uuid as contact_id, name, email, case when ${wantEmail} or sms_consent then phone end as phone from public.leads where id = ${e.lead_id}`;
+    const to = step && who ? (step.channel === "email" ? (who.email?.trim().toLowerCase() ?? null) : e164(who.phone)) : null;
+    // Rule 8: an opt-out stops the enrollment, it does not just mute it.
+    if (step && to && (await optedOut(tx, tenantId, step.channel === "email" ? "email" : "sms", to)).out) {
+      await tx`update public.sequence_enrollments set status = 'stopped', stopped_reason = 'opted out', next_at = null where id = ${e.id}`;
+      counts.stopped += 1;
+      continue;
+    }
     if (step && who && to) {
       const t = randomBytes(24).toString("hex");
       const vars = { customer_name: who.name.split(" ")[0] ?? who.name, company_name: company.name, unsubscribe_url: `${appUrl()}/u/${t}` };

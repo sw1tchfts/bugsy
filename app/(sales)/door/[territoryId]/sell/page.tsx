@@ -53,7 +53,8 @@ export default async function Sell({ params, searchParams }: { params: Promise<{
               and ((${address}::text is not null and p.normalized_address = ${address}) or (${email}::text is not null and a.email = ${email}) or (${phone}::text is not null and a.phone_digits = ${phone}))
             group by a.id, a.name order by bool_or(p.normalized_address = ${address}) desc nulls last, a.name limit 5`
         : [];
-    return { t, types, items, existing, cardEntry: cardEntry(await loadSettings(tx, active.tenantId)) };
+    const [{ dnk }] = address ? await tx<{ dnk: boolean }[]>`select app.do_not_knock(${active.tenantId}, ${address}) as dnk` : [{ dnk: false }];
+    return { t, types, items, existing, dnk, cardEntry: cardEntry(await loadSettings(tx, active.tenantId)) };
   });
   if (!data) notFound();
   const offers = priceBookOffers(data.items, { sizeSqft: size, lotSqft: null });
@@ -193,6 +194,14 @@ export default async function Sell({ params, searchParams }: { params: Promise<{
               <Input id="signed_name" name="signed_name" required />
             </Field>
             <SignatureField name="signature" label="Customer signs here" />
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="consent_notices" value="true" /> The customer agrees to get treatment notices by email or text
+            </label>
+            {data.dnk ? (
+              <label className="flex items-start gap-2 rounded border border-red-300 bg-red-50 p-2 text-sm text-red-900" data-testid="door-dnk">
+                <input type="checkbox" name="confirm_dnk" value="true" required className="mt-1" /> This address asked not to be knocked. The customer asked for the plan anyway.
+              </label>
+            ) : null}
             <div className="grid grid-cols-3 gap-2">
               <PaymentFields {...data.cardEntry} idPrefix="card" names={{ number: "card_number", month: "card_month", year: "card_year" }} />
             </div>

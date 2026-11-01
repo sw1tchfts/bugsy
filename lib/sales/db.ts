@@ -27,12 +27,15 @@ export async function recordKnock(
   tx: Sql,
   tenantId: string,
   repId: string,
-  input: { territory_id: string; address: GeoAddress; outcome: string; notes: string | null; follow_up_at: string | null },
+  input: { territory_id: string; address: GeoAddress; here?: { lat: number; lng: number } | null; outcome: string; notes: string | null; follow_up_at: string | null },
 ): Promise<string> {
+  // The knock is where the rep stood (the phone's position when allowed), else the address's geocode.
+  const lat = input.here?.lat ?? input.address.lat;
+  const lng = input.here?.lng ?? input.address.lng;
   const [row] = await tx<{ id: string }[]>`
     insert into public.knocks (tenant_id, territory_id, rep_id, address, normalized_address, postal_code, lat, lng, outcome, notes, follow_up_at)
     values (${tenantId}, ${input.territory_id}, ${repId}, ${input.address.line1}, ${input.address.normalized_address}, ${input.address.postal_code},
-            ${input.address.lat}, ${input.address.lng}, ${input.outcome}, ${input.notes}, ${input.follow_up_at})
+            ${lat}, ${lng}, ${input.outcome}, ${input.notes}, ${input.follow_up_at})
     returning id`;
   return row.id;
 }
@@ -59,6 +62,10 @@ export type DoorSale = {
   ip: string | null;
   /** The company's account this sale adds to (the address or person is already a customer), or none for a new one. */
   existing_account_id?: string | null;
+  /** The phone's position at the door, for the knock. */
+  here?: { lat: number; lng: number } | null;
+  /** The customer agreed to get pesticide notices electronically (asked, never assumed). */
+  consent_notices?: boolean;
 };
 
 /**
@@ -67,7 +74,7 @@ export type DoorSale = {
  * and the seller's commissions (held).
  */
 export async function doorSale(tx: Sql, tenantId: string, repId: string, sale: DoorSale, timeZone: string): Promise<{ agreement_id: string; account_id: string }> {
-  const knockId = await recordKnock(tx, tenantId, repId, { territory_id: sale.territory_id, address: sale.address, outcome: "sold", notes: null, follow_up_at: null });
+  const knockId = await recordKnock(tx, tenantId, repId, { territory_id: sale.territory_id, address: sale.address, here: sale.here ?? null, outcome: "sold", notes: null, follow_up_at: null });
   const [source] = await tx<{ id: string }[]>`select id from public.lead_sources where tenant_id = ${tenantId} and key = 'door_to_door'`;
   if (!source) throw Object.assign(new Error("the door to door lead source is missing"), { code: "23514" });
   const a = sale.address;
@@ -133,13 +140,13 @@ export async function doorSale(tx: Sql, tenantId: string, repId: string, sale: D
       cadence: sale.cadence, cadence_rule: tx.json({}), skip_months: [], interior_only_months: [],
       initial_price_cents: sale.initial_price_cents, recurring_price_cents: sale.recurring_price_cents, billing_mode: sale.billing_mode,
       term_months: 12, auto_renew: true, cancel_fee_cents: 0, starts_on: sale.starts_on, first_visit_on: sale.starts_on,
-      terms_text: terms.agreement_terms, sold_by: repId, knock_id: knockId, notes: "Sold at the door",
+      terms_text: terms.agreement_terms, sold_by: repId, knock_id: knockId, notes: "Sold at the door", signature_file_id: sale.signature_file_id,
     })} returning id`;
   await tx`
     update public.agreements set status = 'active', signed_at = now(), signed_name = ${sale.signed_name}, signed_by_contact_id = ${contact.id}, signed_ip = ${sale.ip}
     where id = ${agreement.id}`;
-  if (sale.signature_file_id) {
-    await tx`update public.contacts set e_notice_consent_at = coalesce(e_notice_consent_at, now()), e_notice_consent_note = coalesce(e_notice_consent_note, 'signed at the door') where id = ${contact.id}`;
+  if (sale.consent_notices) {
+    await tx`update public.contacts set e_notice_consent_at = coalesce(e_notice_consent_at, now()), e_notice_consent_note = coalesce(e_notice_consent_note, 'agreed at the door') where id = ${contact.id}`;
   }
   await syncVisits(tx, tenantId, agreement.id);
   const today = dateInZone(new Date(), timeZone);

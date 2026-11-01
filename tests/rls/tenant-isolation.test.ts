@@ -2451,6 +2451,13 @@ describe("spec 17 rules enforced in the database", () => {
       const inflated = await attempt(tx, (sp) => sp`
         insert into public.commissions (tenant_id, user_id, agreement_id, plan_id, basis_cents, amount_cents, earned_on, releasable_on)
         values (${lakeshoreId}, ${rep}, ${mine.id}, ${flat.id}, 999999, 999999, ${today}, ${today})`);
+      // A plan made after the sale earns nothing on it: a commission is earned only in the signing itself.
+      const late = await attempt(tx, (sp) => sp`
+        insert into public.commissions (tenant_id, user_id, agreement_id, plan_id, basis_cents, amount_cents, earned_on, releasable_on)
+        values (${lakeshoreId}, ${rep}, ${mine.id}, ${flat.id}, 5000, 5000, ${today}, ${today})`);
+      await tx.unsafe("reset role");
+      await tx`update public.agreements set signed_at = now() where id = ${mine.id}`;
+      await as(rep, repEmail);
       const fair = await attempt(tx, (sp) => sp`
         insert into public.commissions (tenant_id, user_id, agreement_id, plan_id, basis_cents, amount_cents, earned_on, releasable_on)
         values (${lakeshoreId}, ${rep}, ${mine.id}, ${flat.id}, 5000, 5000, ${today}, ${today})`);
@@ -2463,17 +2470,18 @@ describe("spec 17 rules enforced in the database", () => {
       const charge = await attempt(tx, (sp) => sp`
         insert into public.payments (tenant_id, account_id, kind, method, status, amount_cents, gateway, received_at) values (${lakeshoreId}, ${notMine.account_id}, 'payment', 'card', 'succeeded', 100, 'local', now())`);
       const saveCard = await attempt(tx, (sp) => sp`
-        insert into public.payment_methods (tenant_id, account_id, gateway, gateway_payment_method_id, kind, last4, status)
-        values (${lakeshoreId}, ${notMine.account_id}, 'local', 'local_pm_rls_capture', 'card', '4242', 'active')`);
+        insert into public.payment_methods (tenant_id, account_id, gateway, gateway_payment_method_id, kind, last4, status, added_by)
+        values (${lakeshoreId}, ${notMine.account_id}, 'local', 'local_pm_rls_capture', 'card', '4242', 'active', ${rep})`);
       // Billing staff release only when the hold is met; the seller is fixed once signed.
       await as(office, officeEmail);
       const earlyRelease = await attempt(tx, (sp) => sp`update public.commissions set status = 'payable', released_on = current_date where id = ${held.id}`);
       const reseller = await attempt(tx, (sp) => sp`update public.agreements set sold_by = ${office} where id = ${mine.id}`);
-      return { raise, release, inflated, fair, othersSale, credit, charge, saveCard, earlyRelease, reseller };
+      return { raise, release, inflated, late, fair, othersSale, credit, charge, saveCard, earlyRelease, reseller };
     });
     expect(result.raise).toMatch(/terms do not change/);
     expect(result.release).toMatch(/still held/);
     expect(result.inflated).toMatch(/must be 5000 on a basis of 5000/);
+    expect(result.late).toMatch(/earned when the agreement is signed/);
     expect(result.fair).toBe("ok 1");
     expect(result.othersSale).toMatch(/the seller's/);
     expect(result.credit).toMatch(RLS_ERROR);
@@ -2481,6 +2489,61 @@ describe("spec 17 rules enforced in the database", () => {
     expect(result.saveCard).toBe("ok 1");
     expect(result.earlyRelease).toMatch(/still held/);
     expect(result.reseller).toMatch(/fixed once the agreement is signed/);
+  });
+
+  it("keeps a rep to their own cards, off invoice payments and cancellation dates, and off what happened at a door (review fixes)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      const [held] = await tx<{ id: string; agreement_id: string; plan_id: string }[]>`
+        select id, agreement_id, plan_id from public.commissions where tenant_id = ${lakeshoreId} and user_id = ${rep} and status = 'held' limit 1`;
+      const [inv] = await tx<{ id: string }[]>`
+        select id from public.invoices where tenant_id = ${lakeshoreId} and kind = 'invoice' and status in ('issued', 'past_due') and paid_cents = 0 limit 1`;
+      const accounts = await tx<{ id: string }[]>`select id from public.accounts where tenant_id = ${lakeshoreId} order by created_at limit 2`;
+      await tx`update public.accounts set gateway_customer_id = 'local_cus_existing' where id = ${accounts[1].id}`;
+      const [others] = await tx<{ n: number }[]>`select count(*)::int as n from public.payment_methods where tenant_id = ${lakeshoreId} and added_by is distinct from ${rep}`;
+      const [mineCard] = await tx<{ id: string }[]>`
+        insert into public.payment_methods (tenant_id, account_id, gateway, gateway_payment_method_id, kind, last4, status, added_by)
+        values (${lakeshoreId}, ${accounts[0].id}, 'local', 'local_pm_rls_mine', 'card', '4242', 'active', ${rep}) returning id`;
+      // The rep's sale, cancelled by the office today.
+      await tx`update public.agreements set status = 'cancelled', cancelled_on = current_date,
+                 cancel_reason_id = (select id from public.cancel_reasons where tenant_id = ${lakeshoreId} order by name limit 1) where id = ${held.agreement_id}`;
+      const [dnk] = await tx<{ id: string; normalized_address: string }[]>`
+        select id, normalized_address from public.knocks where tenant_id = ${lakeshoreId} and rep_id = ${rep} and outcome = 'do_not_knock' limit 1`;
+      // Change the plan after the commission was earned; the commission keeps the terms it was earned under.
+      const [before] = await tx<{ hold: number; window: number }[]>`select hold_paid_invoices as hold, chargeback_days as window from public.commissions where id = ${held.id}`;
+      await tx`update public.commission_plans set hold_paid_invoices = 9, chargeback_days = 1 where id = ${held.plan_id}`;
+      const [after] = await tx<{ hold: number; window: number }[]>`select hold_paid_invoices as hold, chargeback_days as window from public.commissions where id = ${held.id}`;
+      // A territory elsewhere with the same door marked do-not-knock by someone else.
+      const [other] = await tx<{ id: string }[]>`insert into public.territories (tenant_id, name, zip_codes, rep_ids) values (${lakeshoreId}, 'Elsewhere', ${["60601"]}, ${[office]}) returning id`;
+      await tx`insert into public.knocks (tenant_id, territory_id, rep_id, address, normalized_address, outcome) values (${lakeshoreId}, ${other.id}, ${office}, '9 Elsewhere', '9 ELSEWHERE ST', 'do_not_knock')`;
+      await as(rep, repEmail);
+      const [{ n: seenCards }] = await tx<{ n: number }[]>`select count(*)::int as n from public.payment_methods where added_by is distinct from ${rep}`;
+      const repoint = await attempt(tx, (sp) => sp`update public.payment_methods set account_id = ${accounts[1].id} where id = ${mineCard.id}`);
+      const relink = await attempt(tx, (sp) => sp`select app.set_account_gateway_customer(${lakeshoreId}, ${accounts[1].id}, 'cus_hijack')`);
+      const markPaid = await attempt(tx, (sp) => sp`update public.invoices set status = 'paid', paid_cents = total_cents where id = ${inv.id}`);
+      const moveCancel = await attempt(tx, (sp) => sp`update public.agreements set cancelled_on = cancelled_on + 400 where id = ${held.agreement_id}`);
+      const clear = await attempt(tx, (sp) => sp`update public.knocks set cleared_at = now() where id = ${dnk.id}`);
+      const reword = await attempt(tx, (sp) => sp`update public.knocks set outcome = 'not_home' where id = ${dnk.id}`);
+      const [{ warned }] = await tx<{ warned: boolean }[]>`select app.do_not_knock(${lakeshoreId}, '9 ELSEWHERE ST') as warned`;
+      const [{ own }] = await tx<{ own: boolean }[]>`select app.do_not_knock(${lakeshoreId}, ${dnk.normalized_address}) as own`;
+      // Taken off every territory: the rep keeps their knocks and commissions.
+      await tx.unsafe("reset role");
+      await tx`update public.territories set rep_ids = array_remove(rep_ids, ${rep}::uuid) where tenant_id = ${lakeshoreId}`;
+      await as(rep, repEmail);
+      const [{ knocks }] = await tx<{ knocks: number }[]>`select count(*)::int as knocks from public.knocks where rep_id = ${rep}`;
+      const [{ commissions }] = await tx<{ commissions: number }[]>`select count(*)::int as commissions from public.commissions where user_id = ${rep}`;
+      return { others: others.n, seenCards, repoint, relink, markPaid, moveCancel, clear, reword, warned, own, before, after, knocks, commissions };
+    });
+    expect(result.seenCards).toBe(0);
+    expect(result.repoint).toMatch(/stays on its account/);
+    expect(result.relink).toMatch(/already linked/);
+    expect(result.markPaid).toMatch(/paid by payments allocated/);
+    expect(result.moveCancel).toMatch(/keeps its cancellation date/);
+    expect(result.clear).toMatch(/only a manager clears/);
+    expect(result.reword).toMatch(/keeps what happened at the door/);
+    expect(result).toMatchObject({ warned: true, own: true });
+    expect(result.after).toEqual(result.before);
+    expect(result.knocks).toBeGreaterThan(0);
+    expect(result.commissions).toBeGreaterThan(0);
   });
 
   it("takes one survey answer per visit from anyone holding the link, and names a referrer only on a fresh lead (rules 9 and 10)", async () => {

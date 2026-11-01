@@ -12,8 +12,9 @@ import { gatewayFor } from "@/lib/payments";
 import { paymentToken } from "@/lib/payments/token";
 import { decodeBase64File, putFile } from "@/lib/files";
 import { type GeoAddress, doorSale, recordKnock } from "@/lib/sales/db";
-import { OUTCOMES } from "@/lib/sales/territory";
-import { isIsoDate, todayInZone } from "@/lib/dates";
+import { OUTCOMES, inTerritory } from "@/lib/sales/territory";
+import { type PriceBookItemLike, priceBookOffers } from "@/lib/catalog/pricing";
+import { fromTenantLocal, isIsoDate, todayInZone } from "@/lib/dates";
 
 function back(path: string, params: Record<string, string>): never {
   revalidatePath(path);
@@ -27,15 +28,31 @@ async function rep(formData: FormData) {
   return { ...ctx, tenantId };
 }
 
-async function geoFrom(formData: FormData): Promise<GeoAddress | null> {
+type Here = { lat: number; lng: number } | null;
+
+/** The address (geocoded for the property) and the phone's position at the door when the rep allowed it. */
+async function geoFrom(formData: FormData): Promise<{ address: GeoAddress; here: Here } | null> {
   const address = readAddress(formData);
   if (!addressComplete(address)) return null;
   const cols = addressColumns(await geocode(address)) as unknown as GeoAddress;
-  // The phone's location at the door, when the rep allowed it, places the knock before the geocoder has.
   const lat = Number(opt(formData, "here_lat") ?? NaN);
   const lng = Number(opt(formData, "here_lng") ?? NaN);
-  const here = Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && !(lat === 0 && lng === 0);
-  return { ...cols, line2: cols.line2 ?? null, county: cols.county ?? null, lat: cols.lat ?? (here ? lat : null), lng: cols.lng ?? (here ? lng : null) };
+  const here = Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && !(lat === 0 && lng === 0) ? { lat, lng } : null;
+  return { address: { ...cols, line2: cols.line2 ?? null, county: cols.county ?? null, lat: cols.lat ?? null, lng: cols.lng ?? null }, here };
+}
+
+/** Rule 2: the territory is one of the rep's (row level security shows only those) and the address is inside it. */
+async function territoryProblem(tx: Parameters<Parameters<typeof dbAs>[1]>[0], tenantId: string, territoryId: string, address: GeoAddress): Promise<string | null> {
+  const [t] = await tx<{ zip_codes: string[]; streets: string[]; active: boolean }[]>`
+    select zip_codes, streets, active from public.territories where id = ${territoryId} and tenant_id = ${tenantId}`;
+  if (!t || !t.active) return "That territory is not one of yours.";
+  return inTerritory({ line1: address.line1, postal_code: address.postal_code }, t) ? null : "That address is outside this territory.";
+}
+
+/** Rule 1: every rep is warned at a do-not-knock door, whoever recorded it. */
+async function doNotKnockAt(tx: Parameters<Parameters<typeof dbAs>[1]>[0], tenantId: string, normalized: string): Promise<boolean> {
+  const [{ dnk }] = await tx<{ dnk: boolean }[]>`select app.do_not_knock(${tenantId}, ${normalized}) as dnk`;
+  return dnk;
 }
 
 /** Rule 1: a knock with its outcome; a do-not-knock address warns first and is knocked only when the rep confirms. */
@@ -45,31 +62,35 @@ export async function knockAction(formData: FormData) {
   const page = `/door/${territoryId}`;
   const outcome = str(formData, "outcome");
   if (!(OUTCOMES as readonly string[]).includes(outcome) || outcome === "sold") back(page, { error: "Pick what happened at the door." });
-  const address = await geoFrom(formData);
-  if (!address) back(page, { error: "Enter the street, city, state and ZIP." });
+  const geo = await geoFrom(formData);
+  if (!geo) back(page, { error: "Enter the street, city, state and ZIP." });
+  const { address, here } = geo!;
   const followUp = opt(formData, "follow_up_at");
+  const followUpAt = followUp ? fromTenantLocal(followUp, ctx.membership.tenantTimezone) : null;
+  if (followUp && !followUpAt) back(page, { error: "Pick a day and time to come back." });
   let error: string | null = null;
   let warn = false;
   try {
     await dbAs(ctx.session, async (tx) => {
-      const [dnk] = await tx<{ id: string }[]>`
-        select id from public.knocks where tenant_id = ${ctx.tenantId} and normalized_address = ${address!.normalized_address} and outcome = 'do_not_knock' and cleared_at is null limit 1`;
-      if (dnk && formData.get("confirm_dnk") !== "true") {
+      const outside = await territoryProblem(tx, ctx.tenantId, territoryId, address);
+      if (outside) throw Object.assign(new Error(outside), { code: "23514" });
+      if ((await doNotKnockAt(tx, ctx.tenantId, address.normalized_address)) && formData.get("confirm_dnk") !== "true") {
         warn = true;
         return;
       }
       await recordKnock(tx, ctx.tenantId, ctx.session.userId, {
         territory_id: territoryId,
-        address: address!,
+        address,
+        here,
         outcome,
         notes: opt(formData, "notes"),
-        follow_up_at: followUp ? new Date(followUp).toISOString() : null,
+        follow_up_at: followUpAt ? followUpAt.toISOString() : null,
       });
     });
   } catch (err) {
     error = errorCode(err);
   }
-  if (warn) back(page, { dnk: address!.normalized_address, error: "This address asked not to be knocked. Leave it, or confirm you spoke with them." });
+  if (warn) back(page, { dnk: address.normalized_address, error: "This address asked not to be knocked. Leave it, or confirm you spoke with them." });
   back(page, error ? { error } : { note: "Knock saved." });
 }
 
@@ -80,8 +101,9 @@ export async function sellAction(formData: FormData) {
   const page = `/door/${territoryId}/sell`;
   const keep = Object.fromEntries([...formData.entries()].filter(([k, v]) => typeof v === "string" && !["signature", "card_number", "payment_token", "tenant_id"].includes(k) && !k.startsWith("$")) as [string, string][]);
   const fail = (error: string): never => back(page, { ...keep, error });
-  const address = await geoFrom(formData);
-  if (!address) fail("Enter the street, city, state and ZIP.");
+  const geo = await geoFrom(formData);
+  if (!geo) fail("Enter the street, city, state and ZIP.");
+  const { address, here } = geo!;
   const name = str(formData, "name").trim();
   const signedName = str(formData, "signed_name").trim();
   const signature = str(formData, "signature");
@@ -104,9 +126,23 @@ export async function sellAction(formData: FormData) {
         token: opt(formData, "payment_token"),
       });
       if (!card.ok) throw Object.assign(new Error(card.error), { code: "23514" });
-      const [item] = await tx<{ service_type_id: string; initial_price_cents: string; recurring_price_cents: string; one_time_price_cents: string }[]>`
-        select service_type_id, initial_price_cents, recurring_price_cents, one_time_price_cents from public.price_book_items where id = ${itemId} and tenant_id = ${ctx.tenantId} and active and archived_at is null`;
-      if (!item) throw Object.assign(new Error("That price is not in the price book."), { code: "23514" });
+      const outside = await territoryProblem(tx, ctx.tenantId, territoryId, address);
+      if (outside) throw Object.assign(new Error(outside), { code: "23514" });
+      if ((await doNotKnockAt(tx, ctx.tenantId, address.normalized_address)) && formData.get("confirm_dnk") !== "true") {
+        throw Object.assign(new Error("This address asked not to be knocked; confirm the customer asked for the plan."), { code: "23514" });
+      }
+      // Rule 3: the price is the band the price book picks for this house's size, whatever the form sent.
+      const [chosen] = await tx<{ service_type_id: string }[]>`
+        select service_type_id from public.price_book_items where id = ${itemId} and tenant_id = ${ctx.tenantId} and active and archived_at is null and not add_on`;
+      if (!chosen) throw Object.assign(new Error("That price is not in the price book."), { code: "23514" });
+      const bands = await tx<PriceBookItemLike[]>`
+        select id, service_type_id, name, add_on, size_basis, size_min, size_max, initial_price_cents, recurring_price_cents, one_time_price_cents
+        from public.price_book_items where tenant_id = ${ctx.tenantId} and service_type_id = ${chosen.service_type_id} and active and archived_at is null and not add_on order by position, size_min`;
+      const pick = priceBookOffers(bands, { sizeSqft: intOrNull(formData, "size_sqft"), lotSqft: null })
+        .map((o) => o.pick)
+        .find((p) => p.status === "match" && p.item.id === itemId);
+      if (!pick || pick.status !== "match") throw Object.assign(new Error("That price does not fit this house's size; price it again."), { code: "23514" });
+      const item = { service_type_id: chosen.service_type_id, initial_price_cents: String(pick.item.initial_price_cents), recurring_price_cents: String(pick.item.recurring_price_cents) };
       const file = decodeBase64File(signature, "image/png");
       const fileId = await putFile(tx, ctx.tenantId, { kind: "signature", contentType: file.contentType, data: file.data });
       const made = await doorSale(
@@ -115,7 +151,9 @@ export async function sellAction(formData: FormData) {
         ctx.session.userId,
         {
           territory_id: territoryId,
-          address: address!,
+          address,
+          here,
+          consent_notices: formData.get("consent_notices") === "true",
           name,
           email: emailOrNull(formData),
           phone: opt(formData, "phone"),

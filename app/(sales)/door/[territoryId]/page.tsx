@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DoorLocation } from "@/components/sales/door-location";
 import { KnockMap } from "@/components/sales/knock-map";
-import { Badge, Button, Card, Empty, Field, Input, Notice, Select, Textarea, errorMessage } from "@/components/ui";
+import { Badge, Button, Card, Empty, Field, Input, Notice, Textarea, errorMessage } from "@/components/ui";
 import { dbAs } from "@/lib/auth/session";
 import { formatInstant } from "@/lib/dates";
 import { OUTCOMES, OUTCOME_LABELS, type Outcome, knockStats, latestByAddress } from "@/lib/sales/territory";
