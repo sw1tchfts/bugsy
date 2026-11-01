@@ -2741,3 +2741,69 @@ describe("spec 18 rules enforced in the database", () => {
     expect(result.bookPeople).toBeGreaterThan(1);
   });
 });
+
+describe("spec 19 rules enforced in the database", () => {
+  const techEmail = seedUserEmail(lakeshore, "technician");
+  const officeEmail = seedUserEmail(lakeshore, "office");
+  const dispatcherEmail = seedUserEmail(lakeshore, "dispatcher");
+  let tech = "";
+  let office = "";
+  let dispatcher = "";
+  const ROLLBACK = "rollback: spec 19";
+
+  async function rolledBack<T>(fn: (tx: Tx, as: (id: string, email: string) => Promise<void>) => Promise<T>): Promise<T> {
+    let out: T | undefined;
+    await admin
+      .begin(async (tx) => {
+        const as = async (id: string, email: string) => {
+          await tx.unsafe("reset role");
+          await tx.unsafe("set local role authenticated");
+          await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: id, email, role: "authenticated" })}, true)`;
+        };
+        out = await fn(tx, as);
+        throw new Error(ROLLBACK);
+      })
+      .catch((e: Error) => {
+        if (e.message !== ROLLBACK) throw e;
+      });
+    return out as T;
+  }
+  const attempt = (tx: Tx, q: (sp: Tx) => Promise<unknown>) =>
+    tx.savepoint((sp) => q(sp as unknown as Tx)).then((r) => `ok ${(r as { count?: number }).count ?? ""}`.trim(), (e: Error) => e.message);
+
+  beforeAll(async () => {
+    tech = await userId(techEmail);
+    office = await userId(officeEmail);
+    dispatcher = await userId(dispatcherEmail);
+  });
+
+  it("takes a position only from its own person while they work, and shows it to dispatch and to them (rule 7)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      await tx`delete from public.time_entries where tenant_id = ${lakeshoreId} and user_id = ${tech} and ended_at is null`;
+      await as(tech, techEmail);
+      const offShift = await attempt(tx, (sp) => sp`insert into public.technician_positions (tenant_id, user_id, lat, lng, recorded_at) values (${lakeshoreId}, ${tech}, 41.9, -87.6, now())`);
+      await tx`insert into public.time_entries (tenant_id, user_id, started_at, source) values (${lakeshoreId}, ${tech}, now() - interval '1 hour', 'app')`;
+      const onShift = await attempt(tx, (sp) => sp`insert into public.technician_positions (tenant_id, user_id, lat, lng, recorded_at) values (${lakeshoreId}, ${tech}, 41.9, -87.6, now() + interval '3 hours')`);
+      const forOther = await attempt(tx, (sp) => sp`insert into public.technician_positions (tenant_id, user_id, lat, lng, recorded_at) values (${lakeshoreId}, ${office}, 41.9, -87.6, now())`);
+      const [{ future }] = await tx<{ future: number }[]>`select count(*)::int as future from public.technician_positions where user_id = ${tech} and recorded_at > now() + interval '2 minutes'`;
+      const [{ othersSeen }] = await tx<{ othersSeen: number }[]>`select count(*)::int as "othersSeen" from public.technician_positions where user_id <> ${tech}`;
+      await as(office, officeEmail);
+      const [{ officeSeen }] = await tx<{ officeSeen: number }[]>`select count(*)::int as "officeSeen" from public.technician_positions`;
+      await as(dispatcher, dispatcherEmail);
+      const [{ dispatchSeen }] = await tx<{ dispatchSeen: number }[]>`select count(*)::int as "dispatchSeen" from public.technician_positions where user_id = ${tech}`;
+      const officeRun = await (async () => {
+        await as(office, officeEmail);
+        return attempt(tx, (sp) => sp`insert into public.route_runs (tenant_id, kind, date) values (${lakeshoreId}, 'optimize', current_date)`);
+      })();
+      return { offShift, onShift, forOther, future, othersSeen, officeSeen, dispatchSeen, officeRun };
+    });
+    expect(result.offShift).toMatch(/only while clocked in or on the way/);
+    expect(result.onShift).toBe("ok 1");
+    expect(result.forOther).toMatch(/own person's position|row-level security/);
+    expect(result.future).toBe(0);
+    expect(result.othersSeen).toBe(0);
+    expect(result.officeSeen).toBe(0);
+    expect(result.dispatchSeen).toBeGreaterThan(0);
+    expect(result.officeRun).toMatch(RLS_ERROR);
+  });
+});

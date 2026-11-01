@@ -28,7 +28,7 @@ const COMMON = ["company_name", "company_phone", "customer_name", "property_addr
 /** The variables each purpose may use; anything else in a template is refused when it is saved. */
 export const TEMPLATE_VARIABLES: Record<TemplateKey, readonly string[]> = {
   reminder: [...COMMON, "visit_date", "arrival_window", "service_name", "prep_checklist"],
-  on_the_way: [...COMMON, "technician_name", "service_name"],
+  on_the_way: [...COMMON, "technician_name", "service_name", "eta"],
   summary: [...COMMON, "service_name", "visit_date", "technician_name", "summary_url", "summary_text", "survey_line"],
   review: [...COMMON, "review_url", "service_name"],
   invoice: [...COMMON, "invoice_number", "invoice_total", "due_date"],
@@ -71,8 +71,8 @@ export const DEFAULT_TEMPLATES: Record<TemplateKey, Partial<Record<Channel, Temp
     email: D("Your visit {{visit_date}}", "Hi {{customer_name}},\n\nThis is a reminder that your {{service_name}} visit at {{property_address}} is {{visit_date}}{{arrival_window}}.{{prep_checklist}}\n\nQuestions? Call {{company_phone}} or reply to this email.\n\n{{company_name}}"),
   },
   on_the_way: {
-    sms: D(null, "{{company_name}}: {{technician_name}} is on the way for your {{service_name}} visit."),
-    email: D("{{technician_name}} is on the way", "Hi {{customer_name}},\n\n{{technician_name}} is on the way to {{property_address}} for your {{service_name}} visit.\n\n{{company_name}}"),
+    sms: D(null, "{{company_name}}: {{technician_name}} is on the way for your {{service_name}} visit{{eta}}."),
+    email: D("{{technician_name}} is on the way", "Hi {{customer_name}},\n\n{{technician_name}} is on the way to {{property_address}} for your {{service_name}} visit{{eta}}.\n\n{{company_name}}"),
   },
   summary: {
     sms: D(null, "{{company_name}}: your {{service_name}} visit is done. What we applied and what to know: {{summary_url}}"),

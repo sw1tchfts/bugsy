@@ -434,11 +434,19 @@ export async function queueOnTheWay(tx: Sql, tenantId: string, visitId: string, 
   if (!visit || !recipient) return null;
   const company = await companyFacts(tx, tenantId, settings);
   const lead = visit.crew.find((c) => c.role === "lead") ?? visit.crew[0];
+  // Spec 19 rule 8: about when, as a 15-minute range, from the truck's last position or the day's estimate.
+  const { arrivalRange } = await import("@/lib/routing/db");
+  const range = await arrivalRange(tx, tenantId, visitId, tappedAt, timeZone).catch(() => null);
   const id = await composeAndQueue(tx, tenantId, settings, {
     key: "on_the_way",
     purpose: "on_the_way",
     recipient,
-    vars: { ...commonVars(company, recipient, visit.property.address), technician_name: lead?.name.split(" ")[0] ?? "Your technician", service_name: visit.service_type.name },
+    vars: {
+      ...commonVars(company, recipient, visit.property.address),
+      technician_name: lead?.name.split(" ")[0] ?? "Your technician",
+      service_name: visit.service_type.name,
+      eta: range ? ` and should arrive between ${range.replace(" to ", " and ")}` : " and should arrive shortly",
+    },
     dedupe_key: `on_the_way:${visitId}`,
     ids: { visit_id: visitId },
   });
@@ -681,6 +689,9 @@ export async function runMessaging(tx: Sql, tenantId: string, timeZone: string, 
   // Spec 17 rule 8: sequences enroll and queue their due steps before everything due goes out.
   const { runSequences } = await import("@/lib/growth/db");
   await runSequences(tx, tenantId, todayInZone(timeZone), now);
+  // Spec 19 rule 7: technician positions are kept only as long as the company says.
+  const { purgePositions } = await import("@/lib/routing/db");
+  await purgePositions(tx, tenantId);
   const sent = await sendQueued(tx, tenantId, now, timeZone);
   return { reminders, notices, campaigns: scheduled.length, ...sent };
 }

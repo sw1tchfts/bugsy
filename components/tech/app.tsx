@@ -206,6 +206,46 @@ export function TechApp({ tenantId, userId, locale, today: serverToday, timezone
   const openSince =
     lastPending && lastPending.payload.kind === "clock" ? (lastPending.payload.direction === "in" ? lastPending.payload.at : null) : (route?.clock?.open_since ?? null);
   const clockRejected = clockChanges.filter((c) => c.status === "rejected");
+  // Spec 19 rule 7: the position goes to dispatch while the person works (clocked in or on the way), online only.
+  const onTheWay = route?.visits.some((v) => withLocalChanges(route, v, changes).status === "en_route") ?? false;
+  const sharing = Boolean(openSince) || onTheWay;
+  useEffect(() => {
+    if (!sharing || !("geolocation" in navigator)) return;
+    let latest: GeolocationPosition | null = null;
+    let sentAt = 0;
+    let busy = false;
+    // A ping that fails (no signal, or the clock-in has not synced yet) is tried again on the next tick; a sent one
+    // waits two minutes. The timer matters: a phone standing still reports its position once.
+    const send = async () => {
+      if (!latest || busy || !navigator.onLine || Date.now() - sentAt < 120_000) return;
+      busy = true;
+      try {
+        const res = await fetch("/api/tech/position", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ lat: latest.coords.latitude, lng: latest.coords.longitude, accuracy: latest.coords.accuracy, at: new Date().toISOString() }),
+        });
+        if (res.ok) sentAt = Date.now();
+      } catch {
+        // dropped: a ping is not a record
+      } finally {
+        busy = false;
+      }
+    };
+    const id = navigator.geolocation.watchPosition(
+      (p) => {
+        latest = p;
+        void send();
+      },
+      () => undefined,
+      { enableHighAccuracy: true, maximumAge: 60_000, timeout: 30_000 },
+    );
+    const timer = window.setInterval(() => void send(), 15_000);
+    return () => {
+      navigator.geolocation.clearWatch(id);
+      window.clearInterval(timer);
+    };
+  }, [sharing]);
   const visit = route && visitId ? route.visits.find((v) => v.id === visitId) : null;
   const effective = route && visit ? withLocalChanges(route, visit, changes) : null;
 
@@ -228,7 +268,14 @@ export function TechApp({ tenantId, userId, locale, today: serverToday, timezone
 
       {route ? (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white p-2 text-sm" data-testid="clock-bar">
-          <span data-testid="clock-state">{openSince ? t("clock.since", { time: clock(openSince, locale, timezone) }) : t("clock.off")}</span>
+          <span>
+            <span data-testid="clock-state">{openSince ? t("clock.since", { time: clock(openSince, locale, timezone) }) : t("clock.off")}</span>
+            {sharing ? (
+              <span className="block text-xs text-stone-500" data-testid="position-shared">
+                {t("clock.sharing")}
+              </span>
+            ) : null}
+          </span>
           <button
             type="button"
             onClick={() => void queue(CLOCK_VISIT, { kind: "clock", direction: openSince ? "out" : "in", at: new Date().toISOString() })}

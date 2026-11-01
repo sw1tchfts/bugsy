@@ -88,6 +88,9 @@ export default async function DispatchPage({ searchParams }: { searchParams: Pro
               Go
             </button>
           </form>
+          <Link href={`/dispatch/routes?day=${selectedDay}${branch ? `&branch=${branch}` : ""}`} className="text-emerald-800 underline">
+            Routes
+          </Link>
           <Link href="/compliance/credentials" className="text-emerald-800 underline">
             Credentials
           </Link>

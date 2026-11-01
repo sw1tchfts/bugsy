@@ -145,6 +145,9 @@ export default async function OfficeLayout({ children }: { children: React.React
                 <Link href="/settings/growth" className="text-stone-700 hover:text-stone-900">
                   Growth
                 </Link>
+                <Link href="/settings/routing" className="text-stone-700 hover:text-stone-900">
+                  Routing
+                </Link>
                 <Link href="/settings/import" className="text-stone-700 hover:text-stone-900">
                   Import
                 </Link>

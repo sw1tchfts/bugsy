@@ -222,6 +222,16 @@ agreements gain sold_by (one of the company's people, fixed once signed), knock_
 
 tenant_products gain truck_minimum and warehouse_minimum; memberships gain payroll_id (set through app.set_payroll_id); commission_payouts gain pay_period_id (commissions paid through payroll, posted by the payroll journal). The chart gains accounts_payable; journal_entries.source_type gains stock_receipt, stock_adjustment and payroll.
 
+## Routing and fleet
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| route_settings | tenant_id unique, average_speed_mph, day_starts_at, morning_ends_at, afternoon_ends_at, fill_in_miles, position_days | Distances are great-circle miles; drive time is miles over the speed |
+| technician_positions | tenant_id, user_id, lat, lng, accuracy_m, recorded_at | From the phone while the person is clocked in or on the way to a stop; read by dispatch (dispatch.write) and the person; purged after position_days by the messaging job |
+| route_runs | tenant_id, kind [optimize, assign, fill_in], technician_id, branch_id, date, before, after, miles_before, miles_after, applied_at | What a suggestion proposed and when it was applied |
+
+branches gain lat and lng, the route's start and end. The on-the-way template gains {{eta}}.
+
 ## Tables for specs 11 to 21 (named now so specs do not collide)
 
-routes, route_stops, message_threads, webhooks, api_keys. Each spec defines its own columns.
+message_threads, webhooks, api_keys. Each spec defines its own columns.
