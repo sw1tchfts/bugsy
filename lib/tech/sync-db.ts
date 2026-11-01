@@ -2,6 +2,7 @@
 // by its client id; the completion gate runs here for real.
 import type postgres from "postgres";
 import { invoiceForVisit, recordPayment } from "@/lib/billing/db";
+import { postProductUse, postVisit } from "@/lib/ledger/db";
 import { checkLabelRate } from "@/lib/catalog/label-rates";
 import { onVisitCompleted } from "@/lib/compliance/db";
 import { decodeBase64File, putFile } from "@/lib/files";
@@ -124,8 +125,11 @@ async function apply(tx: Sql, actor: Actor, change: QueuedChange): Promise<SyncR
       // The application record and the notice obligations are born in the same transaction (spec 07 rule 1).
       const [tenant] = await tx<{ timezone: string }[]>`select timezone from public.tenants where id = ${tenantId}`;
       await onVisitCompleted(tx, tenantId, visitId, tenant?.timezone ?? "UTC");
-      // Per-visit billing invoices the stop in the same transaction (spec 08 rule 2).
+      // Per-visit billing invoices the stop in the same transaction (spec 08 rule 2), and the books earn the visit
+      // and expense what it used (spec 09 rules 3 and 4).
       await invoiceForVisit(tx, tenantId, visitId, tenant?.timezone ?? "UTC");
+      await postVisit(tx, tenantId, visitId, tenant?.timezone ?? "UTC");
+      await postProductUse(tx, tenantId, visitId, tenant?.timezone ?? "UTC");
       return { id: change.id, result: "applied" };
     }
     case "payment": {

@@ -6,6 +6,7 @@
 
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { sweep } from "../../lib/ledger/db";
 import { PG_TYPES } from "../../lib/pg-types";
 import { CROSS_TENANT_USER, PLATFORM_ADMIN_EMAIL, ROLE_KEYS, SEED_TENANTS, seedUserEmail } from "../../scripts/seed-data";
 
@@ -1017,5 +1018,112 @@ describe("spec 08 rules enforced in the database", () => {
     await admin.begin((tx) => runBilling(tx, lakeshoreId, tenant.timezone));
     const again = await admin.begin((tx) => runBilling(tx, lakeshoreId, tenant.timezone));
     expect(again).toMatchObject({ visits: 0, installments: 0, prepayments: 0, charged: 0, failed: 0, skipped: 0, late_fees: 0, allocated_cents: 0 });
+  });
+});
+
+describe("spec 09 rules enforced in the database", () => {
+  const bookkeeperEmail = seedUserEmail(lakeshore, "bookkeeper");
+  const officeEmail = seedUserEmail(lakeshore, "office");
+  const ownerEmail = seedUserEmail(lakeshore, "owner");
+  let bookkeeper = "";
+  let office = "";
+  let owner = "";
+  let vehicle = "";
+  let foreignBank = "";
+  const today = new Date().toISOString().slice(0, 10);
+  const entry = (key: string, extra: Record<string, unknown> = {}) => ({ source_type: "manual", source_key: key, posted_on: today, memo: "rls", ...extra });
+  const balanced = [
+    { account_key: "vehicle_expense", debit_cents: 1250 },
+    { account_key: "operating_bank", credit_cents: 1250 },
+  ];
+
+  beforeAll(async () => {
+    bookkeeper = await userId(bookkeeperEmail);
+    office = await userId(officeEmail);
+    owner = await userId(ownerEmail);
+    const rows = await admin<{ key: string; id: string; tenant_id: string }[]>`
+      select key, id, tenant_id from public.gl_accounts where key in ('operating_bank', 'vehicle_expense') and tenant_id in (${lakeshoreId}, ${northwindId})`;
+    vehicle = rows.find((r) => r.key === "vehicle_expense" && r.tenant_id === lakeshoreId)?.id ?? "";
+    foreignBank = rows.find((r) => r.key === "operating_bank" && r.tenant_id === northwindId)?.id ?? "";
+    if (!vehicle || !foreignBank) throw new Error("the seed creates the chart of accounts for both companies; run npm run seed");
+  });
+
+  it("refuses an entry that does not balance or has no lines (rule 1)", async () => {
+    const key = `rls:unbalanced:${Date.now()}`;
+    await expect(
+      asUser(bookkeeper, bookkeeperEmail, (tx) => tx`select app.post_entry(${lakeshoreId}, ${tx.json(entry(key))}, ${tx.json([{ account_key: "vehicle_expense", debit_cents: 100 }, { account_key: "operating_bank", credit_cents: 90 }])})`),
+    ).rejects.toThrow(/does not balance/);
+    await expect(asUser(bookkeeper, bookkeeperEmail, (tx) => tx`select app.post_entry(${lakeshoreId}, ${tx.json(entry(key))}, ${tx.json([])})`)).rejects.toThrow(/needs lines/);
+  });
+
+  it("lets the bookkeeper post once per source key and the office not at all, and keeps the entry as posted (rules 11, 12 and 17)", async () => {
+    const key = `rls:manual:${Date.now()}`;
+    await expect(asUser(office, officeEmail, (tx) => tx`select app.post_entry(${lakeshoreId}, ${tx.json(entry(key))}, ${tx.json(balanced)})`)).rejects.toThrow(/gl\.write/);
+    const [{ id }] = await asUser(bookkeeper, bookkeeperEmail, (tx) => tx<{ id: string }[]>`select app.post_entry(${lakeshoreId}, ${tx.json(entry(key))}, ${tx.json(balanced)}) as id`);
+    expect(id).toBeTruthy();
+    const [{ id: again }] = await asUser(bookkeeper, bookkeeperEmail, (tx) => tx<{ id: string }[]>`select app.post_entry(${lakeshoreId}, ${tx.json(entry(key))}, ${tx.json(balanced)}) as id`);
+    expect(again).toBe(id);
+    const lines = await asUser(bookkeeper, bookkeeperEmail, (tx) => tx<{ debit_cents: string; credit_cents: string }[]>`select debit_cents::text, credit_cents::text from public.journal_lines where entry_id = ${id} order by position`);
+    expect(lines).toEqual([
+      { debit_cents: "1250", credit_cents: "0" },
+      { debit_cents: "0", credit_cents: "1250" },
+    ]);
+    // Nobody writes the journal directly: an update finds nothing it may touch, a line insert is refused, and a line
+    // smuggled in under the posting flag onto an old entry is refused by the seal.
+    const updated = await asUser(bookkeeper, bookkeeperEmail, (tx) => tx`update public.journal_entries set memo = 'changed' where id = ${id}`);
+    expect(updated.count).toBe(0);
+    await expect(
+      asUser(bookkeeper, bookkeeperEmail, (tx) => tx`insert into public.journal_lines (tenant_id, entry_id, position, gl_account_id, debit_cents) values (${lakeshoreId}, ${id}, 9, ${vehicle}, 1)`),
+    ).rejects.toThrow(/row-level security/);
+    await expect(
+      admin.begin(async (tx) => {
+        await tx`select set_config('app.posting_entry', ${id}, true)`;
+        await tx`insert into public.journal_lines (tenant_id, entry_id, position, gl_account_id, debit_cents) values (${lakeshoreId}, ${id}, 9, ${vehicle}, 1)`;
+      }),
+    ).rejects.toThrow(/through app\.post_entry/);
+    await expect(admin`update public.journal_entries set memo = 'changed' where id = ${id}`).rejects.toThrow(/never change/);
+    const [kept] = await admin<{ memo: string }[]>`select memo from public.journal_entries where id = ${id}`;
+    expect(kept.memo).toBe("rls");
+    const deleted = await asUser(bookkeeper, bookkeeperEmail, (tx) => tx`delete from public.journal_lines where entry_id = ${id}`);
+    expect(deleted.count).toBe(0);
+    const hidden = await asUser(office, officeEmail, (tx) => tx`select id from public.journal_entries where id = ${id}`);
+    expect(hidden.length).toBe(0);
+  });
+
+  it("refuses a line on another company's account (rule 17)", async () => {
+    const key = `rls:foreign:${Date.now()}`;
+    await expect(
+      asUser(bookkeeper, bookkeeperEmail, (tx) => tx`select app.post_entry(${lakeshoreId}, ${tx.json(entry(key))}, ${tx.json([{ gl_account_id: foreignBank, debit_cents: 100 }, { account_key: "operating_bank", credit_cents: 100 }])})`),
+    ).rejects.toThrow(/another company/);
+  });
+
+  it("closes a period as the bookkeeper, refuses postings into it, and reopens it only as the owner (rules 9 and 10)", async () => {
+    const period = "2099-01";
+    await asUser(bookkeeper, bookkeeperEmail, (tx) => tx`insert into public.period_closes (tenant_id, period) values (${lakeshoreId}, ${period}) on conflict (tenant_id, period) do update set status = 'closed'`);
+    await expect(
+      asUser(bookkeeper, bookkeeperEmail, (tx) => tx`select app.post_entry(${lakeshoreId}, ${tx.json(entry(`rls:closed:${Date.now()}`, { posted_on: "2099-01-15" }))}, ${tx.json(balanced)})`),
+    ).rejects.toThrow(/is closed/);
+    // An event dated in the closed month, posted by someone who cannot read the closes, lands on the first open day.
+    const [payment] = await admin<{ id: string }[]>`select id from public.payments where tenant_id = ${lakeshoreId} and kind = 'payment' and status = 'succeeded' limit 1`;
+    const key = `rls:late-event:${Date.now()}`;
+    const [{ id: lateId }] = await asUser(office, officeEmail, (tx) =>
+      tx<{ id: string }[]>`select app.post_entry(${lakeshoreId}, ${tx.json({ source_type: "payment", source_id: payment.id, source_key: key, posted_on: "2099-01-20", memo: "late" })}, ${tx.json([{ account_key: "operating_bank", debit_cents: 1 }, { account_key: "accounts_receivable", credit_cents: 1 }])}) as id`,
+    );
+    const [moved] = await admin<{ posted_on: string; memo: string }[]>`select posted_on::text, memo from public.journal_entries where id = ${lateId}`;
+    expect(moved.posted_on).toBe("2099-02-01");
+    expect(moved.memo).toContain("dated 2099-01-20");
+    await expect(
+      asUser(bookkeeper, bookkeeperEmail, (tx) => tx`update public.period_closes set status = 'reopened', reopen_reason = 'rls' where tenant_id = ${lakeshoreId} and period = ${period}`),
+    ).rejects.toThrow(/only an owner/);
+    await asUser(owner, ownerEmail, (tx) => tx`update public.period_closes set status = 'reopened', reopen_reason = 'rls: the owner may' where tenant_id = ${lakeshoreId} and period = ${period}`);
+    const [row] = await admin<{ id: string; status: string; reopened_by: string | null }[]>`select id, status, reopened_by from public.period_closes where tenant_id = ${lakeshoreId} and period = ${period}`;
+    expect(row).toMatchObject({ status: "reopened", reopened_by: owner });
+    const [{ n }] = await admin<{ n: number }[]>`select count(*)::int as n from public.audit_log where table_name = 'period_closes' and row_id = ${row.id}`;
+    expect(n).toBeGreaterThan(0);
+  });
+
+  it("sweeps nothing the second time (rule 12)", async () => {
+    const counts = await admin.begin((tx) => sweep(tx, lakeshoreId, lakeshore.timezone));
+    expect(counts).toMatchObject({ invoices: 0, voids: 0, visits: 0, product_uses: 0, payments: 0, refunds: 0, payouts: 0 });
   });
 });

@@ -114,10 +114,11 @@ erDiagram
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| gl_accounts | tenant_id, number, name, type [asset, liability, equity, revenue, expense], subtype | Seeded from the pest template |
-| journal_entries | tenant_id, posted_on, source_type, source_id, memo, reversed_by | One per business event |
-| journal_lines | tenant_id, entry_id, gl_account_id, debit_cents, credit_cents, agreement_id null, jurisdiction_id null | Agreement and jurisdiction subledgers |
-| period_closes | tenant_id, period, closed_at, closed_by | Closed periods reject postings |
+| gl_accounts | tenant_id, key (template key, null for custom), number, name, type [asset, liability, equity, revenue, expense], subtype, active, system | Created from the pest template (lib/ledger/chart.ts) by the first posting; template accounts keep key, type and subtype and are never deleted |
+| journal_entries | tenant_id, number (per tenant), posted_on, period (YYYY-MM, kept by trigger), source_type [invoice, credit_memo, void, visit, product_use, payment, refund, payout, reclass, reclass_reversal, opening, manual, reversal], source_id, source_key (unique per tenant), memo, reverses, reversed_by, posted_by | One per business event; written only through app.post_entry, which checks the balance and the period; never edited or deleted, only reversed |
+| journal_lines | tenant_id, entry_id, position, gl_account_id, debit_cents, credit_cents (one side positive), agreement_id null, jurisdiction null (kind:name), memo | The contract subledger (agreement_id on contract liability lines) and the sales tax subledger; a text jurisdiction key rather than a rate row id because rate rows change with effective dates |
+| period_closes | tenant_id, period, status [closed, reopened], closed_at, closed_by, reopened_at, reopened_by, reopen_reason | Closed periods reject postings; reopening needs an owner and a reason; audited |
+| payouts | tenant_id, gateway, gateway_payout_id (unique per gateway), arrived_on, gross_cents, fee_cents, net_cents, status, payload | What the gateway sent to the bank; payments.payout_id points at it; immutable |
 
 ## Inventory
 

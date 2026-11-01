@@ -2,7 +2,7 @@
 // credit memo carries it and with which lines. Pure and fixture tested.
 import type { Settlement } from "@/lib/agreements/billing";
 
-export type SettlementLine = { description: string; amount_cents: number; taxable: boolean };
+export type SettlementLine = { description: string; amount_cents: number; taxable: boolean; kind: "service" | "fee" };
 export type SettlementDocument = { kind: "invoice" | "credit_memo"; source: "settlement"; lines: SettlementLine[] };
 
 /**
@@ -14,14 +14,14 @@ export function settlementDocuments(preview: Settlement, agreement: { number: nu
   const label = `${agreement.service_type_name} (agreement #${agreement.number})`;
   if (preview.finalInvoiceCents > 0 || (preview.refundCents === 0 && preview.feeCents > 0)) {
     const lines: SettlementLine[] = [];
-    if (preview.finalInvoiceCents > 0) lines.push({ description: `Service delivered before cancellation: ${label}`, amount_cents: preview.finalInvoiceCents, taxable: true });
-    if (preview.feeCents > 0) lines.push({ description: `Early cancellation fee: ${label}`, amount_cents: preview.feeCents, taxable: false });
+    if (preview.finalInvoiceCents > 0) lines.push({ description: `Service delivered before cancellation: ${label}`, amount_cents: preview.finalInvoiceCents, taxable: true, kind: "service" });
+    if (preview.feeCents > 0) lines.push({ description: `Early cancellation fee: ${label}`, amount_cents: preview.feeCents, taxable: false, kind: "fee" });
     documents.push({ kind: "invoice", source: "settlement", lines });
   }
   if (preview.refundCents > 0) {
-    documents.push({ kind: "credit_memo", source: "settlement", lines: [{ description: `Prepaid service not delivered: ${label}`, amount_cents: -preview.refundCents, taxable: false }] });
+    documents.push({ kind: "credit_memo", source: "settlement", lines: [{ description: `Prepaid service not delivered: ${label}`, amount_cents: -preview.refundCents, taxable: false, kind: "service" }] });
     if (preview.feeCents > 0) {
-      documents.push({ kind: "invoice", source: "settlement", lines: [{ description: `Early cancellation fee: ${label}`, amount_cents: preview.feeCents, taxable: false }] });
+      documents.push({ kind: "invoice", source: "settlement", lines: [{ description: `Early cancellation fee: ${label}`, amount_cents: preview.feeCents, taxable: false, kind: "fee" }] });
     }
   }
   return documents;

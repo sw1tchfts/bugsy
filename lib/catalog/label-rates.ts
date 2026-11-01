@@ -65,6 +65,15 @@ function unit(name: string) {
 }
 
 /** Parses "fl_oz/gal" into its two units, or null when either side is unknown. */
+/** `amount` in `from` expressed in `to`; null when the units are not of the same kind (a count against a volume). */
+export function convertUnit(amount: number, from: string, to: string): number | null {
+  const a = unit(from);
+  const b = unit(to);
+  if (!a || !b || a.dimension !== b.dimension) return null;
+  if (a === b) return amount;
+  return (amount * a.factor) / b.factor;
+}
+
 export function parseRateUnit(rateUnit: string): { amount: string; per: string } | null {
   const [amount, per] = rateUnit.split("/").map((s) => s.trim().toLowerCase());
   if (!amount || !per || !unit(amount) || !unit(per)) return null;

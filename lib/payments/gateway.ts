@@ -33,7 +33,7 @@ export type ChargeInput = {
 export type ChargeResult = { gateway_payment_id: string; status: "succeeded" | "pending" | "failed"; failure_reason: string | null };
 export type RefundResult = { gateway_refund_id: string; status: "succeeded" | "pending" | "failed"; failure_reason: string | null };
 
-export type GatewayEvent = { event_id: string; type: string; data: Record<string, unknown> };
+export type GatewayEvent = { event_id: string; type: string; data: Record<string, unknown>; account?: string | null };
 
 export interface PaymentGateway {
   readonly kind: GatewayKind;

@@ -35,7 +35,8 @@ export async function runBillingNow(formData: FormData) {
   let error: string | null = null;
   try {
     const c = await dbAs(session, (tx) => runBilling(tx, tenantId, active.tenantTimezone, new Date(), session.userId));
-    note = `Job run: ${c.visits + c.installments + c.prepayments} invoice(s) issued, ${c.charged} autopay charge(s), ${c.failed} failed, ${c.statuses} status change(s), ${c.late_fees} late fee(s).`;
+    const posted = c.ledger.invoices + c.ledger.voids + c.ledger.visits + c.ledger.product_uses + c.ledger.payments + c.ledger.refunds + c.ledger.payouts + c.ledger.local_payouts + c.ledger.reclasses;
+    note = `Job run: ${c.visits + c.installments + c.prepayments} invoice(s) issued, ${c.charged} autopay charge(s), ${c.failed} failed, ${c.statuses} status change(s), ${c.late_fees} late fee(s), ${posted} journal entr${posted === 1 ? "y" : "ies"} posted by the sweep.`;
   } catch (err) {
     error = errorCode(err);
   }

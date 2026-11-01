@@ -14,6 +14,9 @@ export type Database = {
             "accept_invitation":
 { Args: { "invite_token": string }; Returns: string
                            },
+"ensure_chart":
+{ Args: { "p_chart": Json,"p_tenant": string }; Returns: number
+                           },
 "has_permission":
 { Args: { "perm": string,"tenant": string }; Returns: boolean
                            },
@@ -23,6 +26,9 @@ export type Database = {
             }[]
                            },
 "is_member":
+{ Args: { "tenant": string }; Returns: boolean
+                           },
+"is_owner":
 { Args: { "tenant": string }; Returns: boolean
                            },
 "is_platform_admin":
@@ -38,6 +44,9 @@ export type Database = {
                            },
 "phone_digits":
 { Args: { "phone": string }; Returns: string
+                           },
+"post_entry":
+{ Args: { "p_chart"?: Json,"p_entry": Json,"p_lines": Json,"p_tenant": string }; Returns: string
                            },
 "product_enabled_by":
 { Args: { "product": string }; Returns: number
@@ -531,6 +540,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"gl_accounts": {
+                  Row: {
+                    "active": boolean,"created_at": string,"id": string,"key": string | null,"name": string,"number": string,"subtype": string,"system": boolean,"tenant_id": string,"type": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"created_at"?: string,"id"?: string,"key"?: string | null,"name": string,"number": string,"subtype": string,"system"?: boolean,"tenant_id": string,"type": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "active"?: boolean,"created_at"?: string,"id"?: string,"key"?: string | null,"name"?: string,"number"?: string,"subtype"?: string,"system"?: boolean,"tenant_id"?: string,"type"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "gl_accounts_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"invitations": {
                   Row: {
                     "accepted_at": string | null,"accepted_by": string | null,"branch_ids": (string)[] | null,"created_at": string,"created_by": string | null,"email": string,"expires_at": string,"id": string,"role_id": string,"tenant_id": string,"token": string,"updated_at": string
@@ -559,14 +588,14 @@ isOneToOne: false
                   ]
                 },"invoice_lines": {
                   Row: {
-                    "agreement_id": string | null,"amount_cents": number,"created_at": string,"created_by": string | null,"description": string,"id": string,"invoice_id": string,"position": number,"service_line": string | null,"service_type_id": string | null,"tax_breakdown": NonNullable<Json>,"tax_cents": number,"tax_class": string,"tax_rate": number,"tenant_id": string,"updated_at": string,"visit_id": string | null
+                    "agreement_id": string | null,"amount_cents": number,"created_at": string,"created_by": string | null,"description": string,"id": string,"invoice_id": string,"kind": string,"position": number,"service_line": string | null,"service_type_id": string | null,"tax_breakdown": NonNullable<Json>,"tax_cents": number,"tax_class": string,"tax_rate": number,"tenant_id": string,"updated_at": string,"visit_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "agreement_id"?: string | null,"amount_cents": number,"created_at"?: string,"created_by"?: string | null,"description": string,"id"?: string,"invoice_id": string,"position"?: number,"service_line"?: string | null,"service_type_id"?: string | null,"tax_breakdown"?: NonNullable<Json>,"tax_cents"?: number,"tax_class"?: string,"tax_rate"?: number,"tenant_id": string,"updated_at"?: string,"visit_id"?: string | null
+                    "agreement_id"?: string | null,"amount_cents": number,"created_at"?: string,"created_by"?: string | null,"description": string,"id"?: string,"invoice_id": string,"kind"?: string,"position"?: number,"service_line"?: string | null,"service_type_id"?: string | null,"tax_breakdown"?: NonNullable<Json>,"tax_cents"?: number,"tax_class"?: string,"tax_rate"?: number,"tenant_id": string,"updated_at"?: string,"visit_id"?: string | null
                   }
                   Update: {
-                    "agreement_id"?: string | null,"amount_cents"?: number,"created_at"?: string,"created_by"?: string | null,"description"?: string,"id"?: string,"invoice_id"?: string,"position"?: number,"service_line"?: string | null,"service_type_id"?: string | null,"tax_breakdown"?: NonNullable<Json>,"tax_cents"?: number,"tax_class"?: string,"tax_rate"?: number,"tenant_id"?: string,"updated_at"?: string,"visit_id"?: string | null
+                    "agreement_id"?: string | null,"amount_cents"?: number,"created_at"?: string,"created_by"?: string | null,"description"?: string,"id"?: string,"invoice_id"?: string,"kind"?: string,"position"?: number,"service_line"?: string | null,"service_type_id"?: string | null,"tax_breakdown"?: NonNullable<Json>,"tax_cents"?: number,"tax_class"?: string,"tax_rate"?: number,"tenant_id"?: string,"updated_at"?: string,"visit_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -625,6 +654,76 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "visits"
       referencedColumns: ["tenant_id","id"]
+    }
+                  ]
+                },"journal_entries": {
+                  Row: {
+                    "created_at": string,"id": string,"memo": string,"number": number | null,"period": string,"posted_by": string | null,"posted_on": string,"reversed_by": string | null,"reverses": string | null,"source_id": string | null,"source_key": string,"source_type": string,"tenant_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"memo"?: string,"number"?: number | null,"period"?: string,"posted_by"?: string | null,"posted_on": string,"reversed_by"?: string | null,"reverses"?: string | null,"source_id"?: string | null,"source_key": string,"source_type": string,"tenant_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"memo"?: string,"number"?: number | null,"period"?: string,"posted_by"?: string | null,"posted_on"?: string,"reversed_by"?: string | null,"reverses"?: string | null,"source_id"?: string | null,"source_key"?: string,"source_type"?: string,"tenant_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "journal_entries_reversed_by_fkey"
+      columns: ["reversed_by"]
+isOneToOne: false
+      referencedRelation: "journal_entries"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "journal_entries_reverses_fkey"
+      columns: ["reverses"]
+isOneToOne: false
+      referencedRelation: "journal_entries"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "journal_entries_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"journal_lines": {
+                  Row: {
+                    "agreement_id": string | null,"created_at": string,"credit_cents": number,"debit_cents": number,"entry_id": string,"gl_account_id": string,"id": string,"jurisdiction": string | null,"memo": string | null,"position": number,"tenant_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "agreement_id"?: string | null,"created_at"?: string,"credit_cents"?: number,"debit_cents"?: number,"entry_id": string,"gl_account_id": string,"id"?: string,"jurisdiction"?: string | null,"memo"?: string | null,"position": number,"tenant_id": string
+                  }
+                  Update: {
+                    "agreement_id"?: string | null,"created_at"?: string,"credit_cents"?: number,"debit_cents"?: number,"entry_id"?: string,"gl_account_id"?: string,"id"?: string,"jurisdiction"?: string | null,"memo"?: string | null,"position"?: number,"tenant_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "journal_lines_agreement_id_fkey"
+      columns: ["agreement_id"]
+isOneToOne: false
+      referencedRelation: "agreements"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "journal_lines_entry_id_fkey"
+      columns: ["entry_id"]
+isOneToOne: false
+      referencedRelation: "journal_entries"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "journal_lines_gl_account_id_fkey"
+      columns: ["gl_account_id"]
+isOneToOne: false
+      referencedRelation: "gl_accounts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "journal_lines_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
     }
                   ]
                 },"lead_sources": {
@@ -847,14 +946,14 @@ isOneToOne: false
                   ]
                 },"payments": {
                   Row: {
-                    "account_id": string,"amount_cents": number,"created_at": string,"created_by": string | null,"failure_reason": string | null,"gateway": string | null,"gateway_payment_id": string | null,"id": string,"kind": string,"memo": string | null,"method": string,"payment_method_id": string | null,"received_at": string,"recorded_by": string | null,"reference": string | null,"refund_of": string | null,"status": string,"tenant_id": string,"updated_at": string,"visit_id": string | null
+                    "account_id": string,"amount_cents": number,"created_at": string,"created_by": string | null,"failure_reason": string | null,"gateway": string | null,"gateway_payment_id": string | null,"id": string,"kind": string,"memo": string | null,"method": string,"payment_method_id": string | null,"payout_id": string | null,"received_at": string,"recorded_by": string | null,"reference": string | null,"refund_of": string | null,"status": string,"tenant_id": string,"updated_at": string,"visit_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "account_id": string,"amount_cents": number,"created_at"?: string,"created_by"?: string | null,"failure_reason"?: string | null,"gateway"?: string | null,"gateway_payment_id"?: string | null,"id"?: string,"kind"?: string,"memo"?: string | null,"method": string,"payment_method_id"?: string | null,"received_at"?: string,"recorded_by"?: string | null,"reference"?: string | null,"refund_of"?: string | null,"status"?: string,"tenant_id": string,"updated_at"?: string,"visit_id"?: string | null
+                    "account_id": string,"amount_cents": number,"created_at"?: string,"created_by"?: string | null,"failure_reason"?: string | null,"gateway"?: string | null,"gateway_payment_id"?: string | null,"id"?: string,"kind"?: string,"memo"?: string | null,"method": string,"payment_method_id"?: string | null,"payout_id"?: string | null,"received_at"?: string,"recorded_by"?: string | null,"reference"?: string | null,"refund_of"?: string | null,"status"?: string,"tenant_id": string,"updated_at"?: string,"visit_id"?: string | null
                   }
                   Update: {
-                    "account_id"?: string,"amount_cents"?: number,"created_at"?: string,"created_by"?: string | null,"failure_reason"?: string | null,"gateway"?: string | null,"gateway_payment_id"?: string | null,"id"?: string,"kind"?: string,"memo"?: string | null,"method"?: string,"payment_method_id"?: string | null,"received_at"?: string,"recorded_by"?: string | null,"reference"?: string | null,"refund_of"?: string | null,"status"?: string,"tenant_id"?: string,"updated_at"?: string,"visit_id"?: string | null
+                    "account_id"?: string,"amount_cents"?: number,"created_at"?: string,"created_by"?: string | null,"failure_reason"?: string | null,"gateway"?: string | null,"gateway_payment_id"?: string | null,"id"?: string,"kind"?: string,"memo"?: string | null,"method"?: string,"payment_method_id"?: string | null,"payout_id"?: string | null,"received_at"?: string,"recorded_by"?: string | null,"reference"?: string | null,"refund_of"?: string | null,"status"?: string,"tenant_id"?: string,"updated_at"?: string,"visit_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -862,6 +961,12 @@ isOneToOne: false
       columns: ["payment_method_id"]
 isOneToOne: false
       referencedRelation: "payment_methods"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "payments_payout_id_fkey"
+      columns: ["payout_id"]
+isOneToOne: false
+      referencedRelation: "payouts"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "payments_refund_of_fkey"
@@ -887,6 +992,46 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "visits"
       referencedColumns: ["tenant_id","id"]
+    }
+                  ]
+                },"payouts": {
+                  Row: {
+                    "arrived_on": string,"created_at": string,"fee_cents": number,"gateway": string,"gateway_payout_id": string,"gross_cents": number,"id": string,"net_cents": number,"payload": NonNullable<Json>,"status": string,"tenant_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "arrived_on": string,"created_at"?: string,"fee_cents": number,"gateway": string,"gateway_payout_id": string,"gross_cents": number,"id"?: string,"net_cents": number,"payload"?: NonNullable<Json>,"status"?: string,"tenant_id": string
+                  }
+                  Update: {
+                    "arrived_on"?: string,"created_at"?: string,"fee_cents"?: number,"gateway"?: string,"gateway_payout_id"?: string,"gross_cents"?: number,"id"?: string,"net_cents"?: number,"payload"?: NonNullable<Json>,"status"?: string,"tenant_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "payouts_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"period_closes": {
+                  Row: {
+                    "closed_at": string,"closed_by": string | null,"created_at": string,"id": string,"period": string,"reopen_reason": string | null,"reopened_at": string | null,"reopened_by": string | null,"status": string,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "closed_at"?: string,"closed_by"?: string | null,"created_at"?: string,"id"?: string,"period": string,"reopen_reason"?: string | null,"reopened_at"?: string | null,"reopened_by"?: string | null,"status"?: string,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "closed_at"?: string,"closed_by"?: string | null,"created_at"?: string,"id"?: string,"period"?: string,"reopen_reason"?: string | null,"reopened_at"?: string | null,"reopened_by"?: string | null,"status"?: string,"tenant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "period_closes_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
     }
                   ]
                 },"platform_admins": {

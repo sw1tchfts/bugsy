@@ -21,6 +21,7 @@ const TABLE_LABELS: Record<string, string> = {
   roles: "role",
   memberships: "membership",
   invitations: "invitation",
+  period_closes: "period",
 };
 
 function describe(e: Entry): string {
@@ -29,6 +30,7 @@ function describe(e: Entry): string {
   const label = TABLE_LABELS[e.table_name] ?? e.table_name;
   const verb = { insert: "created", update: "changed", delete: "removed" }[e.action] ?? e.action;
   if (e.table_name === "memberships" && e.action === "update" && e.before?.role_id !== e.after?.role_id) return `membership role changed`;
+  if (e.table_name === "period_closes") return `period ${row.period as string} ${row.status === "reopened" ? "reopened" : "closed"}${row.status === "reopened" && row.reopen_reason ? `: ${row.reopen_reason as string}` : ""}`;
   return `${label} ${verb}${name ? `: ${name}` : ""}`;
 }
 

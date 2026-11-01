@@ -20,6 +20,15 @@ function brandFor(number: string): string {
   return "Card";
 }
 
+/** What the local gateway pretends to keep on each charge when it pays out: a test convention, never Stripe's price. */
+export const LOCAL_PAYOUT_FEE = { percent_bps: 290, fixed_cents: 30 } as const;
+
+/** The fee on one charge, half up to the cent. */
+export function localFeeCents(amountCents: number): number {
+  if (amountCents <= 0) return 0;
+  return Math.floor((amountCents * LOCAL_PAYOUT_FEE.percent_bps + 5000) / 10000) + LOCAL_PAYOUT_FEE.fixed_cents;
+}
+
 export const localGateway: PaymentGateway = {
   kind: "local",
 

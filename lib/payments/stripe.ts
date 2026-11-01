@@ -103,6 +103,23 @@ export const stripeGateway: PaymentGateway = {
     const secret = process.env.STRIPE_WEBHOOK_SECRET;
     if (!secret || !signature) return null;
     const event = stripeClient().webhooks.constructEvent(rawBody, signature, secret);
-    return { event_id: event.id, type: event.type, data: event.data.object as unknown as Record<string, unknown> };
+    return { event_id: event.id, type: event.type, data: event.data.object as unknown as Record<string, unknown>, account: event.account ?? null };
   },
 };
+
+export type PayoutDetails = { gross_cents: number; fee_cents: number; net_cents: number; payment_intent_ids: string[] };
+
+/** What a payout carried: the charges and refunds it settled and the fees Stripe kept, from its balance transactions. */
+export async function stripePayoutDetails(accountId: string, payoutId: string): Promise<PayoutDetails> {
+  let gross = 0;
+  let fee = 0;
+  const intents: string[] = [];
+  for await (const bt of stripeClient().balanceTransactions.list({ payout: payoutId, limit: 100, expand: ["data.source"] }, onAccount(accountId))) {
+    if (bt.type === "payout") continue;
+    gross += bt.amount;
+    fee += bt.fee;
+    const source = bt.source as { payment_intent?: string | { id: string } } | string | null;
+    if (source && typeof source === "object" && source.payment_intent) intents.push(typeof source.payment_intent === "string" ? source.payment_intent : source.payment_intent.id);
+  }
+  return { gross_cents: gross, fee_cents: fee, net_cents: gross - fee, payment_intent_ids: intents };
+}

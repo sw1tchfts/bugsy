@@ -1,6 +1,6 @@
 # Spec 09: General ledger: chart of accounts, posting, deferred revenue
 
-Status: ready
+Status: done
 Depends on: 08
 Skills to load: pest-accounting, pest-domain
 
@@ -64,7 +64,7 @@ Reference `docs/data-model.md`, general ledger section. Migration `supabase/migr
 6. A payout posts the operating bank for the net, processing fees for the gateway and platform fees, and credits Stripe clearing for the gross (posting-rules.json stripe_payout).
 7. The contract balance of an agreement is the sum of its contract liability lines: credits minus debits, positive is deferred revenue, negative is an unbilled receivable. At month end the position per agreement matches `expected_month_end` in agreement-ledger.json for scenarios A to D and `expected_at_cancellation` for E.
 8. The period-end reclass posts, dated the last day of the period, contract asset against contract liability per agreement with a debit balance, and its reversal posts on day one of the next period (posting-rules.json period_end_reclass). Both are idempotent by period.
-9. Periods are calendar months in the tenant's zone. A closed period refuses new entries. An event dated in a closed period posts on the first open day with the original date in the memo (pest-accounting: corrections post to the open period).
+9. Periods are calendar months in the tenant's zone. A closed period refuses new entries. A business event (invoice, visit, product use, payment, refund, payout, reclass) dated in a closed period posts on the first open day with the original date in the memo, decided inside `app.post_entry` so it holds for callers who cannot read the period closes; a manual entry, reversal or opening position dated in a closed period is refused (pest-accounting: corrections post to the open period).
 10. Closing a period requires the reclass for that period and all earlier periods closed; reopening needs the owner role and a reason, and the audit log keeps both. A reopened period can be closed again.
 11. Entries are immutable: a correction is a reversal entry (mirrored lines, dated today or a later open day) linked both ways, never an edit or a delete.
 12. Posting is idempotent by source key; the billing job's sweep posts anything the inline hooks missed and never posts an event twice.

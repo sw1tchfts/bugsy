@@ -43,6 +43,6 @@ describe("cancellation settlement documents (rule 12)", () => {
   it("bills just the fee when the position is zero", () => {
     const docs = settlementDocuments(settlementPreview({ billedCents: 12000, recognizedCents: 12000, cancelFeeCents: 2500 }), agreement);
     expect(docs).toHaveLength(1);
-    expect(docs[0].lines).toEqual([{ description: "Early cancellation fee: General pest plan (agreement #17)", amount_cents: 2500, taxable: false }]);
+    expect(docs[0].lines).toEqual([{ description: "Early cancellation fee: General pest plan (agreement #17)", amount_cents: 2500, taxable: false, kind: "fee" }]);
   });
 });
