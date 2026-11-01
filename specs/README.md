@@ -20,7 +20,7 @@ Specs 01 to 10 sit in `phase-1/` for historical reasons; the folder name does no
 | 10 | [Spreadsheet import](phase-1/10-import.md) | done | 02, 04, 08, 09 |
 | 11 | [Customer messaging: email and SMS](11-messaging.md) | done | 01, 02, 05, 06, 07, 08 |
 | 12 | [Reporting and owner dashboard](12-reporting.md) | done | 02, 04, 05, 06, 08, 09, 11 |
-| 13 | Platform operations | not written | 01 |
+| 13 | [Platform operations](13-platform-operations.md) | done | 01 |
 | 14 | Commercial programs: devices, maps, trends, audits | not written | 04, 06 |
 | 15 | Specialty services: termite, wildlife, bed bug | not written | 04, 06 |
 | 16 | Customer portal and online booking | not written | 02, 08 |

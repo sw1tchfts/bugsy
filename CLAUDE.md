@@ -21,6 +21,7 @@ Keep this list in sync with package.json. Setup paths are in `docs/dev-setup.md`
 
 ## Rules that are easy to get wrong
 - Every tenant-owned table has `tenant_id uuid not null`, row level security enabled, and policies that call `app.is_member(tenant_id)`. Shared tables carry a `-- shared-table: <reason>` comment. A hook rejects migrations that break this.
+- A new tenant table also gets the read-only guard: `create trigger tenant_write_guard before insert or update or delete on public.<table> for each row execute function app.guard_tenant_write();`. The isolation suite fails without it.
 - IMPORTANT: never edit a committed migration. Add a new one.
 - Money is integer cents (`bigint`), never floating point. Rates are `numeric`.
 - Pesticide application records are immutable once locked. Corrections are amendment rows.

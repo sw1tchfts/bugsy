@@ -17,6 +17,9 @@ export type Database = {
 "claim_message":
 { Args: { "p_message": string,"p_tenant": string }; Returns: boolean
                            },
+"decide_support":
+{ Args: { "p_approve": boolean,"p_grant": string }; Returns: undefined
+                           },
 "defer_message":
 { Args: { "p_message": string,"p_tenant": string,"p_until": string }; Returns: undefined
                            },
@@ -51,6 +54,9 @@ export type Database = {
               "id": string,"reversed_by": string
             }[]
                            },
+"log_support_access":
+{ Args: { "p_method": string,"p_path": string,"p_tenant": string }; Returns: undefined
+                           },
 "mark_messages_read":
 { Args: { "p_ids": (string)[],"p_tenant": string }; Returns: number
                            },
@@ -70,14 +76,25 @@ export type Database = {
 "on_crew":
 { Args: { "p_visit": string }; Returns: boolean
                            },
+"onboarding_status":
+{ Args: { "p_tenant": string }; Returns: Json
+                           },
 "phone_digits":
 { Args: { "phone": string }; Returns: string
+                           },
+"platform_overview":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "accounts": number,"active_agreements": number,"archived_at": string,"created_at": string,"first_route_on": string,"imported_on": string,"last_activity": string,"members": number,"name": string,"onboarding": Json,"open_support": number,"status": string,"status_reason": string,"tenant_id": string,"visits_30": number
+            }[]
                            },
 "post_entry":
 { Args: { "p_chart"?: Json,"p_entry": Json,"p_lines": Json,"p_tenant": string }; Returns: string
                            },
 "product_enabled_by":
 { Args: { "product": string }; Returns: number
+                           },
+"purge_tenant":
+{ Args: { "p_tenant": string }; Returns: Json
                            },
 "queue_message":
 { Args: { "p_message": Json,"p_tenant": string }; Returns: string
@@ -91,8 +108,14 @@ export type Database = {
 "rematch_registry_state":
 { Args: { "p_state": string,"p_tenant": string }; Returns: number
                            },
+"request_support":
+{ Args: { "p_access": string,"p_hours": number,"p_reason": string,"p_tenant": string }; Returns: string
+                           },
 "reverse_entry":
 { Args: { "p_entry": Json,"p_target": string,"p_tenant": string }; Returns: string
+                           },
+"revoke_support":
+{ Args: { "p_grant": string }; Returns: undefined
                            },
 "role_is_owner":
 { Args: { "role": string }; Returns: boolean
@@ -111,6 +134,17 @@ export type Database = {
                            },
 "shares_crew":
 { Args: { "other_user": string,"tenant": string }; Returns: boolean
+                           },
+"state_coverage":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "companies": number,"properties": number,"state_code": string
+            }[]
+                           },
+"support_access":
+{ Args: { "p_tenant": string }; Returns: string
+                           },
+"tenant_has_members":
+{ Args: { "p_tenant": string }; Returns: boolean
                            },
 "tenant_states":
 { Args: { "tenant": string }; Returns: string[]
@@ -1589,6 +1623,52 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"support_access_log": {
+                  Row: {
+                    "created_at": string,"grant_id": string,"id": string,"method": string,"path": string,"tenant_id": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"grant_id": string,"id"?: string,"method"?: string,"path": string,"tenant_id": string,"user_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"grant_id"?: string,"id"?: string,"method"?: string,"path"?: string,"tenant_id"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "support_access_log_grant_id_fkey"
+      columns: ["grant_id"]
+isOneToOne: false
+      referencedRelation: "support_grants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "support_access_log_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"support_grants": {
+                  Row: {
+                    "access": string,"approved": boolean | null,"created_at": string,"decided_at": string | null,"decided_by": string | null,"expires_at": string | null,"hours": number,"id": string,"reason": string,"requested_at": string,"revoked_at": string | null,"revoked_by": string | null,"tenant_id": string,"updated_at": string,"user_email": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "access": string,"approved"?: boolean | null,"created_at"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"expires_at"?: string | null,"hours": number,"id"?: string,"reason": string,"requested_at"?: string,"revoked_at"?: string | null,"revoked_by"?: string | null,"tenant_id": string,"updated_at"?: string,"user_email": string,"user_id": string
+                  }
+                  Update: {
+                    "access"?: string,"approved"?: boolean | null,"created_at"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"expires_at"?: string | null,"hours"?: number,"id"?: string,"reason"?: string,"requested_at"?: string,"revoked_at"?: string | null,"revoked_by"?: string | null,"tenant_id"?: string,"updated_at"?: string,"user_email"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "support_grants_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"sync_log": {
                   Row: {
                     "applied_at": string,"client_change_id": string,"created_at": string,"created_by": string | null,"detail": Json | null,"id": string,"kind": string,"result": string,"tenant_id": string,"updated_at": string,"user_id": string,"visit_id": string | null
@@ -1649,16 +1729,30 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"tenants": {
+                },"tenant_purges": {
                   Row: {
-                    "agreement_terms": string | null,"created_at": string,"created_by": string | null,"id": string,"legal_name": string | null,"name": string,"status": string,"stripe_account_id": string | null,"timezone": string,"updated_at": string
+                    "archived_at": string | null,"former_tenant_id": string,"id": string,"name": string,"purged_at": string,"purged_by": string | null,"row_counts": NonNullable<Json>
                   }
                   ComputedFields: never
                   Insert: {
-                    "agreement_terms"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"legal_name"?: string | null,"name": string,"status"?: string,"stripe_account_id"?: string | null,"timezone": string,"updated_at"?: string
+                    "archived_at"?: string | null,"former_tenant_id": string,"id"?: string,"name": string,"purged_at"?: string,"purged_by"?: string | null,"row_counts"?: NonNullable<Json>
                   }
                   Update: {
-                    "agreement_terms"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"legal_name"?: string | null,"name"?: string,"status"?: string,"stripe_account_id"?: string | null,"timezone"?: string,"updated_at"?: string
+                    "archived_at"?: string | null,"former_tenant_id"?: string,"id"?: string,"name"?: string,"purged_at"?: string,"purged_by"?: string | null,"row_counts"?: NonNullable<Json>
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"tenants": {
+                  Row: {
+                    "agreement_terms": string | null,"archived_at": string | null,"created_at": string,"created_by": string | null,"id": string,"legal_name": string | null,"name": string,"status": string,"status_changed_at": string | null,"status_reason": string | null,"stripe_account_id": string | null,"timezone": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "agreement_terms"?: string | null,"archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"legal_name"?: string | null,"name": string,"status"?: string,"status_changed_at"?: string | null,"status_reason"?: string | null,"stripe_account_id"?: string | null,"timezone": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "agreement_terms"?: string | null,"archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"legal_name"?: string | null,"name"?: string,"status"?: string,"status_changed_at"?: string | null,"status_reason"?: string | null,"stripe_account_id"?: string | null,"timezone"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     

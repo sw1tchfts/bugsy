@@ -14,7 +14,7 @@ if (!databaseUrl) throw new Error("DATABASE_URL is not set");
 const sql = postgres(databaseUrl, { max: 1, prepare: false, onnotice: () => {}, types: PG_TYPES });
 
 async function main() {
-  const tenants = await sql<{ id: string; name: string; timezone: string }[]>`select id, name, timezone from public.tenants order by created_at`;
+  const tenants = await sql<{ id: string; name: string; timezone: string }[]>`select id, name, timezone from public.tenants where status = 'active' order by created_at`;
   for (const t of tenants) {
     const c = await sql.begin((tx) => runMessaging(tx, t.id, t.timezone));
     console.log(`${t.name}: ${c.reminders} reminder(s) and ${c.notices} notice(s) queued, ${c.campaigns} campaign(s) launched; ${c.delivered} delivered, ${c.sent} sent, ${c.failed} failed, ${c.suppressed} suppressed, ${c.deferred} held for quiet hours`);

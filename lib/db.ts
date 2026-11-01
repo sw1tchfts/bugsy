@@ -52,6 +52,7 @@ export async function withAnon<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
 export function errorCode(err: unknown): string {
   const e = err as { code?: string; message?: string };
   if (e?.message?.includes("at least one owner")) return "last-owner";
+  if (e?.message?.includes("read only")) return "read-only";
   if (e?.code === "42501") return "forbidden";
   if (e?.code === "23505") return "duplicate";
   if (e?.code === "23503") return "in-use";

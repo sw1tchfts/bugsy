@@ -113,6 +113,7 @@ export function errorMessage(code: string | undefined): string | null {
   if (!code) return null;
   const known: Record<string, string> = {
     forbidden: "Your role does not allow that.",
+    "read-only": "Nothing can be changed right now: the company is suspended or archived, or this is a read-only support session.",
     "invalid-credentials": "That email and password do not match.",
     "magic-link-failed": "The magic link could not be sent. Check the email address, or sign in with a password.",
     "last-owner": "A company must keep at least one owner. Make someone else an owner first.",

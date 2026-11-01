@@ -4,6 +4,9 @@ import { publicSupabaseEnv } from "@/lib/supabase/env";
 
 // Refreshes the Supabase session cookie on every request, so server components always see a valid user.
 export async function proxy(request: NextRequest) {
+  // The page or download being opened, for the support access log (spec 13 rule 5).
+  request.headers.set("x-bugsy-path", `${request.nextUrl.pathname}${request.nextUrl.search}`);
+  request.headers.set("x-bugsy-method", request.method);
   let response = NextResponse.next({ request });
   const { url, anonKey } = publicSupabaseEnv();
   const supabase = createServerClient(url, anonKey, {

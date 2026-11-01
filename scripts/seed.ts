@@ -16,11 +16,13 @@ import { seedBilling } from "./seed-billing";
 import { seedImport } from "./seed-import";
 import { seedLedger } from "./seed-ledger";
 import { seedMessaging } from "./seed-messaging";
+import { seedPlatform } from "./seed-platform";
 import { seedReports } from "./seed-reports";
 import { seedCompliance } from "./seed-compliance";
 import { seedProductUpcs, seedTechnician } from "./seed-technician";
 import {
   CROSS_TENANT_USER,
+  NEW_OWNER_EMAIL,
   PLATFORM_ADMIN_EMAIL,
   ROLE_KEYS,
   SEED_PASSWORD,
@@ -139,6 +141,7 @@ async function seedTenant(tenant: SeedTenant, useAuthServer: boolean) {
   await seedLedger(sql, tenant, tenantId);
   await seedMessaging(sql, tenant, tenantId);
   await seedReports(sql, tenant, tenantId);
+  await seedPlatform(sql, tenant, tenantId);
 
   console.log(`seeded ${tenant.name} (${tenantId})`);
 }
@@ -149,6 +152,7 @@ async function main() {
 
   const adminId = await ensureUser(PLATFORM_ADMIN_EMAIL, useAuthServer);
   await sql`insert into public.platform_admins (user_id) values (${adminId}) on conflict do nothing`;
+  await ensureUser(NEW_OWNER_EMAIL, useAuthServer);
 
   // The shared product master is seeded once; each tenant then enables its own selection.
   masterProductIds = await seedMasterProducts(sql);

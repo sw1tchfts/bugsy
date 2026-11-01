@@ -3,6 +3,8 @@
 export const SEED_PASSWORD = "bugsy-dev-password";
 
 export const PLATFORM_ADMIN_EMAIL = "admin@bugsy.test";
+/** A user who belongs to no company, for the platform test that creates a company and makes them its owner (spec 13). */
+export const NEW_OWNER_EMAIL = "new-owner@bugsy.test";
 
 export const ROLE_KEYS = [
   "owner",

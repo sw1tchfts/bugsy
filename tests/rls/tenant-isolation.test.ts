@@ -214,14 +214,23 @@ describe("platform admin", () => {
     expect(visibleTenants.map((t) => t.id)).toEqual(expect.arrayContaining([northwindId, lakeshoreId]));
 
     // Spec 03 rule 10: products a company added are catalog definitions awaiting approval, not customer data,
-    // and platform admins read them in order to approve them. Every other tenant table stays closed.
-    for (const t of tenantTables().filter((t) => t.name !== "tenants" && t.name !== "products")) {
+    // and platform admins read them in order to approve them. Spec 13: support_grants rows are the admin's own requests
+    // (who asked, why, when), shown in the console. Every other tenant table stays closed.
+    for (const t of tenantTables().filter((t) => t.name !== "tenants" && t.name !== "products" && t.name !== "support_grants")) {
       const rows = await asUser(adminId, PLATFORM_ADMIN_EMAIL, (tx) =>
         tx`select 1 from public.${tx(t.name)} where tenant_id in (${northwindId}, ${lakeshoreId})
            ${t.name === "audit_log" ? tx`and table_name <> 'tenants'` : tx``}`,
       );
       expect(rows.length, `${t.name}: platform admin can read tenant data`).toBe(0);
     }
+  });
+
+  it("invites only into a company that has no members yet (spec 13 rule 1)", async () => {
+    const adminId = await userId(PLATFORM_ADMIN_EMAIL);
+    const [owner] = await admin<{ id: string }[]>`select id from public.roles where tenant_id is null and key = 'owner'`;
+    await expect(
+      asUser(adminId, PLATFORM_ADMIN_EMAIL, (tx) => tx`insert into public.invitations (tenant_id, email, role_id) values (${lakeshoreId}, ${PLATFORM_ADMIN_EMAIL}, ${owner.id})`),
+    ).rejects.toThrow(RLS_ERROR);
   });
 
   it("is not a member of any tenant", async () => {
@@ -1619,5 +1628,158 @@ describe("spec 12 report queries", () => {
     });
     expect(result.report.rows).toEqual([{ source: result.src, leads: 4, won: 2, lost: 1, open: 1, rate: 2 / 3 }]);
     expect(result.report.total).toMatchObject({ leads: 4, won: 2, lost: 1, open: 1 });
+  });
+});
+
+describe("spec 13 rules enforced in the database", () => {
+  const ownerEmail = seedUserEmail(lakeshore, "owner");
+  const officeEmail = seedUserEmail(lakeshore, "office");
+  let adminId = "";
+  let office = "";
+  const ROLLBACK = "rollback: spec 13";
+
+  /** Runs `fn` in one transaction that is always rolled back; `as` switches the session to a user inside it. */
+  async function rolledBack<T>(fn: (tx: Tx, as: (id: string, email: string) => Promise<void>) => Promise<T>): Promise<T> {
+    let out: T | undefined;
+    await admin
+      .begin(async (tx) => {
+        const as = async (id: string, email: string) => {
+          await tx.unsafe("set local role authenticated");
+          await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: id, email, role: "authenticated" })}, true)`;
+        };
+        out = await fn(tx, as);
+        throw new Error(ROLLBACK);
+      })
+      .catch((e: Error) => {
+        if (e.message !== ROLLBACK) throw e;
+      });
+    return out as T;
+  }
+
+  beforeAll(async () => {
+    adminId = await userId(PLATFORM_ADMIN_EMAIL);
+    office = await userId(officeEmail);
+  });
+
+  it("puts the write guard on every tenant table but the audit trail and the support tables", async () => {
+    const guarded = new Set((await admin<{ name: string }[]>`select c.relname as name from pg_trigger g join pg_class c on c.oid = g.tgrelid where g.tgname = 'tenant_write_guard'`).map((r) => r.name));
+    const missing = tenantTables().filter((t) => !["audit_log", "support_grants", "support_access_log"].includes(t.name) && !guarded.has(t.name)).map((t) => t.name);
+    expect(missing).toEqual([]);
+  });
+
+  it("shows a company's data to support only while an owner's approval is live, read only, and logs it (rules 1 to 5)", async () => {
+    const asAdmin = <T>(fn: (tx: Tx) => Promise<T>) => asUser(adminId, PLATFORM_ADMIN_EMAIL, fn);
+    const accounts = (tenant: string) => asAdmin((tx) => tx`select id from public.accounts where tenant_id = ${tenant}`);
+    const [{ id: grant }] = await asAdmin((tx) => tx<{ id: string }[]>`select app.request_support(${lakeshoreId}, 'read', 2, 'Checking a statement footer') as id`);
+    try {
+      expect(await accounts(lakeshoreId)).toHaveLength(0);
+      await expect(asAdmin((tx) => tx`select app.request_support(${lakeshoreId}, 'read', 2, 'A second request at once')`)).rejects.toThrow(/already open/);
+      await expect(asAdmin((tx) => tx`select app.request_support(${northwindId}, 'read', 2, 'short')`)).rejects.toThrow(/check constraint/);
+      await expect(asAdmin((tx) => tx`select app.request_support(${northwindId}, 'read', 73, 'Too many hours asked')`)).rejects.toThrow(/check constraint/);
+      await expect(asUser(office, officeEmail, (tx) => tx`select app.decide_support(${grant}, true)`)).rejects.toThrow(/only an owner/);
+      await asUser(lakeshoreOwner, ownerEmail, (tx) => tx`select app.decide_support(${grant}, true)`);
+
+      expect((await accounts(lakeshoreId)).length).toBeGreaterThan(0);
+      expect(await accounts(northwindId)).toHaveLength(0);
+      // Read only: write policies match no row, and anything a policy would let through meets the write guard.
+      expect((await asAdmin((tx) => tx`update public.accounts set name = name where tenant_id = ${lakeshoreId}`)).count).toBe(0);
+      await expect(asAdmin((tx) => tx`insert into public.accounts (tenant_id, type, name) values (${lakeshoreId}, 'residential', 'By support')`)).rejects.toThrow(/read only|row-level security/);
+      // sync_log lets any member write their own rows; under a read grant the write guard is what refuses it.
+      await expect(
+        asAdmin((tx) => tx`insert into public.sync_log (tenant_id, user_id, client_change_id, kind, result) values (${lakeshoreId}, ${adminId}, ${crypto.randomUUID()}, 'note', 'applied')`),
+      ).rejects.toThrow(/support access to this company is read only/);
+      const [{ owner }] = await asAdmin((tx) => tx<{ owner: boolean }[]>`select app.is_owner(${lakeshoreId}) as owner`);
+      expect(owner).toBe(false);
+
+      await asAdmin((tx) => tx`select app.log_support_access(${lakeshoreId}, '/customers', 'GET')`);
+      const seenByOwner = await asUser(lakeshoreOwner, ownerEmail, (tx) => tx<{ path: string }[]>`select path from public.support_access_log where grant_id = ${grant}`);
+      expect(seenByOwner.map((r) => r.path)).toEqual(["/customers"]);
+      const seenByOffice = await asUser(office, officeEmail, (tx) => tx`select 1 from public.support_access_log`);
+      expect(seenByOffice).toHaveLength(0);
+      // A member is never logged as support.
+      await asUser(lakeshoreOwner, ownerEmail, (tx) => tx`select app.log_support_access(${lakeshoreId}, '/owner-page', 'GET')`);
+      const [{ n }] = await admin<{ n: number }[]>`select count(*)::int as n from public.support_access_log where path = '/owner-page'`;
+      expect(n).toBe(0);
+    } finally {
+      await asUser(lakeshoreOwner, ownerEmail, (tx) => tx`select app.revoke_support(${grant})`).catch(() => undefined);
+    }
+    expect(await accounts(lakeshoreId)).toHaveLength(0);
+    await asAdmin((tx) => tx`select app.log_support_access(${lakeshoreId}, '/after', 'GET')`);
+    const [{ after }] = await admin<{ after: number }[]>`select count(*)::int as after from public.support_access_log where path = '/after'`;
+    expect(after).toBe(0);
+  });
+
+  it("lets a write grant change data but never people or settings, and ends it on the clock (rule 4)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      await tx`insert into public.support_grants (tenant_id, user_id, user_email, access, reason, hours, approved, decided_at, decided_by, expires_at)
+               values (${lakeshoreId}, ${adminId}, ${PLATFORM_ADMIN_EMAIL}, 'write', 'Fixing an import mapping', 1, true, now(), ${lakeshoreOwner}, now() + interval '1 hour')`;
+      await as(adminId, PLATFORM_ADMIN_EMAIL);
+      const updated = (await tx`update public.accounts set name = name where tenant_id = ${lakeshoreId}`).count;
+      const [role] = await tx<{ id: string }[]>`select id from public.roles where tenant_id is null and key = 'office'`;
+      const invite = await tx.savepoint((sp) => sp`insert into public.invitations (tenant_id, email, role_id) values (${lakeshoreId}, 'support-made@example.com', ${role.id})`).then(() => "inserted", (e: Error) => e.message);
+      const [{ settings }] = await tx<{ settings: boolean }[]>`select app.has_permission(${lakeshoreId}, 'settings.write') as settings`;
+      return { updated, invite, settings };
+    });
+    expect(result.updated).toBeGreaterThan(0);
+    expect(result.invite).toMatch(/row-level security/);
+    expect(result.settings).toBe(false);
+    const expired = await rolledBack(async (tx, as) => {
+      await tx`insert into public.support_grants (tenant_id, user_id, user_email, access, reason, hours, approved, decided_at, decided_by, expires_at)
+               values (${lakeshoreId}, ${adminId}, ${PLATFORM_ADMIN_EMAIL}, 'write', 'An old grant, now over', 1, true, now() - interval '2 hours', ${lakeshoreOwner}, now() - interval '1 hour')`;
+      await as(adminId, PLATFORM_ADMIN_EMAIL);
+      return (await tx`select 1 from public.accounts where tenant_id = ${lakeshoreId}`).length;
+    });
+    expect(expired).toBe(0);
+  });
+
+  it("makes a suspended company read only to its own owner, and keeps its status with platform staff (rule 7)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      await tx`update public.tenants set status = 'suspended', status_reason = 'rls' where id = ${lakeshoreId}`;
+      await as(lakeshoreOwner, ownerEmail);
+      const read = (await tx`select 1 from public.accounts where tenant_id = ${lakeshoreId}`).length;
+      const write = await tx.savepoint((sp) => sp`update public.accounts set name = name where tenant_id = ${lakeshoreId}`).then(() => "written", (e: Error) => e.message);
+      const reopen = await tx.savepoint((sp) => sp`update public.tenants set status = 'active' where id = ${lakeshoreId}`).then(() => "reopened", (e: Error) => e.message);
+      return { read, write, reopen };
+    });
+    expect(result.read).toBeGreaterThan(0);
+    expect(result.write).toMatch(/suspended and read only/);
+    expect(result.reopen).toMatch(/read only/);
+    await expect(asUser(lakeshoreOwner, ownerEmail, (tx) => tx`update public.tenants set status = 'archived' where id = ${lakeshoreId}`)).rejects.toThrow(/only platform staff/);
+  });
+
+  it("purges only an archived company past 90 days whose records are past retention (rule 8)", async () => {
+    const purge = (tenant: string) => asUser(adminId, PLATFORM_ADMIN_EMAIL, (tx) => tx`select app.purge_tenant(${tenant})`);
+    await expect(purge(lakeshoreId)).rejects.toThrow(/only an archived company/);
+    const underRetention = await rolledBack(async (tx, as) => {
+      await tx`update public.tenants set status = 'archived' where id = ${lakeshoreId}`;
+      await tx`update public.tenants set archived_at = now() - interval '100 days' where id = ${lakeshoreId}`;
+      await as(adminId, PLATFORM_ADMIN_EMAIL);
+      return tx`select app.purge_tenant(${lakeshoreId})`.then(() => "purged", (e: Error) => e.message);
+    });
+    expect(underRetention).toMatch(/still under retention/);
+    await expect(asUser(lakeshoreOwner, ownerEmail, (tx) => tx`select app.purge_tenant(${lakeshoreId})`)).rejects.toThrow(/only platform staff/);
+
+    const [gone] = await admin<{ id: string }[]>`insert into public.tenants (name, timezone) values (${`RLS purge ${Date.now()}`}, 'America/Chicago') returning id`;
+    await admin`insert into public.branches (tenant_id, name, address, state_code) values (${gone.id}, 'Only branch', '1 Main St, Springfield, IL 62701', 'IL')`;
+    await admin`insert into public.accounts (tenant_id, type, name) values (${gone.id}, 'residential', 'Left with the company')`;
+    await admin`update public.tenants set status = 'archived' where id = ${gone.id}`;
+    await expect(purge(gone.id)).rejects.toThrow(/archived less than 90 days ago/);
+    await admin`update public.tenants set archived_at = now() - interval '91 days' where id = ${gone.id}`;
+    await purge(gone.id);
+    const [{ left }] = await admin<{ left: number }[]>`
+      select (select count(*) from public.tenants where id = ${gone.id}) + (select count(*) from public.accounts where tenant_id = ${gone.id}) + (select count(*) from public.branches where tenant_id = ${gone.id}) as left`;
+    expect(Number(left)).toBe(0);
+    const [record] = await admin<{ row_counts: Record<string, number> }[]>`select row_counts from public.tenant_purges where former_tenant_id = ${gone.id}`;
+    expect(record.row_counts).toMatchObject({ accounts: 1, branches: 1 });
+  });
+
+  it("works out the setup checklist from the data, for settings readers and platform staff only (rule 9)", async () => {
+    const [{ status }] = await asUser(lakeshoreOwner, ownerEmail, (tx) => tx<{ status: Record<string, boolean> }[]>`select app.onboarding_status(${lakeshoreId}) as status`);
+    expect(status).toMatchObject({ branch: true, service_types: true, customers: true, team: true });
+    const tech = seedUserEmail(lakeshore, "technician");
+    await expect(asUser(await userId(tech), tech, (tx) => tx`select app.onboarding_status(${lakeshoreId})`)).rejects.toThrow(/settings\.read/);
+    const overview = await asUser(adminId, PLATFORM_ADMIN_EMAIL, (tx) => tx<{ tenant_id: string; accounts: number }[]>`select tenant_id, accounts from app.platform_overview()`);
+    expect(overview.find((o) => o.tenant_id === lakeshoreId)?.accounts).toBeGreaterThan(0);
+    await expect(asUser(lakeshoreOwner, ownerEmail, (tx) => tx`select * from app.platform_overview()`)).rejects.toThrow(/platform staff/);
   });
 });

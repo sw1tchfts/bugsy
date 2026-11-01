@@ -39,7 +39,7 @@ erDiagram
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| tenants | name, legal_name, timezone, stripe_account_id, status | One pest company; it may work in several states |
+| tenants | name, legal_name, timezone, stripe_account_id, status [active, suspended, archived], status_reason, status_changed_at, archived_at | One pest company; it may work in several states. Not active means read only for everyone signed in (the tenant_write_guard trigger on every tenant table); only platform staff change status |
 | branches | tenant_id, name, address, state_code, business_license_number, license_year | One business location; whether it needs its own license comes from its state's rule pack |
 | memberships | tenant_id, user_id (auth.users), role, branch_ids uuid[] null, locale [en, es] | Null branch_ids means all branches; locale is the technician app's language, changed by the member through app.set_my_locale |
 | roles | tenant_id null, key, permissions text[] | Platform defaults have tenant_id null; tenants copy and edit |
@@ -136,6 +136,14 @@ erDiagram
 | --- | --- | --- |
 | import_batches | tenant_id, status [dry_run, committed, failed], cutover_on, summary jsonb (per file: rows, created, skipped, errors), errors jsonb, warnings jsonb, created_by | One per dry run or import; never changes. A commit writes everything or nothing |
 | import_files | tenant_id, batch_id, file_id, kind [template, history], file_name, label | The uploaded spreadsheets and the old system's records, kept for the retention period; history is readable by compliance.read |
+
+## Platform operations
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| support_grants | tenant_id, user_id, user_email, access [read, write], reason, hours (1 to 72), requested_at, approved, decided_at, decided_by, expires_at, revoked_at, revoked_by | Platform support's access to one company, asked for by a platform admin and approved by an owner; live from approval for its hours. Written through app.request_support, app.decide_support and app.revoke_support. While live, app.is_member and app.has_permission answer for its holder |
+| support_access_log | tenant_id, grant_id, user_id, path, method, created_at | One row per page, download or action under a live grant, read by the company's audit.read members |
+| tenant_purges | former_tenant_id, name, archived_at, purged_at, purged_by, row_counts | Shared: the platform's record that an archived company's data was deleted (app.purge_tenant, only past 90 days archived and past every record's retention) |
 
 ## Reporting
 

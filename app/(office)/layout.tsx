@@ -2,7 +2,10 @@ import Link from "next/link";
 import { can } from "@/lib/auth/permissions";
 import { signOut } from "@/app/(auth)/sign-in/actions";
 import { Button, Select } from "@/components/ui";
-import { isPlatformAdmin, requireSession } from "@/lib/auth/session";
+import { dbAs, isPlatformAdmin, requireSession } from "@/lib/auth/session";
+import { formatInstant } from "@/lib/dates";
+import { type Grant, grantsFor } from "@/lib/platform/db";
+import { endSupportAccess } from "./settings/support/actions";
 import { resolveActiveTenant } from "@/lib/tenancy/active-tenant";
 import { switchTenant } from "./actions";
 
@@ -10,6 +13,11 @@ export default async function OfficeLayout({ children }: { children: React.React
   const session = await requireSession();
   const { memberships, active } = await resolveActiveTenant(session);
   const admin = await isPlatformAdmin(session);
+  // Owners and audit.read members see any support request or live access on every page (spec 13 rule 6).
+  const support: Grant[] =
+    active && !active.support && can(active.permissions, "audit.read")
+      ? (await dbAs(session, (tx) => grantsFor(tx, active.tenantId))).filter((g) => g.state === "pending" || g.state === "live")
+      : [];
 
   return (
     <div className="min-h-screen">
@@ -77,6 +85,9 @@ export default async function OfficeLayout({ children }: { children: React.React
                 <Link href="/catalog/service-types" className="text-stone-700 hover:text-stone-900">
                   Catalog
                 </Link>
+                <Link href="/settings/company" className="text-stone-700 hover:text-stone-900">
+                  Company
+                </Link>
                 <Link href="/settings/branches" className="text-stone-700 hover:text-stone-900">
                   Branches
                 </Link>
@@ -95,6 +106,11 @@ export default async function OfficeLayout({ children }: { children: React.React
                 <Link href="/settings/import" className="text-stone-700 hover:text-stone-900">
                   Import
                 </Link>
+                {can(active.permissions, "audit.read") ? (
+                  <Link href="/settings/support" className="text-stone-700 hover:text-stone-900">
+                    Support access
+                  </Link>
+                ) : null}
               </>
             ) : null}
             {admin ? (
@@ -112,6 +128,43 @@ export default async function OfficeLayout({ children }: { children: React.React
           </form>
         </div>
       </header>
+      {active && active.tenantStatus !== "active" ? (
+        <div className="border-b border-amber-300 bg-amber-50" data-testid="tenant-readonly">
+          <p className="mx-auto max-w-6xl px-4 py-2 text-sm text-amber-900">
+            {active.tenantName} is {active.tenantStatus}. Everything is read only: you can still read, run reports and download your data.
+          </p>
+        </div>
+      ) : null}
+      {active?.support ? (
+        <div className="border-b border-sky-300 bg-sky-50" data-testid="support-banner">
+          <form action={endSupportAccess} className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-2 text-sm text-sky-950">
+            <span>
+              Support session in {active.tenantName}, {active.support.access === "read" ? "read only" : "read and change"}, until {formatInstant(active.support.expiresAt, active.tenantTimezone)}. Every page you open is logged for the
+              company to see.
+            </span>
+            <input type="hidden" name="tenant_id" value={active.tenantId} />
+            <input type="hidden" name="grant_id" value={active.support.grantId} />
+            <input type="hidden" name="return_to" value="/admin/tenants" />
+            <Button type="submit" variant="secondary">
+              End my access
+            </Button>
+          </form>
+        </div>
+      ) : null}
+      {active && support.length ? (
+        <div className="border-b border-sky-300 bg-sky-50" data-testid="support-request-banner">
+          <p className="mx-auto max-w-6xl px-4 py-2 text-sm text-sky-950">
+            {support.map((g) =>
+              g.state === "pending"
+                ? `Platform support (${g.user_email}) asks for ${g.access === "read" ? "read-only" : "read and change"} access for ${g.hours} hour${g.hours === 1 ? "" : "s"}. `
+                : `Platform support (${g.user_email}) can see this company's data until ${formatInstant(g.expires_at ?? new Date(), active.tenantTimezone)}. `,
+            )}
+            <Link href="/settings/support" className="font-medium underline">
+              Review support access
+            </Link>
+          </p>
+        </div>
+      ) : null}
       <main className="mx-auto grid max-w-6xl gap-6 px-4 py-8">{children}</main>
     </div>
   );

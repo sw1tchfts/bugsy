@@ -16,6 +16,9 @@ export function PlatformShell({ email, children }: { email: string; children: Re
             <Link href="/admin/products" className="text-stone-700 hover:text-stone-900">
               Products
             </Link>
+            <Link href="/admin/rules" className="text-stone-700 hover:text-stone-900">
+              Rule packs
+            </Link>
             <Link href="/" className="text-stone-700 hover:text-stone-900">
               Office app
             </Link>

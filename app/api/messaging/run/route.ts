@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   const secret = process.env.MESSAGING_RUN_SECRET ?? process.env.COMPLIANCE_RUN_SECRET;
   const header = request.headers.get("x-messaging-secret") ?? request.headers.get("x-compliance-secret");
   if (secret && header && header === secret) {
-    const tenants = await sql<{ id: string; name: string; timezone: string }[]>`select id, name, timezone from public.tenants order by created_at`;
+    const tenants = await sql<{ id: string; name: string; timezone: string }[]>`select id, name, timezone from public.tenants where status = 'active' order by created_at`;
     const results: Record<string, unknown> = {};
     for (const t of tenants) {
       try {

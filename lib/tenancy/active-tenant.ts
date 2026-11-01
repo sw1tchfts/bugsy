@@ -1,7 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { type Membership, type Session, listMemberships, requireSession } from "@/lib/auth/session";
+import { type Membership, type Session, listMemberships, noteSupportAccess, requireSession } from "@/lib/auth/session";
 
 export const ACTIVE_TENANT_COOKIE = "bugsy_tenant";
 
@@ -21,7 +21,9 @@ export async function resolveActiveTenant(session: Session): Promise<ActiveTenan
   const memberships = await listMemberships(session);
   const cookieStore = await cookies();
   const wanted = cookieStore.get(ACTIVE_TENANT_COOKIE)?.value;
-  const active = memberships.find((m) => m.tenantId === wanted) ?? memberships[0] ?? null;
+  // Support opens a company only by choosing it in the console (the cookie); a member falls back to their first company.
+  const active = memberships.find((m) => m.tenantId === wanted) ?? memberships.find((m) => !m.support) ?? null;
+  if (active?.support) await noteSupportAccess(session, active.tenantId);
   return { session, memberships, active };
 }
 

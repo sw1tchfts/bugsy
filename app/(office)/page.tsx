@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { Card, Empty, Notice, Table, errorMessage } from "@/components/ui";
+import { can } from "@/lib/auth/permissions";
 import { dbAs } from "@/lib/auth/session";
+import { onboardingStatus } from "@/lib/platform/db";
+import { progress } from "@/lib/platform/onboarding";
 import { addDays, endOfMonth, startOfMonth, todayInZone } from "@/lib/dates";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 
@@ -40,6 +43,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       order by count(l.id) desc`;
     return [counts, bySource] as const;
   });
+  const setup = can(active.permissions, "settings.read") ? progress(await dbAs(session, (tx) => onboardingStatus(tx, tenantId))) : null;
 
   return (
     <>
@@ -50,6 +54,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         </p>
       </div>
       {error ? <Notice kind="error">{errorMessage(error)}</Notice> : null}
+      {setup && !setup.complete ? (
+        <Card title={`Finish setting up: ${setup.done} of ${setup.total} done`} description={setup.next ? `Next: ${setup.next.label.toLowerCase()}. ${setup.next.detail}` : undefined}>
+          <Link href="/onboarding" className="text-sm text-emerald-800 underline" data-testid="setup-card">
+            Open the setup checklist
+          </Link>
+        </Card>
+      ) : null}
       <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <Stat label="Active accounts" value={counts.accounts} href="/customers" />
         <Stat label="Properties" value={counts.properties} href="/customers" />

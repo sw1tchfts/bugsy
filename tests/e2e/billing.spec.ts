@@ -289,7 +289,8 @@ test("billing settings, autopay, checks, PO drafts, collections with the dispatc
   const foreign = await page.request.get(`/billing/invoices/${oneOffId}`);
   expect(foreign.status()).toBe(404);
   await page.goto("/billing");
-  await expect(page.getByTestId("past-due-row").filter({ hasText: "Riverside Hospitality Group" })).toHaveCount(0);
+  // Lakeshore has its own Riverside Hospitality Group, so the check is by Northwind's account, not the name.
+  await expect(page.locator(`[data-testid="past-due-row"] a[href="/billing/accounts/${riverside?.id}"]`)).toHaveCount(0);
   await expect(page.getByTestId("autopay-failure")).toHaveCount(0);
   await signOut(page);
 
