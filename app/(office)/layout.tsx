@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { can } from "@/lib/auth/permissions";
 import { signOut } from "@/app/(auth)/sign-in/actions";
 import { Button, Select } from "@/components/ui";
 import { isPlatformAdmin, requireSession } from "@/lib/auth/session";
@@ -68,6 +69,11 @@ export default async function OfficeLayout({ children }: { children: React.React
                 <Link href="/ledger" className="text-stone-700 hover:text-stone-900">
                   Ledger
                 </Link>
+                {can(active.permissions, "reports.read") ? (
+                  <Link href="/reports" className="text-stone-700 hover:text-stone-900">
+                    Reports
+                  </Link>
+                ) : null}
                 <Link href="/catalog/service-types" className="text-stone-700 hover:text-stone-900">
                   Catalog
                 </Link>

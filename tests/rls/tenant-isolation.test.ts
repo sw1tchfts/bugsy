@@ -9,6 +9,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createInvoice, voidInvoice } from "../../lib/billing/db";
 import { sweep } from "../../lib/ledger/db";
 import { PG_TYPES } from "../../lib/pg-types";
+import { buildQuery } from "../../lib/reports/builder";
+import { DATASETS, datasetFor } from "../../lib/reports/datasets";
 import { CROSS_TENANT_USER, PLATFORM_ADMIN_EMAIL, ROLE_KEYS, SEED_TENANTS, seedUserEmail } from "../../scripts/seed-data";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -1382,5 +1384,63 @@ describe("spec 11 rules enforced in the database", () => {
     expect(view.page[0].company_name).toBeTruthy();
     expect(view.none).toBe(0);
     expect(view.table === "refused" || (Array.isArray(view.table) && view.table.length === 0)).toBe(true);
+  });
+});
+
+describe("spec 12 rules enforced in the database", () => {
+  const officeEmail = seedUserEmail(lakeshore, "office");
+  const dispatcherEmail = seedUserEmail(lakeshore, "dispatcher");
+  let office = "";
+  let dispatcher = "";
+  const all = (key: string) => {
+    const d = datasetFor(key);
+    if (!d) throw new Error(`no dataset ${key}`);
+    return d;
+  };
+  const run = (tx: Tx, key: string, tenantId: string) => {
+    const d = all(key);
+    const q = buildQuery({ columns: d.columns.map((c) => c.name), filters: [], group_by: [], aggregates: [] }, d, tenantId, 100_000);
+    return tx.unsafe(q.text, q.params as never[]);
+  };
+
+  beforeAll(async () => {
+    office = await userId(officeEmail);
+    dispatcher = await userId(dispatcherEmail);
+  });
+
+  it("keeps a private report with its author and shows a shared one to every reports member (rule 11)", async () => {
+    const seen = await asUser(dispatcher, dispatcherEmail, (tx) => tx<{ name: string; shared: boolean }[]>`select name, shared from public.saved_reports order by name`);
+    expect(seen).toEqual([{ name: "Completed visits by technician", shared: true }]);
+    const mine = await asUser(office, officeEmail, (tx) => tx<{ name: string }[]>`select name from public.saved_reports where not shared`);
+    expect(mine.map((r) => r.name)).toEqual(["Open invoices by due date"]);
+    // The owner's shared report is read-only to the office, and nobody saves a report in someone else's name.
+    const changed = await asUser(office, officeEmail, (tx) => tx`update public.saved_reports set name = 'mine now' where shared returning id`);
+    expect(changed).toHaveLength(0);
+    await expect(
+      asUser(office, officeEmail, (tx) => tx`insert into public.saved_reports (tenant_id, name, dataset, definition, created_by) values (${lakeshoreId}, 'forged', 'visits', '{}'::jsonb, ${lakeshoreOwner})`),
+    ).rejects.toThrow(RLS_ERROR);
+    // An owner may delete a report someone else shared.
+    const [{ id }] = await asUser(office, officeEmail, (tx) => tx<{ id: string }[]>`insert into public.saved_reports (tenant_id, name, dataset, definition, shared) values (${lakeshoreId}, 'rls shared', 'visits', '{}'::jsonb, true) returning id`);
+    const gone = await asUser(lakeshoreOwner, seedUserEmail(lakeshore, "owner"), (tx) => tx`delete from public.saved_reports where id = ${id} returning id`);
+    expect(gone).toHaveLength(1);
+  });
+
+  it("runs a report under the member's own permissions: the office sees no journal lines (rule 10)", async () => {
+    const [{ n }] = await admin<{ n: number }[]>`select count(*)::int as n from public.journal_lines where tenant_id = ${lakeshoreId}`;
+    expect(n).toBeGreaterThan(0);
+    const lines = await asUser(office, officeEmail, (tx) => run(tx, "journal_lines", lakeshoreId));
+    expect(lines).toHaveLength(0);
+    const invoices = await asUser(office, officeEmail, (tx) => run(tx, "invoices", lakeshoreId));
+    expect(invoices.length).toBeGreaterThan(0);
+  });
+
+  it("returns nothing from another company in any dataset, even when asked for it by id (rule 10)", async () => {
+    const owner = seedUserEmail(northwind, "owner");
+    for (const d of DATASETS) {
+      const theirs = await asUser(northwindOwner, owner, (tx) => run(tx, d.key, lakeshoreId));
+      expect(theirs, d.key).toHaveLength(0);
+      const ours = await asUser(northwindOwner, owner, (tx) => run(tx, d.key, northwindId));
+      expect(ours.length, d.key).toBeGreaterThan(0);
+    }
   });
 });

@@ -1517,6 +1517,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"saved_reports": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"dataset": string,"definition": NonNullable<Json>,"id": string,"name": string,"shared": boolean,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"dataset": string,"definition": NonNullable<Json>,"id"?: string,"name": string,"shared"?: boolean,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"dataset"?: string,"definition"?: NonNullable<Json>,"id"?: string,"name"?: string,"shared"?: boolean,"tenant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "saved_reports_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"service_type_state_rules": {
                   Row: {
                     "confirmed_at": string | null,"confirmed_by": string | null,"created_at": string,"created_by": string | null,"id": string,"notes": string | null,"pack_cert_categories": (string)[],"pack_tax_class": string,"pack_version": string | null,"required_cert_categories": (string)[],"service_type_id": string,"state_code": string,"tax_class": string,"tenant_id": string,"updated_at": string

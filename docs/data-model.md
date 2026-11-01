@@ -137,6 +137,12 @@ erDiagram
 | import_batches | tenant_id, status [dry_run, committed, failed], cutover_on, summary jsonb (per file: rows, created, skipped, errors), errors jsonb, warnings jsonb, created_by | One per dry run or import; never changes. A commit writes everything or nothing |
 | import_files | tenant_id, batch_id, file_id, kind [template, history], file_name, label | The uploaded spreadsheets and the old system's records, kept for the retention period; history is readable by compliance.read |
 
+## Reporting
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| saved_reports | tenant_id, name, dataset, definition jsonb (columns, filters, group_by, aggregates, sort, limit), shared, created_by, updated_at | A custom report over one of the datasets in lib/reports/datasets.ts. Private to its author unless shared; written by the author; an owner may delete a shared one. Runs under the reader's session, so row level security decides the rows. Every metric is computed on demand; there are no snapshot tables |
+
 ## Inventory
 
 | Table | Key columns | Notes |
