@@ -16,6 +16,13 @@ export async function GET(_request: Request, context: { params: Promise<{ fileId
   const file = await dbAs(session, (tx) => getFile(tx, active.tenantId, fileId));
   if (!file) return new NextResponse("not found", { status: 404 });
   return new NextResponse(new Uint8Array(file.data), {
-    headers: { "content-type": file.content_type, "content-length": String(file.byte_size), "cache-control": "private, max-age=3600" },
+    // A stored file never runs script on this origin, whatever it is (spec 14 rule 12).
+    headers: {
+      "content-type": file.content_type,
+      "content-length": String(file.byte_size),
+      "cache-control": "private, max-age=3600",
+      "content-security-policy": "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'",
+      "x-content-type-options": "nosniff",
+    },
   });
 }

@@ -40,6 +40,44 @@ export type CapturedProduct = {
   recorded_at: string;
 };
 
+export type CapturedDeviceCheck = {
+  id: string;
+  device_id: string;
+  status: string;
+  activity: string | null;
+  count: number | null;
+  bait_consumed_pct: number | null;
+  pest: string | null;
+  actions: string[];
+  notes: string | null;
+  checked_at: string;
+};
+
+export type RouteDevice = {
+  id: string;
+  number: string;
+  barcode: string | null;
+  kind: string;
+  zone: string;
+  location: string;
+  map_id: string | null;
+  x: number | null;
+  y: number | null;
+  status: string;
+  last: { checked_at: string; status: string; activity: string | null; count: number | null; bait_consumed_pct: number | null } | null;
+};
+
+export type RouteMap = { id: string; name: string; file_id: string; width: number; height: number };
+
+/** A commercial program stop (spec 14): the device kinds this visit checks and the site's devices, maps and open items. */
+export type RouteSite = {
+  kinds: string[];
+  devices: RouteDevice[];
+  maps: RouteMap[];
+  sightings: { id: string; seen_at: string; location: string; pest: string; notes: string | null }[];
+  recommendations: { id: string; category: string; description: string; status: string; due_on: string | null }[];
+};
+
 export type CapturedNote = { id: string; kind: string; content: string; recorded_at: string };
 export type CapturedPhoto = { id: string; file_id: string; kind: string; caption: string | null; taken_at: string };
 export type CapturedSignature = { signer_name: string; signed_at: string; file_id: string } | null;
@@ -68,6 +106,7 @@ export type RouteVisit = {
   crew: RouteCrewMember[];
   state_rule: { required_cert_categories: string[]; pack_version: string | null; confirmed_at: string | null } | null;
   required_fields: string[];
+  site: RouteSite | null;
   captured: {
     arrived_at: string | null;
     departed_at: string | null;
@@ -79,6 +118,7 @@ export type RouteVisit = {
     notes: CapturedNote[];
     photos: CapturedPhoto[];
     signature: CapturedSignature;
+    device_checks: CapturedDeviceCheck[];
   };
 };
 
@@ -91,7 +131,34 @@ export type RoutePayload = {
   products: RouteProduct[];
 };
 
-export type ChangeKind = "en_route" | "arrive" | "conditions" | "areas_pests" | "product" | "note" | "photo" | "signature" | "complete" | "payment";
+export type ChangeKind =
+  | "en_route"
+  | "arrive"
+  | "conditions"
+  | "areas_pests"
+  | "product"
+  | "note"
+  | "photo"
+  | "signature"
+  | "complete"
+  | "payment"
+  | "device_check"
+  | "device_add"
+  | "device_move"
+  | "device_remove"
+  | "recommendation";
+
+export type DeviceCheckPayload = {
+  device_id: string;
+  status: string;
+  activity: string | null;
+  count: number | null;
+  bait_consumed_pct: number | null;
+  pest: string | null;
+  actions: string[];
+  notes: string | null;
+  checked_at: string;
+};
 
 export type ProductPayload = {
   product_id: string;
@@ -117,7 +184,12 @@ export type ChangePayload =
   | { kind: "photo"; photo_kind: string; caption: string | null; taken_at: string; data_url: string }
   | { kind: "signature"; signer_name: string; signed_at: string; data_url: string }
   | { kind: "complete"; at: string }
-  | { kind: "payment"; method: "cash" | "check"; amount_cents: number; reference: string | null; received_at: string };
+  | { kind: "payment"; method: "cash" | "check"; amount_cents: number; reference: string | null; received_at: string }
+  | ({ kind: "device_check" } & DeviceCheckPayload)
+  | { kind: "device_add"; device_id: string; number: string; barcode: string | null; device_kind: string; zone: string; location: string; map_id: string | null; x: number | null; y: number | null; at: string }
+  | { kind: "device_move"; device_id: string; zone: string; location: string; map_id: string | null; x: number | null; y: number | null; at: string }
+  | { kind: "device_remove"; device_id: string; reason: string; at: string }
+  | { kind: "recommendation"; category: string; description: string; responsibility: string; priority: string; at: string };
 
 export type QueuedChange = {
   id: string;

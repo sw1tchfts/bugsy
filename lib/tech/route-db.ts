@@ -5,7 +5,19 @@ import { requiredRecordFields } from "@/lib/compliance/records";
 import { getStatePack } from "@/lib/compliance/rules";
 import type { ArrivalWindow, CrewRole } from "@/lib/dispatch/checks";
 import { listMembers } from "@/lib/dispatch/db";
-import type { CapturedNote, CapturedPhoto, CapturedProduct, RouteCrewMember, RoutePayload, RouteProduct, RouteVisit } from "@/lib/tech/route-types";
+import type {
+  CapturedDeviceCheck,
+  CapturedNote,
+  CapturedPhoto,
+  CapturedProduct,
+  RouteCrewMember,
+  RouteDevice,
+  RouteMap,
+  RoutePayload,
+  RouteProduct,
+  RouteSite,
+  RouteVisit,
+} from "@/lib/tech/route-types";
 import type { Conditions } from "@/lib/weather/provider";
 
 type Sql = postgres.Sql | postgres.TransactionSql;
@@ -40,6 +52,7 @@ type VisitRow = {
   access_notes: string | null;
   service_type_id: string;
   service_type_name: string;
+  device_kinds: string[];
   arrived_at: string | null;
   departed_at: string | null;
   completed_at: string | null;
@@ -56,7 +69,7 @@ const VISIT_SELECT = (tx: Sql) => tx`
          v.interior_only, v.reservice_reason, v.dispatch_notes, v.price_cents, ag.billing_mode, ag.agreement_number,
          ac.id as account_id, ac.name as account_name, ac.phone as account_phone,
          p.id as property_id, p.normalized_address as address, p.city, p.state_code, p.lat, p.lng, p.access_notes,
-         st.id as service_type_id, st.name as service_type_name,
+         st.id as service_type_id, st.name as service_type_name, st.device_kinds,
          v.arrived_at, v.departed_at, v.completed_at, v.conditions, v.areas_treated, v.target_pests,
          r.required_cert_categories, r.pack_version, r.confirmed_at
   from public.visits v
@@ -76,7 +89,49 @@ async function captures(tx: Sql, tenantId: string, visitId: string): Promise<Rou
   const photos = await tx<CapturedPhoto[]>`select id, file_id, kind, caption, taken_at from public.visit_photos where tenant_id = ${tenantId} and visit_id = ${visitId} order by taken_at`;
   const [signature] = await tx<{ signer_name: string; signed_at: string; file_id: string }[]>`
     select signer_name, signed_at, file_id from public.visit_signatures where tenant_id = ${tenantId} and visit_id = ${visitId}`;
-  return { arrived_at: null, departed_at: null, completed_at: null, conditions: null, areas_treated: [], target_pests: [], products, notes, photos, signature: signature ?? null, crew: [] };
+  const device_checks = await tx<CapturedDeviceCheck[]>`
+    select id, device_id, status, activity, count, bait_consumed_pct, pest, actions, notes, checked_at
+    from public.device_checks where tenant_id = ${tenantId} and visit_id = ${visitId} order by checked_at`;
+  return {
+    arrived_at: null,
+    departed_at: null,
+    completed_at: null,
+    conditions: null,
+    areas_treated: [],
+    target_pests: [],
+    products,
+    notes,
+    photos,
+    signature: signature ?? null,
+    device_checks: device_checks.map((c) => ({ ...c, checked_at: new Date(c.checked_at).toISOString() })),
+    crew: [],
+  };
+}
+
+/** A program stop's site (spec 14): devices of the visit's kinds still active, plus those removed at this visit so the
+ *  stop shows them, the maps, and the open sightings and recommendations. Null when the service type checks no devices. */
+async function siteFor(tx: Sql, tenantId: string, propertyId: string, visitId: string, kinds: string[]): Promise<RouteSite | null> {
+  if (!kinds?.length) return null;
+  const devices = await tx<(Omit<RouteDevice, "x" | "y" | "last"> & { x: string | null; y: string | null; last: RouteDevice["last"] })[]>`
+    select d.id, d.number, d.barcode, d.kind, d.zone, d.location, d.map_id, d.x::text, d.y::text, d.status,
+           (select jsonb_build_object('checked_at', c.checked_at, 'status', c.status, 'activity', c.activity, 'count', c.count, 'bait_consumed_pct', c.bait_consumed_pct)
+            from public.device_checks c where c.device_id = d.id and c.visit_id is distinct from ${visitId} order by c.checked_at desc limit 1) as last
+    from public.devices d
+    where d.tenant_id = ${tenantId} and d.property_id = ${propertyId} and d.kind = any(${kinds})
+      and (d.status = 'active' or exists (select 1 from public.device_events e where e.device_id = d.id and e.kind = 'removed' and e.visit_id = ${visitId}))
+    order by d.kind, length(d.number), d.number`;
+  const maps = await tx<RouteMap[]>`select id, name, file_id, width, height from public.site_maps where tenant_id = ${tenantId} and property_id = ${propertyId} and archived_at is null order by position, name`;
+  const sightings = await tx<RouteSite["sightings"]>`
+    select id, seen_at, location, pest, notes from public.sightings where tenant_id = ${tenantId} and property_id = ${propertyId} and resolved_at is null order by seen_at desc limit 20`;
+  const recommendations = await tx<RouteSite["recommendations"]>`
+    select id, category, description, status, due_on::text from public.recommendations where tenant_id = ${tenantId} and property_id = ${propertyId} and status <> 'closed' order by created_at desc limit 20`;
+  return {
+    kinds,
+    devices: devices.map((d) => ({ ...d, x: d.x === null ? null : Number(d.x), y: d.y === null ? null : Number(d.y) })),
+    maps,
+    sightings: sightings.map((x) => ({ ...x, seen_at: new Date(x.seen_at).toISOString() })),
+    recommendations,
+  };
 }
 
 async function crewFor(tx: Sql, tenantId: string, visitId: string, stateCode: string, names: Map<string, string>): Promise<RouteCrewMember[]> {
@@ -94,7 +149,7 @@ async function crewFor(tx: Sql, tenantId: string, visitId: string, stateCode: st
   }));
 }
 
-function toRouteVisit(row: VisitRow, crew: RouteCrewMember[], captured: RouteVisit["captured"]): RouteVisit {
+function toRouteVisit(row: VisitRow, crew: RouteCrewMember[], captured: RouteVisit["captured"], site: RouteSite | null): RouteVisit {
   return {
     id: row.id,
     sequence: row.sequence,
@@ -119,6 +174,7 @@ function toRouteVisit(row: VisitRow, crew: RouteCrewMember[], captured: RouteVis
     crew,
     state_rule: row.required_cert_categories ? { required_cert_categories: row.required_cert_categories, pack_version: row.pack_version, confirmed_at: row.confirmed_at } : null,
     required_fields: requiredRecordFields(row.job_kind, getStatePack(row.state_code)),
+    site,
     captured: {
       ...captured,
       arrived_at: row.arrived_at ? new Date(row.arrived_at).toISOString() : null,
@@ -138,7 +194,7 @@ export async function loadRouteVisit(tx: Sql, tenantId: string, visitId: string)
   const names = new Map((await listMembers(tx, tenantId)).map((m) => [m.user_id, m.name]));
   const crew = await crewFor(tx, tenantId, visitId, row.state_code, names);
   const captured = await captures(tx, tenantId, visitId);
-  return toRouteVisit(row, crew, captured);
+  return toRouteVisit(row, crew, captured, await siteFor(tx, tenantId, row.property_id, row.id, row.device_kinds));
 }
 
 export async function enabledProducts(tx: Sql, tenantId: string): Promise<RouteProduct[]> {
@@ -165,7 +221,7 @@ export async function loadRoute(
   const visits: RouteVisit[] = [];
   for (const row of rows) {
     const crew = await crewFor(tx, tenant.id, row.id, row.state_code, names);
-    visits.push(toRouteVisit(row, crew, await captures(tx, tenant.id, row.id)));
+    visits.push(toRouteVisit(row, crew, await captures(tx, tenant.id, row.id), await siteFor(tx, tenant.id, row.property_id, row.id, row.device_kinds)));
   }
   return {
     date,

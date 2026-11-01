@@ -13,6 +13,7 @@ import {
   templateByKey,
 } from "@/lib/catalog/service-lines";
 import { ensureStateRules } from "@/lib/catalog/state-rules";
+import { isDeviceKind } from "@/lib/commercial/devices";
 import { intOrNull, opt, str } from "@/lib/customers/forms";
 import { errorCode } from "@/lib/db";
 import { parseDollarsToCents } from "@/lib/money";
@@ -39,6 +40,7 @@ type ServiceTypeInput = {
   treatment_areas: string[];
   pricing_method: string;
   default_duration_minutes: number;
+  device_kinds: string[];
 };
 
 /** Reads the service type fields, falling back to a template for anything the form left out. */
@@ -54,6 +56,7 @@ function readServiceType(formData: FormData): { value: ServiceTypeInput } | { er
     treatment_areas: formData.has("areas_present") || !template ? checked : template.treatmentAreas,
     pricing_method: pick("pricing_method", template?.pricingMethod),
     default_duration_minutes: intOrNull(formData, "default_duration_minutes") ?? template?.defaultDurationMinutes ?? 60,
+    device_kinds: formData.has("kinds_present") ? formData.getAll("device_kinds").map(String).filter(isDeviceKind) : (template?.deviceKinds ?? []),
   };
   if (!value.name) return { error: "A name is required." };
   if (!(SERVICE_LINES as readonly string[]).includes(value.service_line)) return { error: "Pick a service line." };

@@ -4,7 +4,11 @@ import type { ChangePayload, QueuedChange, RoutePayload, RouteVisit } from "@/li
 
 export function withLocalChanges(route: RoutePayload, visit: RouteVisit, changes: readonly QueuedChange[]): RouteVisit {
   const products = new Map(route.products.map((p) => [p.id, p]));
-  let v: RouteVisit = { ...visit, captured: { ...visit.captured, products: [...visit.captured.products], notes: [...visit.captured.notes], photos: [...visit.captured.photos] } };
+  let v: RouteVisit = {
+    ...visit,
+    site: visit.site ? { ...visit.site, devices: [...visit.site.devices], recommendations: [...visit.site.recommendations] } : null,
+    captured: { ...visit.captured, products: [...visit.captured.products], notes: [...visit.captured.notes], photos: [...visit.captured.photos], device_checks: [...(visit.captured.device_checks ?? [])] },
+  };
   const pending = changes.filter((c) => c.visit_id === visit.id && c.status === "pending").sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
   for (const change of pending) {
     const p = change.payload as ChangePayload;
@@ -55,6 +59,27 @@ export function withLocalChanges(route: RoutePayload, visit: RouteVisit, changes
         break;
       case "payment":
         // Money taken at the stop shows in the queue; the office's invoice reflects it after sync.
+        break;
+      case "device_check": {
+        // One answer per device per visit: a later check of the same device replaces the earlier one.
+        const checks = v.captured.device_checks.filter((c) => c.device_id !== p.device_id);
+        checks.push({ id: change.id, device_id: p.device_id, status: p.status, activity: p.activity, count: p.count, bait_consumed_pct: p.bait_consumed_pct, pest: p.pest, actions: p.actions, notes: p.notes, checked_at: p.checked_at });
+        v = { ...v, captured: { ...v.captured, device_checks: checks } };
+        break;
+      }
+      case "device_add":
+        if (v.site && !v.site.devices.some((d) => d.id === p.device_id)) {
+          v.site.devices.push({ id: p.device_id, number: p.number, barcode: p.barcode, kind: p.device_kind, zone: p.zone, location: p.location, map_id: p.map_id, x: p.x, y: p.y, status: "active", last: null });
+        }
+        break;
+      case "device_move":
+        if (v.site) v.site.devices = v.site.devices.map((d) => (d.id === p.device_id ? { ...d, zone: p.zone, location: p.location, map_id: p.map_id, x: p.x, y: p.y } : d));
+        break;
+      case "device_remove":
+        if (v.site) v.site.devices = v.site.devices.map((d) => (d.id === p.device_id ? { ...d, status: "removed" } : d));
+        break;
+      case "recommendation":
+        v.site?.recommendations.unshift({ id: change.id, category: p.category, description: p.description, status: "open", due_on: null });
         break;
     }
   }

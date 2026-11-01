@@ -65,6 +65,11 @@ export default async function PropertyPage({ params, searchParams }: { params: P
           {property.county ? `, ${property.county} County` : ""} <Badge tone={pinTone}>pin: {property.geocode_status}</Badge>
           {property.lat != null ? ` ${property.lat.toFixed(4)}, ${property.lng?.toFixed(4)}` : ""}
         </p>
+        <p className="text-sm">
+          <Link href={`/sites/${property.id}`} className="text-emerald-800 underline" data-testid="site-link">
+            Device program and audit binder
+          </Link>
+        </p>
       </div>
       {error ? <Notice kind="error">{errorMessage(error)}</Notice> : null}
       {property.geocode_status === "failed" && canWrite ? (

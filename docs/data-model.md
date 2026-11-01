@@ -137,6 +137,20 @@ erDiagram
 | import_batches | tenant_id, status [dry_run, committed, failed], cutover_on, summary jsonb (per file: rows, created, skipped, errors), errors jsonb, warnings jsonb, created_by | One per dry run or import; never changes. A commit writes everything or nothing |
 | import_files | tenant_id, batch_id, file_id, kind [template, history], file_name, label | The uploaded spreadsheets and the old system's records, kept for the retention period; history is readable by compliance.read |
 
+## Commercial programs
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| site_maps | tenant_id, property_id, name, file_id (PNG, JPEG or WebP), width, height, position, archived_at | A floor plan; devices sit on it by fractions of its width and height |
+| devices | tenant_id, property_id, number (unique per property among active), barcode (unique per company), kind [bait_station, rodent_trap, multi_catch, glue_board, insect_light_trap, pheromone_trap, termite_station], zone [interior, exterior, perimeter], location, map_id, x, y, product_id, installed_on, removed_on, removed_reason, status [active, removed], client_id | Removed, never deleted. Written by the office, or by a technician on the crew of an open visit at the property |
+| device_events | tenant_id, device_id, kind [installed, moved, removed, relabeled], before, after, visit_id, at, by | Written by a trigger on devices, so every path records history; the visit comes from the transaction setting app.visit_id |
+| device_checks | tenant_id, device_id, visit_id, checked_at, checked_by, source [technician, office, sensor], status [checked, inaccessible, missing, damaged], activity [none, low, medium, high], count, bait_consumed_pct, pest, actions, notes, client_id | One per device per visit; read only once the visit is completed. Office paper entries and sensors have no visit |
+| sightings | tenant_id, property_id, seen_at, location, pest, count, reported_by, source [customer, office, technician], notes, visit_id, resolved_at, resolution | Open until resolved with a note |
+| recommendations | tenant_id, property_id, visit_id, sighting_id, category, description, responsibility [customer, company], priority, owner_name, due_on, status [open, in_progress, closed], closed_on, closed_note, client_id | Corrective actions tracked to a closed date |
+| site_documents | tenant_id, property_id, file_id, title, kind, valid_until, shared | The program, insurance, licenses, labels and SDS for the customer's auditor; the portal (spec 16) shows the shared ones |
+
+service_types.device_kinds names the device kinds a visit of that type checks; the completion gate requires a check for each active one.
+
 ## Platform operations
 
 | Table | Key columns | Notes |

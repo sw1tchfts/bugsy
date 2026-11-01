@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { DevicesSection } from "@/components/tech/devices";
 import { Scanner } from "@/components/tech/scanner";
 import { SignaturePad } from "@/components/tech/signature-pad";
 import { checkLabelRate } from "@/lib/catalog/label-rates";
@@ -84,6 +85,7 @@ export function TechApp({ tenantId, userId, locale, today: serverToday, timezone
   const [syncNote, setSyncNote] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const syncing = useRef(false);
+  const syncAgain = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -102,19 +104,31 @@ export function TechApp({ tenantId, userId, locale, today: serverToday, timezone
   }, [tenantId, today]);
 
   const sync = useCallback(async () => {
-    if (syncing.current || !navigator.onLine) return;
+    if (!navigator.onLine) return;
+    // A change queued while a sync runs is picked up by another pass of that sync rather than lost from the screen.
+    if (syncing.current) {
+      syncAgain.current = true;
+      return;
+    }
     syncing.current = true;
     try {
-      const all = await techStore.listChanges();
-      const result = await pushPending(all, async (batch) => {
-        const res = await fetch("/api/tech/sync", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ changes: batch }) });
-        if (!res.ok) throw Object.assign(new Error(String(res.status)), { status: res.status });
-        return ((await res.json()) as { results: SyncResult[] }).results;
-      });
-      await techStore.putChanges(result.changes);
-      setChanges(result.changes);
-      setSyncNote(result.failed ? t("app.syncError", { message: "offline" }) : null);
-      if (result.sent > 0) await refresh();
+      let sent = 0;
+      do {
+        syncAgain.current = false;
+        const all = await techStore.listChanges();
+        const result = await pushPending(all, async (batch) => {
+          const res = await fetch("/api/tech/sync", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ changes: batch }) });
+          if (!res.ok) throw Object.assign(new Error(String(res.status)), { status: res.status });
+          return ((await res.json()) as { results: SyncResult[] }).results;
+        });
+        await techStore.putChanges(result.changes);
+        setSyncNote(result.failed ? t("app.syncError", { message: "offline" }) : null);
+        sent += result.sent;
+        if (result.failed) break;
+      } while (syncAgain.current);
+      // The store holds everything, including changes queued mid-sync; the screen shows the store.
+      setChanges(await techStore.listChanges());
+      if (sent > 0) await refresh();
     } finally {
       syncing.current = false;
     }
@@ -342,6 +356,7 @@ function StopScreen({ route, visit, changes, userId, locale, timezone, t, onQueu
         </div>
       ))}
 
+      <DevicesSection visit={visit} t={t} onQueue={onQueue} disabled={done} />
       <ProductsSection route={route} visit={visit} userId={userId} t={t} onQueue={onQueue} disabled={done} nameOf={nameOf} />
       <AreasSection visit={visit} t={t} onQueue={onQueue} disabled={done} />
       <ConditionsSection visit={visit} t={t} onQueue={onQueue} disabled={done} locale={locale} timezone={timezone} />

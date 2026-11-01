@@ -16,6 +16,7 @@ import { seedBilling } from "./seed-billing";
 import { seedImport } from "./seed-import";
 import { seedLedger } from "./seed-ledger";
 import { seedMessaging } from "./seed-messaging";
+import { seedCommercial } from "./seed-commercial";
 import { seedPlatform } from "./seed-platform";
 import { seedReports } from "./seed-reports";
 import { seedCompliance } from "./seed-compliance";
@@ -142,6 +143,7 @@ async function seedTenant(tenant: SeedTenant, useAuthServer: boolean) {
   await seedMessaging(sql, tenant, tenantId);
   await seedReports(sql, tenant, tenantId);
   await seedPlatform(sql, tenant, tenantId);
+  await seedCommercial(sql, tenant, tenantId);
 
   console.log(`seeded ${tenant.name} (${tenantId})`);
 }

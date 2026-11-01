@@ -42,6 +42,7 @@ const visit = {
     ],
     photos: [],
     signature: null,
+    device_checks: [],
   },
 } as unknown as RouteVisit;
 

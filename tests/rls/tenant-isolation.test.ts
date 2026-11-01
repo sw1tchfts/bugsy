@@ -1848,3 +1848,82 @@ describe("spec 13 rules enforced in the database", () => {
     await expect(asUser(lakeshoreOwner, ownerEmail, (tx) => tx`select * from app.platform_overview()`)).rejects.toThrow(/platform staff/);
   });
 });
+
+describe("spec 14 rules enforced in the database", () => {
+  const ownerEmail = seedUserEmail(lakeshore, "owner");
+  const techEmail = seedUserEmail(lakeshore, "technician");
+  let tech = "";
+  const ROLLBACK = "rollback: spec 14";
+
+  async function rolledBack<T>(fn: (tx: Tx, as: (id: string, email: string) => Promise<void>) => Promise<T>): Promise<T> {
+    let out: T | undefined;
+    await admin
+      .begin(async (tx) => {
+        const as = async (id: string, email: string) => {
+          await tx.unsafe("set local role authenticated");
+          await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: id, email, role: "authenticated" })}, true)`;
+        };
+        out = await fn(tx, as);
+        throw new Error(ROLLBACK);
+      })
+      .catch((e: Error) => {
+        if (e.message !== ROLLBACK) throw e;
+      });
+    return out as T;
+  }
+
+  beforeAll(async () => {
+    tech = await userId(techEmail);
+  });
+
+  it("records every move and removal of a device by trigger, and never deletes one (rules 1 and 2)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      const [d] = await tx<{ id: string }[]>`select id from public.devices where tenant_id = ${lakeshoreId} and status = 'active' order by number limit 1`;
+      await as(lakeshoreOwner, ownerEmail);
+      await tx`update public.devices set location = 'Moved by the RLS test', x = 0.5, y = 0.5 where id = ${d.id}`;
+      await tx`update public.devices set status = 'removed', removed_on = current_date, removed_reason = 'RLS removal' where id = ${d.id}`;
+      const events = await tx<{ kind: string; after: { location: string; removed_reason: string | null } }[]>`select kind, after from public.device_events where device_id = ${d.id} order by at, kind`;
+      const again = await tx.savepoint((sp) => sp`update public.devices set location = 'after removal' where id = ${d.id}`).then(() => "changed", (e: Error) => e.message);
+      const gone = await tx.savepoint((sp) => sp`delete from public.devices where id = ${d.id}`).then((r) => `deleted ${r.count}`, (e: Error) => e.message);
+      return { events, again, gone };
+    });
+    expect(result.events.map((e) => e.kind)).toEqual(["installed", "moved", "removed"]);
+    expect(result.events[1].after.location).toBe("Moved by the RLS test");
+    expect(result.events[2].after.removed_reason).toBe("RLS removal");
+    expect(result.again).toMatch(/kept as it was/);
+    expect(result.gone).toMatch(/never deleted|deleted 0/);
+  });
+
+  it("lets a technician write devices and checks only at their own open visit, and nothing once it is completed (rule 11)", async () => {
+    // A property where the technician has exactly one open visit, so completing it closes the site to them.
+    const [mine] = await admin<{ id: string; property_id: string }[]>`
+      select (array_agg(v.id))[1] as id, v.property_id from public.visits v join public.visit_crew c on c.visit_id = v.id
+      where v.tenant_id = ${lakeshoreId} and c.user_id = ${tech} and v.status in ('scheduled', 'en_route', 'in_progress')
+      group by v.property_id having count(*) = 1 limit 1`;
+    const [site] = await admin<{ id: string }[]>`select distinct d.property_id as id from public.devices d where d.tenant_id = ${lakeshoreId} limit 1`;
+    expect(mine, "the seed gives the technician an open visit").toBeTruthy();
+    const result = await rolledBack(async (tx, as) => {
+      await as(tech, techEmail);
+      const [added] = await tx<{ id: string }[]>`
+        insert into public.devices (tenant_id, property_id, number, kind, zone, location) values (${lakeshoreId}, ${mine.property_id}, 'RLS-1', 'glue_board', 'interior', 'Under the sink') returning id`;
+      const elsewhere =
+        site.id === mine.property_id
+          ? "same site"
+          : await tx.savepoint((sp) => sp`insert into public.devices (tenant_id, property_id, number, kind, zone, location) values (${lakeshoreId}, ${site.id}, 'RLS-2', 'glue_board', 'interior', 'Elsewhere')`).then(() => "inserted", (e: Error) => e.message);
+      await tx`insert into public.device_checks (tenant_id, device_id, visit_id, status, activity) values (${lakeshoreId}, ${added.id}, ${mine.id}, 'checked', 'none')`;
+      const paper = await tx.savepoint((sp) => sp`insert into public.device_checks (tenant_id, device_id, visit_id, source, status) values (${lakeshoreId}, ${added.id}, null, 'office', 'checked')`).then(() => "inserted", (e: Error) => e.message);
+      await tx.unsafe("reset role");
+      await tx.unsafe("set local session_replication_role = replica");
+      await tx`update public.visits set status = 'completed', completed_at = now() where id = ${mine.id}`;
+      await tx.unsafe("set local session_replication_role = origin");
+      await as(tech, techEmail);
+      const locked = await tx.savepoint((sp) => sp`update public.device_checks set activity = 'high' where visit_id = ${mine.id}`).then((r) => `updated ${r.count}`, (e: Error) => e.message);
+      const late = await tx.savepoint((sp) => sp`insert into public.devices (tenant_id, property_id, number, kind, zone, location) values (${lakeshoreId}, ${mine.property_id}, 'RLS-3', 'glue_board', 'interior', 'Too late')`).then(() => "inserted", (e: Error) => e.message);
+      return { elsewhere, paper, locked, late };
+    });
+    if (result.elsewhere !== "same site") expect(result.elsewhere).toMatch(RLS_ERROR);
+    expect(result.paper).toMatch(RLS_ERROR);
+    expect(result.locked).toMatch(/read only|updated 0/);
+    expect(result.late).toMatch(RLS_ERROR);
+  });
+});

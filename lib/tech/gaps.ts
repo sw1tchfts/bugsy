@@ -1,6 +1,14 @@
 // The completion gate applied to a route visit, shared by the device (before queuing) and the sync endpoint.
 import { type RecordCrewMember, type RecordProduct, recordGaps } from "@/lib/compliance/records";
-import type { RouteVisit } from "@/lib/tech/route-types";
+import { uncheckedDevices } from "@/lib/commercial/devices";
+import type { RouteDevice, RouteVisit } from "@/lib/tech/route-types";
+
+/** Spec 14 rule 4: the program's devices with no answer at this visit. */
+export function devicesLeft(visit: RouteVisit): RouteDevice[] {
+  if (!visit.site) return [];
+  const checked = new Set((visit.captured.device_checks ?? []).map((c) => c.device_id));
+  return uncheckedDevices(visit.site.devices, checked, visit.site.kinds);
+}
 
 export function gapsFor(visit: RouteVisit): string[] {
   const products: RecordProduct[] = visit.captured.products.map((p) => ({
@@ -33,5 +41,7 @@ export function gapsFor(visit: RouteVisit): string[] {
     crew,
     visit.required_fields,
     visit.captured.notes.length > 0 || visit.captured.photos.length > 0,
-  ).map((g) => g.key);
+  )
+    .map((g) => g.key)
+    .concat(devicesLeft(visit).length > 0 ? ["devices"] : []);
 }

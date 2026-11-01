@@ -85,6 +85,8 @@ export type ServiceTypeTemplate = {
   serviceLine: ServiceLine;
   jobKind: JobKind;
   treatmentAreas: TreatmentArea[];
+  /** The device kinds a visit of this type checks (spec 14); none for most types. */
+  deviceKinds?: string[];
   pricingMethod: PricingMethod;
   defaultDurationMinutes: number;
   description: string;
@@ -128,6 +130,7 @@ export const SERVICE_TYPE_TEMPLATES: readonly ServiceTypeTemplate[] = [
     serviceLine: "rodent",
     jobKind: "device_service",
     treatmentAreas: ["devices"],
+    deviceKinds: ["bait_station", "rodent_trap", "multi_catch", "glue_board", "insect_light_trap"],
     pricingMethod: "price_book",
     defaultDurationMinutes: 90,
     description: "Scheduled service of barcoded stations and insect light traps at a commercial site.",

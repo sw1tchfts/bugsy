@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DEVICE_KINDS, KIND_LABELS } from "@/lib/commercial/devices";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, Button, Card, Empty, Field, Input, Notice, Select, Table, Textarea, errorMessage } from "@/components/ui";
@@ -40,6 +41,7 @@ type ServiceType = {
   service_line: ServiceLine;
   job_kind: JobKind;
   treatment_areas: string[];
+  device_kinds: string[];
   pricing_method: PricingMethod;
   default_duration_minutes: number;
   active: boolean;
@@ -89,7 +91,7 @@ export default async function ServiceTypePage({ params, searchParams }: { params
 
   const [serviceType, rules, items] = await dbAs(session, async (tx) => {
     const [st] = await tx<ServiceType[]>`
-      select id, name, description, service_line, job_kind, treatment_areas, pricing_method, default_duration_minutes, active, archived_at
+      select id, name, description, service_line, job_kind, treatment_areas, device_kinds, pricing_method, default_duration_minutes, active, archived_at
       from public.service_types where id = ${serviceTypeId} and tenant_id = ${tenantId}`;
     if (!st) return [null, [], []] as const;
     const rules = await tx<StateRule[]>`
@@ -376,6 +378,17 @@ export default async function ServiceTypePage({ params, searchParams }: { params
                 {TREATMENT_AREAS.map((a) => (
                   <label key={a} className="flex items-center gap-2">
                     <input type="checkbox" name="treatment_areas" value={a} defaultChecked={serviceType.treatment_areas.includes(a)} /> {TREATMENT_AREA_LABELS[a]}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <fieldset className="sm:col-span-2">
+              <legend className="text-sm font-medium text-stone-700">Devices checked at every visit (commercial programs)</legend>
+              <input type="hidden" name="kinds_present" value="1" />
+              <div className="mt-1 flex flex-wrap gap-4 text-sm">
+                {DEVICE_KINDS.map((k) => (
+                  <label key={k} className="flex items-center gap-2">
+                    <input type="checkbox" name="device_kinds" value={k} defaultChecked={serviceType.device_kinds.includes(k)} /> {KIND_LABELS[k]}
                   </label>
                 ))}
               </div>

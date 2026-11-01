@@ -8,6 +8,8 @@ import { safely } from "@/lib/messaging/safely";
 import { checkLabelRate } from "@/lib/catalog/label-rates";
 import { onVisitCompleted } from "@/lib/compliance/db";
 import { decodeBase64File, putFile } from "@/lib/files";
+import { checkProblems, isDeviceKind, validPosition, ZONES } from "@/lib/commercial/devices";
+import { dateInZone } from "@/lib/dates";
 import { gapsFor } from "@/lib/tech/gaps";
 import { loadRouteVisit } from "@/lib/tech/route-db";
 import type { ChangePayload, QueuedChange, SyncResult } from "@/lib/tech/route-types";
@@ -158,6 +160,85 @@ async function apply(tx: Sql, actor: Actor, change: QueuedChange): Promise<SyncR
         invoice_id: inv?.id ?? null,
         allocate: Boolean(inv),
       });
+      return { id: change.id, result: "applied" };
+    }
+    case "device_check":
+    case "device_add":
+    case "device_move":
+    case "device_remove":
+    case "recommendation":
+      return applySiteChange(tx, actor, change, payload);
+    default:
+      return rejected(change.id, "unknown change kind");
+  }
+}
+
+/** Spec 14: a program stop's device and recommendation changes, at the visit's own property, while it is open. */
+async function applySiteChange(tx: Sql, actor: Actor, change: QueuedChange, payload: ChangePayload): Promise<SyncResult> {
+  const { tenantId, userId } = actor;
+  const visitId = change.visit_id;
+  const [visit] = await tx<{ property_id: string; status: string; timezone: string }[]>`
+    select v.property_id, v.status, t.timezone from public.visits v join public.tenants t on t.id = v.tenant_id where v.id = ${visitId} and v.tenant_id = ${tenantId}`;
+  if (!visit) return rejected(change.id, "visit not found");
+  if (!["scheduled", "en_route", "in_progress"].includes(visit.status)) return rejected(change.id, `the visit is ${visit.status}; its devices can no longer change`);
+  // Device history names the visit it happened at (rule 2).
+  await tx`select set_config('app.visit_id', ${visitId}, true)`;
+  const device = async (id: string) =>
+    (await tx<{ id: string; status: string }[]>`select id, status from public.devices where id = ${id} and tenant_id = ${tenantId} and property_id = ${visit.property_id}`)[0] ?? null;
+
+  switch (payload.kind) {
+    case "device_check": {
+      const d = await device(payload.device_id);
+      if (!d) return rejected(change.id, "sync.deviceUnknown");
+      const problems = checkProblems(payload);
+      if (problems.length) return rejected(change.id, problems.join(" "));
+      const checked = payload.status === "checked";
+      await tx`
+        insert into public.device_checks (tenant_id, device_id, visit_id, checked_at, checked_by, source, status, activity, count, bait_consumed_pct, pest, actions, notes, client_id)
+        values (${tenantId}, ${d.id}, ${visitId}, ${instant(payload.checked_at)}, ${userId}, 'technician', ${payload.status}, ${checked ? (payload.activity ?? "none") : null},
+                ${checked ? payload.count : null}, ${checked ? payload.bait_consumed_pct : null}, ${payload.pest || null}, ${payload.actions ?? []}, ${payload.notes || null}, ${change.id})
+        on conflict (visit_id, device_id) where visit_id is not null do update set
+          checked_at = excluded.checked_at, checked_by = excluded.checked_by, status = excluded.status, activity = excluded.activity, count = excluded.count,
+          bait_consumed_pct = excluded.bait_consumed_pct, pest = excluded.pest, actions = excluded.actions, notes = excluded.notes, client_id = excluded.client_id`;
+      return { id: change.id, result: "applied" };
+    }
+    case "device_add": {
+      if (!isDeviceKind(payload.device_kind)) return rejected(change.id, "pick what kind of device it is");
+      if (!(ZONES as readonly string[]).includes(payload.zone)) return rejected(change.id, "pick interior, exterior or perimeter");
+      if (!payload.number.trim() || !payload.location.trim()) return rejected(change.id, "a device needs a number and a location");
+      if (!validPosition(payload.x, payload.y) || (payload.x !== null && !payload.map_id)) return rejected(change.id, "the map position is not on the map");
+      try {
+        await tx.savepoint((sp) => sp`
+          insert into public.devices (id, tenant_id, property_id, number, barcode, kind, zone, location, map_id, x, y, installed_on, client_id)
+          values (${payload.device_id}, ${tenantId}, ${visit.property_id}, ${payload.number.trim()}, ${payload.barcode?.trim() || null}, ${payload.device_kind}, ${payload.zone},
+                  ${payload.location.trim()}, ${payload.map_id}, ${payload.x}, ${payload.y}, ${dateInZone(instant(payload.at), visit.timezone)}, ${change.id})`);
+      } catch (err) {
+        if ((err as { code?: string }).code === "23505") return rejected(change.id, "sync.deviceNumberTaken");
+        throw err;
+      }
+      return { id: change.id, result: "applied" };
+    }
+    case "device_move": {
+      const d = await device(payload.device_id);
+      if (!d || d.status !== "active") return rejected(change.id, "sync.deviceUnknown");
+      if (!payload.location.trim() || !(ZONES as readonly string[]).includes(payload.zone)) return rejected(change.id, "a device needs a location");
+      if (!validPosition(payload.x, payload.y) || (payload.x !== null && !payload.map_id)) return rejected(change.id, "the map position is not on the map");
+      await tx`update public.devices set zone = ${payload.zone}, location = ${payload.location.trim()}, map_id = ${payload.map_id}, x = ${payload.x}, y = ${payload.y} where id = ${d.id}`;
+      return { id: change.id, result: "applied" };
+    }
+    case "device_remove": {
+      const d = await device(payload.device_id);
+      if (!d) return rejected(change.id, "sync.deviceUnknown");
+      if (d.status === "removed") return { id: change.id, result: "applied" };
+      if (!payload.reason.trim()) return rejected(change.id, "say why the device came out");
+      await tx`update public.devices set status = 'removed', removed_on = ${dateInZone(instant(payload.at), visit.timezone)}, removed_reason = ${payload.reason.trim()} where id = ${d.id}`;
+      return { id: change.id, result: "applied" };
+    }
+    case "recommendation": {
+      if (!payload.description.trim()) return rejected(change.id, "a recommendation says what to do");
+      await tx`
+        insert into public.recommendations (tenant_id, property_id, visit_id, category, description, responsibility, priority, client_id)
+        values (${tenantId}, ${visit.property_id}, ${visitId}, ${payload.category}, ${payload.description.trim()}, ${payload.responsibility}, ${payload.priority}, ${change.id})`;
       return { id: change.id, result: "applied" };
     }
     default:

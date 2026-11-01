@@ -17,6 +17,12 @@ export type Database = {
 "claim_message":
 { Args: { "p_message": string,"p_tenant": string }; Returns: boolean
                            },
+"crew_at_property":
+{ Args: { "p_property": string }; Returns: boolean
+                           },
+"crew_on_open_visit":
+{ Args: { "p_visit": string }; Returns: boolean
+                           },
 "decide_support":
 { Args: { "p_approve": boolean,"p_grant": string }; Returns: undefined
                            },
@@ -601,6 +607,102 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "tenants"
       referencedColumns: ["id"]
+    }
+                  ]
+                },"device_checks": {
+                  Row: {
+                    "actions": (string)[],"activity": string | null,"bait_consumed_pct": number | null,"checked_at": string,"checked_by": string | null,"client_id": string | null,"count": number | null,"created_at": string,"created_by": string | null,"device_id": string,"id": string,"notes": string | null,"pest": string | null,"source": string,"status": string,"tenant_id": string,"updated_at": string,"visit_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "actions"?: (string)[],"activity"?: string | null,"bait_consumed_pct"?: number | null,"checked_at"?: string,"checked_by"?: string | null,"client_id"?: string | null,"count"?: number | null,"created_at"?: string,"created_by"?: string | null,"device_id": string,"id"?: string,"notes"?: string | null,"pest"?: string | null,"source"?: string,"status": string,"tenant_id": string,"updated_at"?: string,"visit_id"?: string | null
+                  }
+                  Update: {
+                    "actions"?: (string)[],"activity"?: string | null,"bait_consumed_pct"?: number | null,"checked_at"?: string,"checked_by"?: string | null,"client_id"?: string | null,"count"?: number | null,"created_at"?: string,"created_by"?: string | null,"device_id"?: string,"id"?: string,"notes"?: string | null,"pest"?: string | null,"source"?: string,"status"?: string,"tenant_id"?: string,"updated_at"?: string,"visit_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "device_checks_tenant_id_device_id_fkey"
+      columns: ["tenant_id","device_id"]
+isOneToOne: false
+      referencedRelation: "devices"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "device_checks_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "device_checks_tenant_id_visit_id_fkey"
+      columns: ["tenant_id","visit_id"]
+isOneToOne: false
+      referencedRelation: "visits"
+      referencedColumns: ["tenant_id","id"]
+    }
+                  ]
+                },"device_events": {
+                  Row: {
+                    "after": Json | null,"at": string,"before": Json | null,"by": string | null,"created_at": string,"device_id": string,"id": string,"kind": string,"tenant_id": string,"visit_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "after"?: Json | null,"at"?: string,"before"?: Json | null,"by"?: string | null,"created_at"?: string,"device_id": string,"id"?: string,"kind": string,"tenant_id": string,"visit_id"?: string | null
+                  }
+                  Update: {
+                    "after"?: Json | null,"at"?: string,"before"?: Json | null,"by"?: string | null,"created_at"?: string,"device_id"?: string,"id"?: string,"kind"?: string,"tenant_id"?: string,"visit_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "device_events_tenant_id_device_id_fkey"
+      columns: ["tenant_id","device_id"]
+isOneToOne: false
+      referencedRelation: "devices"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "device_events_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"devices": {
+                  Row: {
+                    "barcode": string | null,"client_id": string | null,"created_at": string,"created_by": string | null,"id": string,"installed_on": string,"kind": string,"location": string,"map_id": string | null,"number": string,"product_id": string | null,"property_id": string,"removed_on": string | null,"removed_reason": string | null,"status": string,"tenant_id": string,"updated_at": string,"x": number | null,"y": number | null,"zone": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "barcode"?: string | null,"client_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"installed_on"?: string,"kind": string,"location": string,"map_id"?: string | null,"number": string,"product_id"?: string | null,"property_id": string,"removed_on"?: string | null,"removed_reason"?: string | null,"status"?: string,"tenant_id": string,"updated_at"?: string,"x"?: number | null,"y"?: number | null,"zone"?: string
+                  }
+                  Update: {
+                    "barcode"?: string | null,"client_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"installed_on"?: string,"kind"?: string,"location"?: string,"map_id"?: string | null,"number"?: string,"product_id"?: string | null,"property_id"?: string,"removed_on"?: string | null,"removed_reason"?: string | null,"status"?: string,"tenant_id"?: string,"updated_at"?: string,"x"?: number | null,"y"?: number | null,"zone"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "devices_product_id_fkey"
+      columns: ["product_id"]
+isOneToOne: false
+      referencedRelation: "products"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "devices_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "devices_tenant_id_map_id_fkey"
+      columns: ["tenant_id","map_id"]
+isOneToOne: false
+      referencedRelation: "site_maps"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "devices_tenant_id_property_id_fkey"
+      columns: ["tenant_id","property_id"]
+isOneToOne: false
+      referencedRelation: "properties"
+      referencedColumns: ["tenant_id","id"]
     }
                   ]
                 },"files": {
@@ -1537,6 +1639,44 @@ isOneToOne: false
       referencedColumns: ["tenant_id","id"]
     }
                   ]
+                },"recommendations": {
+                  Row: {
+                    "category": string,"client_id": string | null,"closed_note": string | null,"closed_on": string | null,"created_at": string,"created_by": string | null,"description": string,"due_on": string | null,"id": string,"owner_name": string | null,"priority": string,"property_id": string,"responsibility": string,"sighting_id": string | null,"status": string,"tenant_id": string,"updated_at": string,"visit_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "category": string,"client_id"?: string | null,"closed_note"?: string | null,"closed_on"?: string | null,"created_at"?: string,"created_by"?: string | null,"description": string,"due_on"?: string | null,"id"?: string,"owner_name"?: string | null,"priority"?: string,"property_id": string,"responsibility"?: string,"sighting_id"?: string | null,"status"?: string,"tenant_id": string,"updated_at"?: string,"visit_id"?: string | null
+                  }
+                  Update: {
+                    "category"?: string,"client_id"?: string | null,"closed_note"?: string | null,"closed_on"?: string | null,"created_at"?: string,"created_by"?: string | null,"description"?: string,"due_on"?: string | null,"id"?: string,"owner_name"?: string | null,"priority"?: string,"property_id"?: string,"responsibility"?: string,"sighting_id"?: string | null,"status"?: string,"tenant_id"?: string,"updated_at"?: string,"visit_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "recommendations_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "recommendations_tenant_id_property_id_fkey"
+      columns: ["tenant_id","property_id"]
+isOneToOne: false
+      referencedRelation: "properties"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "recommendations_tenant_id_sighting_id_fkey"
+      columns: ["tenant_id","sighting_id"]
+isOneToOne: false
+      referencedRelation: "sightings"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "recommendations_tenant_id_visit_id_fkey"
+      columns: ["tenant_id","visit_id"]
+isOneToOne: false
+      referencedRelation: "visits"
+      referencedColumns: ["tenant_id","id"]
+    }
+                  ]
                 },"roles": {
                   Row: {
                     "created_at": string,"created_by": string | null,"description": string | null,"id": string,"key": string,"name": string,"permissions": (string)[],"tenant_id": string | null,"updated_at": string
@@ -1605,14 +1745,14 @@ isOneToOne: false
                   ]
                 },"service_types": {
                   Row: {
-                    "active": boolean,"archived_at": string | null,"created_at": string,"created_by": string | null,"default_duration_minutes": number,"description": string | null,"id": string,"job_kind": string,"name": string,"pricing_method": string,"service_line": string,"tenant_id": string,"treatment_areas": (string)[],"updated_at": string
+                    "active": boolean,"archived_at": string | null,"created_at": string,"created_by": string | null,"default_duration_minutes": number,"description": string | null,"device_kinds": (string)[],"id": string,"job_kind": string,"name": string,"pricing_method": string,"service_line": string,"tenant_id": string,"treatment_areas": (string)[],"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "active"?: boolean,"archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"default_duration_minutes"?: number,"description"?: string | null,"id"?: string,"job_kind": string,"name": string,"pricing_method"?: string,"service_line": string,"tenant_id": string,"treatment_areas"?: (string)[],"updated_at"?: string
+                    "active"?: boolean,"archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"default_duration_minutes"?: number,"description"?: string | null,"device_kinds"?: (string)[],"id"?: string,"job_kind": string,"name": string,"pricing_method"?: string,"service_line": string,"tenant_id": string,"treatment_areas"?: (string)[],"updated_at"?: string
                   }
                   Update: {
-                    "active"?: boolean,"archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"default_duration_minutes"?: number,"description"?: string | null,"id"?: string,"job_kind"?: string,"name"?: string,"pricing_method"?: string,"service_line"?: string,"tenant_id"?: string,"treatment_areas"?: (string)[],"updated_at"?: string
+                    "active"?: boolean,"archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"default_duration_minutes"?: number,"description"?: string | null,"device_kinds"?: (string)[],"id"?: string,"job_kind"?: string,"name"?: string,"pricing_method"?: string,"service_line"?: string,"tenant_id"?: string,"treatment_areas"?: (string)[],"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -1621,6 +1761,102 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "tenants"
       referencedColumns: ["id"]
+    }
+                  ]
+                },"sightings": {
+                  Row: {
+                    "count": number | null,"created_at": string,"created_by": string | null,"id": string,"location": string,"notes": string | null,"pest": string,"property_id": string,"reported_by": string | null,"resolution": string | null,"resolved_at": string | null,"seen_at": string,"source": string,"tenant_id": string,"updated_at": string,"visit_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "count"?: number | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"location": string,"notes"?: string | null,"pest": string,"property_id": string,"reported_by"?: string | null,"resolution"?: string | null,"resolved_at"?: string | null,"seen_at": string,"source"?: string,"tenant_id": string,"updated_at"?: string,"visit_id"?: string | null
+                  }
+                  Update: {
+                    "count"?: number | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"location"?: string,"notes"?: string | null,"pest"?: string,"property_id"?: string,"reported_by"?: string | null,"resolution"?: string | null,"resolved_at"?: string | null,"seen_at"?: string,"source"?: string,"tenant_id"?: string,"updated_at"?: string,"visit_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sightings_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "sightings_tenant_id_property_id_fkey"
+      columns: ["tenant_id","property_id"]
+isOneToOne: false
+      referencedRelation: "properties"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "sightings_tenant_id_visit_id_fkey"
+      columns: ["tenant_id","visit_id"]
+isOneToOne: false
+      referencedRelation: "visits"
+      referencedColumns: ["tenant_id","id"]
+    }
+                  ]
+                },"site_documents": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"file_id": string,"id": string,"kind": string,"property_id": string,"shared": boolean,"tenant_id": string,"title": string,"updated_at": string,"valid_until": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"file_id": string,"id"?: string,"kind"?: string,"property_id": string,"shared"?: boolean,"tenant_id": string,"title": string,"updated_at"?: string,"valid_until"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"file_id"?: string,"id"?: string,"kind"?: string,"property_id"?: string,"shared"?: boolean,"tenant_id"?: string,"title"?: string,"updated_at"?: string,"valid_until"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "site_documents_tenant_id_file_id_fkey"
+      columns: ["tenant_id","file_id"]
+isOneToOne: false
+      referencedRelation: "files"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "site_documents_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "site_documents_tenant_id_property_id_fkey"
+      columns: ["tenant_id","property_id"]
+isOneToOne: false
+      referencedRelation: "properties"
+      referencedColumns: ["tenant_id","id"]
+    }
+                  ]
+                },"site_maps": {
+                  Row: {
+                    "archived_at": string | null,"created_at": string,"created_by": string | null,"file_id": string,"height": number,"id": string,"name": string,"position": number,"property_id": string,"tenant_id": string,"updated_at": string,"width": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"file_id": string,"height": number,"id"?: string,"name": string,"position"?: number,"property_id": string,"tenant_id": string,"updated_at"?: string,"width": number
+                  }
+                  Update: {
+                    "archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"file_id"?: string,"height"?: number,"id"?: string,"name"?: string,"position"?: number,"property_id"?: string,"tenant_id"?: string,"updated_at"?: string,"width"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "site_maps_tenant_id_file_id_fkey"
+      columns: ["tenant_id","file_id"]
+isOneToOne: false
+      referencedRelation: "files"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "site_maps_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "site_maps_tenant_id_property_id_fkey"
+      columns: ["tenant_id","property_id"]
+isOneToOne: false
+      referencedRelation: "properties"
+      referencedColumns: ["tenant_id","id"]
     }
                   ]
                 },"support_access_log": {

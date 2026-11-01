@@ -30,6 +30,7 @@ function visit(overrides: Partial<RouteVisit> = {}, captured: Partial<RouteVisit
     crew: [{ user_id: "u1", name: "Sam Rivera", role: "lead", credential: { cert_number: "OH-APP-1042", categories: ["7A", "7F"], trainee: false, cert_expires_on: "2027-12-31" } }],
     state_rule: null,
     required_fields: [],
+    site: null,
     captured: {
       // 01:30 EST on November 1, after the clocks fell back; the business date is November 1.
       arrived_at: "2026-11-01T05:40:00Z",
@@ -59,6 +60,7 @@ function visit(overrides: Partial<RouteVisit> = {}, captured: Partial<RouteVisit
       notes: [{ id: "n1", kind: "note", content: "Ant trail at the foundation.", recorded_at: "2026-11-01T06:10:00Z" }],
       photos: [],
       signature: { signer_name: "Maria Lopez", signed_at: "2026-11-01T06:28:00Z", file_id: "f1" },
+      device_checks: [],
       ...captured,
     },
     ...overrides,
