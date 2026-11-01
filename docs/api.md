@@ -41,7 +41,7 @@ Answers are JSON. Writes answer `201`, reads `200`. An error has a code and a me
 | 403 | `forbidden` | The key lacks the scope |
 | 404 | `not_found` | The property, device or account is not the key's company's |
 | 422 | `invalid` | A field is missing or malformed |
-| 429 | `rate_limited` | Over 60 calls in a minute for the key (shared by every tool using it); wait `Retry-After` seconds |
+| 429 | `rate_limited` | Over 60 calls in a minute for the key (shared by every tool using it; refused calls do not count); wait `Retry-After` seconds |
 | 500 | `server_error` | Try again |
 
 Every call is logged (method, path, status and time, never the body) for 30 days; the owner sees the latest calls and
@@ -88,8 +88,9 @@ office's requests inbox to confirm; nothing is scheduled by the API. Answers `{ 
 
 ### `GET /api/v1/availability?property_id=...`
 
-The weekdays in the next 14 where a technician of the property's branch has fewer stops than the company's daily
-limit. It promises nothing and books nothing:
+The days in the next 14 where a technician of the property's branch has fewer stops than the company's daily limit:
+weekdays, and a weekend day where the company has worked that day of the week in the last 90 days. It promises nothing
+and books nothing:
 
 ```json
 { "days": [{ "date": "2026-11-04", "windows": ["morning", "afternoon"] }] }
@@ -118,7 +119,8 @@ An unknown barcode answers 404. Answers `{ "check_id": "..." }`.
 
 ## Webhooks
 
-A subscription (Settings, Integrations) sends the events it names to a URL:
+A subscription (Settings, Integrations) sends the events it names to an `https://` URL on a public host (addresses
+inside private networks are refused):
 
 | Event | Data |
 | --- | --- |
@@ -147,7 +149,8 @@ function verify(secret, body, header) {
 }
 ```
 
-Deliveries go out from the messaging job, in order per subscription, at least once (use the `id` to drop repeats). A
+Deliveries go out after each messaging job, in order per subscription (a delivery waits while an earlier one is being
+retried), at least once (use the `id` to drop repeats). A
 receiver answers any 2xx; anything else, or no answer in 10 seconds, is retried after 1 minute, 5 minutes, 30 minutes,
 2 hours and 12 hours, then marked failed. A `410 Gone` turns the subscription off. The delivery log keeps 30 days.
 
@@ -170,5 +173,6 @@ its `call_id`; a later event with the same id adds the length and recording. Whi
 
 Not part of the API: the bookkeeper connects QuickBooks under Settings, Integrations (OAuth with Intuit when
 `QBO_CLIENT_ID` and `QBO_CLIENT_SECRET` are set, a local test company otherwise), maps Bugsy's accounts to theirs, and
-the billing job sends each day's journal once as one entry summed per account. A day with an unmapped account waits and
-says which.
+after each billing job sends each closed day's journal once, as one entry summed per account. A day holds what was
+posted for it (an entry dated into a day already sent goes with the day it was entered), the sync resumes from the
+first unsent day, and a day with an unmapped account waits and says which.

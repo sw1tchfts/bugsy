@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { can } from "@/lib/auth/permissions";
 import { dbAs, getSession } from "@/lib/auth/session";
 import { runBilling } from "@/lib/billing/db";
+import { syncQuickBooks } from "@/lib/quickbooks/db";
 import { sql } from "@/lib/db";
 import { resolveActiveTenant } from "@/lib/tenancy/active-tenant";
 
@@ -26,6 +27,8 @@ export async function POST(request: Request) {
         console.error("billing job failed", t.id, err);
         results[t.name] = { error: "failed" };
       }
+      // Spec 20 rule 7: QuickBooks after billing commits, in its own transaction; it can never undo the billing run.
+      await sql.begin((tx) => syncQuickBooks(tx, t.id, t.timezone)).catch((err) => console.error("quickbooks sync failed", t.id, err));
     }
     return NextResponse.json({ ok: true, tenants: results });
   }
@@ -36,5 +39,11 @@ export async function POST(request: Request) {
   if (!active) return new NextResponse("no company", { status: 403 });
   if (!can(active.permissions, "billing.write")) return new NextResponse("billing.write needed", { status: 403 });
   const counts = await dbAs(session, (tx) => runBilling(tx, active.tenantId, active.tenantTimezone, new Date(), session.userId, { reclass: can(active.permissions, "gl.write"), payouts: true }));
-  return NextResponse.json({ ok: true, counts });
+  const quickbooks = can(active.permissions, "gl.write")
+    ? await dbAs(session, (tx) => syncQuickBooks(tx, active.tenantId, active.tenantTimezone)).catch((err) => {
+        console.error("quickbooks sync failed", active.tenantId, err);
+        return null;
+      })
+    : null;
+  return NextResponse.json({ ok: true, counts, quickbooks });
 }

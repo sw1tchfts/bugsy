@@ -767,12 +767,6 @@ export async function runBilling(
   // Rule 10: referral credits for referred customers' first plans signed by staff who cannot issue credits.
   const { creditReferrals } = await import("@/lib/growth/db");
   await creditReferrals(tx, tenantId, today);
-  // Spec 20 rule 7: each closed day's journal to QuickBooks once, after the ledger has posted it (imported late:
-  // integrations build on the ledger).
-  if (ledger.quickbooks ?? ledger.reclass) {
-    const { syncQuickBooks } = await import("@/lib/quickbooks/db");
-    await syncQuickBooks(tx, tenantId, timeZone);
-  }
   return counts;
 }
 

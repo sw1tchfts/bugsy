@@ -52,7 +52,7 @@ export async function seedIntegrations(sql: Sql, tenant: SeedTenant, tenantId: s
   const today = todayInZone(tenant.timezone);
   await sql`
     insert into public.integration_connections (tenant_id, provider, status, settings, tokens, connected_by, connected_at)
-    values (${tenantId}, 'quickbooks', 'connected', ${sql.json({ realm_id: "local-realm", provider: "local" })},
+    values (${tenantId}, 'quickbooks', 'connected', ${sql.json({ realm_id: "local-realm", provider: "local", sync_from: addDays(today, -10) })},
             ${seal({ access_token: "local", refresh_token: "local", expires_at: Date.now() - 1, realm_id: "local-realm" })}, ${owner?.user_id ?? null}, now() - interval '10 days'),
            (${tenantId}, 'phone', 'connected', ${sql.json({ provider: "Office VoIP", call_number: "+15555550100" })}, null, ${owner?.user_id ?? null}, now() - interval '10 days')`;
   const accounts = await sql<{ id: string; type: string; subtype: string }[]>`select id, type, subtype from public.gl_accounts where tenant_id = ${tenantId} and active`;

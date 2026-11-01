@@ -11,7 +11,8 @@ export interface QuickBooksProvider {
   exchange(code: string, realmId: string, redirectUri: string): Promise<QboTokens>;
   refresh(tokens: QboTokens): Promise<QboTokens>;
   accounts(tokens: QboTokens): Promise<QboAccount[]>;
-  createEntry(tokens: QboTokens, day: string, memo: string, lines: readonly SummaryLine[]): Promise<string>;
+  /** `requestId` makes a repeat of the same day's entry a no-op at Intuit (rule 7: a day is sent once). */
+  createEntry(tokens: QboTokens, day: string, memo: string, lines: readonly SummaryLine[], requestId: string): Promise<string>;
 }
 
 const LOCAL_ACCOUNTS: QboAccount[] = [
@@ -62,7 +63,7 @@ export const intuitQuickBooks: QuickBooksProvider = {
     const data = (await res.json()) as { QueryResponse?: { Account?: { Id: string; Name: string; AccountType: string }[] } };
     return (data.QueryResponse?.Account ?? []).map((a) => ({ id: a.Id, name: a.Name, type: a.AccountType }));
   },
-  createEntry: async (t, day, memo, lines) => {
+  createEntry: async (t, day, memo, lines, requestId) => {
     const body = {
       TxnDate: day,
       PrivateNote: memo,
@@ -74,7 +75,7 @@ export const intuitQuickBooks: QuickBooksProvider = {
         JournalEntryLineDetail: { PostingType: l.posting, AccountRef: { value: l.qbo_account_id, name: l.qbo_account_name } },
       })),
     };
-    const res = await fetch(`${apiBase()}/v3/company/${t.realm_id}/journalentry`, {
+    const res = await fetch(`${apiBase()}/v3/company/${t.realm_id}/journalentry?requestid=${encodeURIComponent(requestId.slice(0, 50))}`, {
       method: "POST",
       headers: { authorization: `Bearer ${t.access_token}`, accept: "application/json", "content-type": "application/json" },
       body: JSON.stringify(body),

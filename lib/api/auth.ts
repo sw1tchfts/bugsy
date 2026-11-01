@@ -20,13 +20,13 @@ export async function apiCall(request: Request, run: (tx: Tx, key: ApiKey) => Pr
   const parsed = parseKey(raw);
   if (!parsed) return apiError(401, "unauthorized", "Send the API key as a Bearer token.");
   const path = new URL(request.url).pathname;
-  const [key] = await withAnon((tx) => tx<(ApiKey & { limited: boolean })[]>`select key_id, tenant_id, scopes, limited from app.api_key(${parsed.prefix}, ${hashKey(parsed.key)})`);
+  // Rule 2: the key is checked and the call takes its place in the minute's count in one step (no burst slips past).
+  const [key] = await withAnon((tx) =>
+    tx<(ApiKey & { request_id: string; limited: boolean })[]>`select request_id, key_id, tenant_id, scopes, limited from app.api_begin(${parsed.prefix}, ${hashKey(parsed.key)}, ${request.method}, ${path})`,
+  );
   if (!key) return apiError(401, "unauthorized", "That key is not valid or was revoked.");
-  const log = (status: number) => withAnon((tx) => tx`select app.api_log(${key.key_id}, ${request.method}, ${path}, ${status})`).catch(() => undefined);
-  if (key.limited) {
-    await log(429);
-    return apiError(429, "rate_limited", "At most 60 calls a minute per key.", { "retry-after": "60" });
-  }
+  const log = (status: number) => withAnon((tx) => tx`select app.api_finish(${key.request_id}, ${status})`).catch(() => undefined);
+  if (key.limited) return apiError(429, "rate_limited", "At most 60 calls a minute per key.", { "retry-after": "60" });
   try {
     const body = await withAnon((tx) => run(tx, key));
     await log(successStatus);

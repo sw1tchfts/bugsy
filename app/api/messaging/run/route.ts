@@ -3,6 +3,7 @@ import { can } from "@/lib/auth/permissions";
 import { dbAs, getSession } from "@/lib/auth/session";
 import { sql } from "@/lib/db";
 import { runMessaging } from "@/lib/messaging/db";
+import { deliverWebhooks } from "@/lib/webhooks/db";
 import { resolveActiveTenant } from "@/lib/tenancy/active-tenant";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,9 @@ export async function POST(request: Request) {
         console.error("messaging job failed", t.id, err);
         results[t.name] = { error: "failed" };
       }
+      // Spec 20 rule 5: webhooks after the messages commit, in their own transaction, so a slow receiver never undoes
+      // or delays what was sent.
+      await sql.begin((tx) => deliverWebhooks(tx, t.id)).catch((err) => console.error("webhooks failed", t.id, err));
     }
     return NextResponse.json({ ok: true, tenants: results });
   }
@@ -34,5 +38,9 @@ export async function POST(request: Request) {
   if (!active) return new NextResponse("no company", { status: 403 });
   if (!can(active.permissions, "messages.send")) return new NextResponse("messages.send needed", { status: 403 });
   const counts = await dbAs(session, (tx) => runMessaging(tx, active.tenantId, active.tenantTimezone));
-  return NextResponse.json({ ok: true, counts });
+  const webhooks = await dbAs(session, (tx) => deliverWebhooks(tx, active.tenantId)).catch((err) => {
+    console.error("webhooks failed", active.tenantId, err);
+    return null;
+  });
+  return NextResponse.json({ ok: true, counts, webhooks });
 }

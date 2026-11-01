@@ -517,8 +517,6 @@ async function earliestPeriod(tx: Sql, tenantId: string): Promise<string | null>
 export type LedgerRunOptions = {
   /** The period-end reclass reads the journal and posts with gl.write: the job, or a member who has it. */
   reclass: boolean;
-  /** Sending the day's summary to QuickBooks writes its sync log, which needs gl.write: the job, or a member who has it (defaults to `reclass`). */
-  quickbooks?: boolean;
   /** Local payouts claim payments, which needs billing.write: the job, or a member who has it. */
   payouts: boolean;
 };

@@ -1,25 +1,34 @@
-// The QuickBooks daily sync (spec 20 rule 7), in the billing job: each day since the last one sent, summarized per
-// mapped account and sent once; a day with an unmapped account waits and says which.
+// The QuickBooks daily sync (spec 20 rule 7), run after the billing job commits, in its own transaction: each closed
+// day not yet sent, from the first unsent one, summarized per mapped account and sent once. A day holds what was posted
+// for it; an entry dated into a day already sent goes with the day it was recorded, so it still reaches QuickBooks.
 import type postgres from "postgres";
 import { addDays, dateInZone, todayInZone } from "@/lib/dates";
 import { open, seal } from "@/lib/integrations/crypto";
-import { type QboTokens, quickBooks } from "./provider";
+import { type QboTokens, type QuickBooksProvider, quickBooks } from "./provider";
 import { summarizeDay } from "./summary";
 
 type Sql = postgres.Sql | postgres.TransactionSql;
 
 export async function qboTokens(tx: Sql, tenantId: string): Promise<QboTokens | null> {
   const [s] = await tx<{ tokens: string | null }[]>`select tokens from app.connection_secrets(${tenantId}, 'quickbooks')`;
-  return open<QboTokens>(s?.tokens ?? null);
+  try {
+    return open<QboTokens>(s?.tokens ?? null);
+  } catch {
+    // Tokens sealed with another secret cannot be read: the connection needs to be made again.
+    return null;
+  }
 }
 
 /** Fresh tokens, refreshed when they are about to expire; a failed refresh marks the connection for reconnection. */
-export async function liveTokens(tx: Sql, tenantId: string): Promise<QboTokens | null> {
+export async function liveTokens(tx: Sql, tenantId: string, provider: QuickBooksProvider = quickBooks()): Promise<QboTokens | null> {
   const t = await qboTokens(tx, tenantId);
-  if (!t) return null;
+  if (!t) {
+    await tx`select app.set_connection_tokens(${tenantId}, 'quickbooks', null, 'needs_reconnect')`;
+    return null;
+  }
   if (t.expires_at > Date.now() + 60_000) return t;
   try {
-    const fresh = await quickBooks().refresh(t);
+    const fresh = await provider.refresh(t);
     await tx`select app.set_connection_tokens(${tenantId}, 'quickbooks', ${seal(fresh)}, 'connected')`;
     return fresh;
   } catch {
@@ -30,25 +39,46 @@ export async function liveTokens(tx: Sql, tenantId: string): Promise<QboTokens |
 
 export type SyncResult = { sent: number; failed: number; waiting: string | null };
 
-export async function syncQuickBooks(tx: Sql, tenantId: string, timeZone: string, onlyDay?: string): Promise<SyncResult> {
-  const [c] = await tx<{ status: string; connected_at: Date }[]>`select status, connected_at from public.integration_connections where tenant_id = ${tenantId} and provider = 'quickbooks'`;
-  if (!c || c.status !== "connected") return { sent: 0, failed: 0, waiting: c ? "QuickBooks needs to be connected again." : null };
-  const tokens = await liveTokens(tx, tenantId);
-  if (!tokens) return { sent: 0, failed: 0, waiting: "QuickBooks needs to be connected again." };
+const fail = (message: string): never => {
+  throw Object.assign(new Error(message), { code: "23514" });
+};
+
+export async function syncQuickBooks(tx: Sql, tenantId: string, timeZone: string, onlyDay?: string, provider: QuickBooksProvider = quickBooks()): Promise<SyncResult> {
   const yesterday = addDays(todayInZone(timeZone), -1);
-  const [last] = await tx<{ day: string | null }[]>`select max(day)::text as day from public.quickbooks_syncs where tenant_id = ${tenantId} and status = 'sent'`;
-  const start = onlyDay ?? (last?.day ? addDays(last.day, 1) : dateInZone(c.connected_at, timeZone));
+  if (onlyDay && onlyDay > yesterday) fail("Only a closed day can be sent; today is still open.");
+  // One sync per company at a time: a second waits, then finds the days already sent.
+  await tx`select pg_advisory_xact_lock(hashtext(${`qbo:${tenantId}`}))`;
+  const [c] = await tx<{ status: string; connected_at: Date; sync_from: string | null }[]>`
+    select status, connected_at, settings ->> 'sync_from' as sync_from from public.integration_connections where tenant_id = ${tenantId} and provider = 'quickbooks'`;
+  if (!c || c.status !== "connected") return { sent: 0, failed: 0, waiting: c ? "QuickBooks needs to be connected again." : null };
+  const tokens = await liveTokens(tx, tenantId, provider);
+  if (!tokens) return { sent: 0, failed: 0, waiting: "QuickBooks needs to be connected again." };
+  const from = c.sync_from ?? dateInZone(c.connected_at, timeZone);
+  // The first unsent day onward: a gap left by sending a later day alone is never skipped.
+  const days = onlyDay
+    ? [onlyDay]
+    : (
+        await tx<{ day: string }[]>`
+          select d::date::text as day from generate_series(${from}::date, ${yesterday}::date, interval '1 day') d
+          where not exists (select 1 from public.quickbooks_syncs s where s.tenant_id = ${tenantId} and s.day = d::date and s.status = 'sent')
+          order by d limit 31`
+      ).map((r) => r.day);
   const mapping = await tx<{ gl_account_id: string; qbo_account_id: string; qbo_account_name: string }[]>`
     select gl_account_id, qbo_account_id, qbo_account_name from public.quickbooks_account_map where tenant_id = ${tenantId}`;
   const out: SyncResult = { sent: 0, failed: 0, waiting: null };
-  const provider = quickBooks();
-  for (let day = start, n = 0; day <= (onlyDay ?? yesterday) && n < 31; day = addDays(day, 1), n += 1) {
+  for (const day of days) {
     const [done] = await tx<{ status: string }[]>`select status from public.quickbooks_syncs where tenant_id = ${tenantId} and day = ${day}`;
     if (done?.status === "sent") continue;
     const lines = await tx<{ gl_account_id: string; account_name: string; debit_cents: string; credit_cents: string }[]>`
       select l.gl_account_id, a.name as account_name, sum(l.debit_cents)::text as debit_cents, sum(l.credit_cents)::text as credit_cents
       from public.journal_lines l join public.journal_entries e on e.id = l.entry_id join public.gl_accounts a on a.id = l.gl_account_id
-      where l.tenant_id = ${tenantId} and e.posted_on = ${day} group by l.gl_account_id, a.name`;
+      where l.tenant_id = ${tenantId} and (
+        -- What was posted for the day, unless the day had already gone to QuickBooks when it was recorded;
+        (e.posted_on = ${day}::date and not exists (select 1 from public.quickbooks_syncs s where s.tenant_id = e.tenant_id and s.day = e.posted_on and s.status = 'sent' and s.sent_at < e.created_at))
+        -- then it goes with the day it was recorded, so a correction dated into a sent day still reaches QuickBooks.
+        or (e.posted_on <> ${day}::date and (e.created_at at time zone ${timeZone})::date = ${day}::date
+            and exists (select 1 from public.quickbooks_syncs s where s.tenant_id = e.tenant_id and s.day = e.posted_on and s.status = 'sent' and s.sent_at < e.created_at)))
+      group by l.gl_account_id, a.name`;
     const summary = summarizeDay(lines.map((l) => ({ gl_account_id: l.gl_account_id, account_name: l.account_name, debit_cents: Number(l.debit_cents), credit_cents: Number(l.credit_cents) })), mapping);
     if (!summary.ok) {
       const error = `Map these accounts first: ${summary.unmapped.join(", ")}.`;
@@ -64,7 +94,7 @@ export async function syncQuickBooks(tx: Sql, tenantId: string, timeZone: string
       continue;
     }
     try {
-      const id = await provider.createEntry(tokens, day, `Bugsy summary for ${day}`, summary.lines);
+      const id = await provider.createEntry(tokens, day, `Bugsy summary for ${day}`, summary.lines, `${tenantId}:${day}`);
       await tx`insert into public.quickbooks_syncs (tenant_id, day, status, qbo_entry_id, lines, sent_at) values (${tenantId}, ${day}, 'sent', ${id}, ${tx.json(summary.lines)}, now())
                on conflict (tenant_id, day) do update set status = 'sent', qbo_entry_id = excluded.qbo_entry_id, lines = excluded.lines, error = null, sent_at = now(), attempts = quickbooks_syncs.attempts + 1`;
       out.sent += 1;

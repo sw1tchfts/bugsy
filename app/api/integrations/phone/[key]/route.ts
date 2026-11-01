@@ -14,8 +14,10 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function POST(request: Request, { params }: { params: Promise<{ key: string }> }) {
   const { key } = await params;
   if (!UUID.test(key)) return NextResponse.json({ error: { code: "not_found", message: "No such phone connection." } }, { status: 404 });
+  // Refuse a large body before reading it, and count bytes, not characters.
+  if (Number(request.headers.get("content-length") ?? "0") > 16_384) return NextResponse.json({ error: { code: "invalid", message: "Too large." } }, { status: 413 });
   const raw = await request.text();
-  if (raw.length > 16_384) return NextResponse.json({ error: { code: "invalid", message: "Too large." } }, { status: 413 });
+  if (Buffer.byteLength(raw, "utf8") > 16_384) return NextResponse.json({ error: { code: "invalid", message: "Too large." } }, { status: 413 });
   const [{ secret }] = await withAnon((tx) => tx<{ secret: string | null }[]>`select app.phone_secret(${key}) as secret`);
   if (!secret) return NextResponse.json({ error: { code: "not_found", message: "No such phone connection." } }, { status: 404 });
   if (!verify(secret, raw, request.headers.get("bugsy-signature") ?? "")) {

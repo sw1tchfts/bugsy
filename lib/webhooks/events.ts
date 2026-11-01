@@ -11,20 +11,14 @@ export const EVENT_LABELS: Record<EventName, string> = {
   "invoice.paid": "An invoice is paid",
 };
 
-/** What each event may carry: ids and the event's facts, nothing more (rule 6). */
-const FIELDS: Record<EventName, readonly string[]> = {
-  "lead.created": ["lead_id", "name", "email", "phone", "source", "service_type", "created_at"],
+/** The facts each event carries (rule 6): the database builds the payloads; tests hold it to this list. */
+export const EVENT_FIELDS: Record<EventName, readonly string[]> = {
+  "lead.created": ["lead_id", "name", "email", "phone", "source", "created_at"],
   "service_request.created": ["request_id", "account_id", "property_id", "kind", "preferred_date", "created_at"],
   "visit.scheduled": ["visit_id", "account_id", "property_id", "scheduled_for", "arrival_window", "technician"],
   "visit.completed": ["visit_id", "account_id", "property_id", "completed_at", "service_type"],
   "invoice.paid": ["invoice_id", "account_id", "number", "total_cents", "paid_at"],
 };
-
-export function payloadFor(event: EventName, facts: Record<string, unknown>): Record<string, unknown> {
-  const data: Record<string, unknown> = {};
-  for (const f of FIELDS[event]) if (facts[f] !== undefined) data[f] = facts[f];
-  return { event, data };
-}
 
 /** `t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<body>">`, as the receiver checks it. */
 export function sign(secret: string, body: string, at: Date = new Date()): string {

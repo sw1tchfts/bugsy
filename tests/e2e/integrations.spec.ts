@@ -201,6 +201,8 @@ test("integrations: a scoped key looks up, reads availability and adds a lead; a
   await expect(page.getByTestId("api-key").filter({ hasText: `Receptionist ${run}` })).toHaveCount(0);
   await expect(page.getByTestId("webhook-sub").filter({ hasText: hookUrl })).toHaveCount(0);
   await signOut(page);
+  // The receiver goes away with the test, so its subscription does too.
+  await sql`update public.webhook_subscriptions set active = false where url = ${hookUrl}`;
   server.close();
   await sql.end();
 });

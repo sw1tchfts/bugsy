@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { cleanScopes, hasScope, hashKey, newKey, parseKey, sameHash } from "@/lib/api/keys";
 import { balanced, summarizeDay } from "@/lib/quickbooks/summary";
-import { RETRY_MINUTES, nextAttempt, payloadFor, sign, verify } from "@/lib/webhooks/events";
+import { deliverable, post, privateAddress } from "@/lib/webhooks/db";
+import { RETRY_MINUTES, nextAttempt, sign, verify } from "@/lib/webhooks/events";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 
 describe("API keys (spec 20 rule 1)", () => {
   it("makes a key that parses back to its prefix and is stored only as a hash", () => {
@@ -35,8 +38,25 @@ describe("webhooks (spec 20 rules 5 and 6)", () => {
     expect(nextAttempt(RETRY_MINUTES.length + 1, t)).toBeNull();
   });
 
-  it("carries only the event's own facts", () => {
-    expect(payloadFor("lead.created", { lead_id: "l1", name: "Pat", card_number: "4242", notes: "x" })).toEqual({ event: "lead.created", data: { lead_id: "l1", name: "Pat" } });
+  it("sends only to https on public hosts (review fix)", async () => {
+    const resolve = (ips: string[]) => async () => ips;
+    expect(await deliverable("https://hooks.example.com/x", resolve(["93.184.216.34"]), true)).toBe(true);
+    expect(await deliverable("http://hooks.example.com/x", resolve(["93.184.216.34"]), true)).toBe(false);
+    expect(await deliverable("https://inside.example.com/x", resolve(["10.0.0.5"]), true)).toBe(false);
+    expect(await deliverable("https://169.254.169.254/latest/meta-data", resolve([]), true)).toBe(false);
+    expect(await deliverable("http://127.0.0.1:4000/hook", resolve([]), true)).toBe(false);
+    expect(await deliverable("http://127.0.0.1:4000/hook", resolve([]), false)).toBe(true);
+    expect(["127.0.0.1", "10.1.2.3", "172.20.0.1", "192.168.1.1", "169.254.1.1", "100.64.0.1", "::1", "fd00::1", "fe80::1", "::ffff:10.0.0.1"].every(privateAddress)).toBe(true);
+    expect(["93.184.216.34", "8.8.8.8", "2606:4700::1111"].some(privateAddress)).toBe(false);
+  });
+
+  it("counts a receiver that does not answer in time as a failure (edge case)", async () => {
+    const server = createServer(() => undefined);
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+    const r = await post(`http://127.0.0.1:${(server.address() as AddressInfo).port}/slow`, "s", "{}", 300);
+    server.closeAllConnections();
+    server.close();
+    expect(r.status).toBe(0);
   });
 });
 

@@ -12,6 +12,13 @@ import { sweep } from "../../lib/ledger/db";
 import { fromTenantLocal, todayInZone } from "../../lib/dates";
 import { applyAssign, applyOptimize, arrivalRange, proposeAssign, proposeOptimize, purgePositions } from "../../lib/routing/db";
 import { routingDemoDay } from "../../scripts/seed-routing";
+import { hashKey } from "../../lib/api/keys";
+import { callerMatches } from "../../lib/phone/db";
+import type { QuickBooksProvider } from "../../lib/quickbooks/provider";
+import { syncQuickBooks } from "../../lib/quickbooks/db";
+import { seal } from "../../lib/integrations/crypto";
+import { EVENT_FIELDS } from "../../lib/webhooks/events";
+import { devApiKey } from "../../scripts/seed-integrations";
 import { PG_TYPES } from "../../lib/pg-types";
 import { buildQuery } from "../../lib/reports/builder";
 import { arAging, salesBySource, technicianReport } from "../../lib/reports/db";
@@ -3033,7 +3040,8 @@ describe("spec 20 integrations enforced in the database", () => {
       const officeSubscribes = await attempt(tx, (sp) => sp`insert into public.webhook_subscriptions (tenant_id, url, events, secret) values (${northwindId}, 'https://x.example.com', '{lead.created}', 's')`);
       await as(seedUserEmail(northwind, "owner"));
       const [{ ownerSees }] = await tx<{ ownerSees: number }[]>`
-        select count(*)::int as "ownerSees" from public.webhook_deliveries where event = 'lead.created' and payload -> 'data' ->> 'lead_id' = ${lead.id}`;
+        select count(*)::int as "ownerSees" from public.webhook_deliveries d join public.webhook_subscriptions s on s.id = d.subscription_id
+        where d.event = 'lead.created' and d.payload -> 'data' ->> 'lead_id' = ${lead.id} and s.url = 'https://hooks.example.com/rls'`;
       await as(seedUserEmail(lakeshore, "owner"));
       const [{ otherSees }] = await tx<{ otherSees: number }[]>`select count(*)::int as "otherSees" from public.webhook_deliveries where payload -> 'data' ->> 'lead_id' = ${lead.id}`;
       await asAdmin();
@@ -3073,5 +3081,122 @@ describe("spec 20 integrations enforced in the database", () => {
     expect(result.other).toBe(0);
     expect(result.bookkeeperPhone).toMatch(RLS_ERROR);
     expect(result.bookkeeperBooks).toMatch(/^ok/);
+  });
+});
+
+describe("spec 20 review fixes enforced in the database", () => {
+  const ROLLBACK = "rollback: spec 20 fixes";
+  async function rolledBack<T>(fn: (tx: Tx, asAnon: () => Promise<void>, asAdmin: () => Promise<void>) => Promise<T>): Promise<T> {
+    let out: T | undefined;
+    await admin
+      .begin(async (tx) => {
+        const asAnon = async () => {
+          await tx.unsafe("reset role");
+          await tx`select set_config('request.jwt.claims', '', true)`;
+          await tx.unsafe("set local role anon");
+        };
+        const asAdmin = async () => {
+          await tx.unsafe("reset role");
+          await tx`select set_config('request.jwt.claims', '', true)`;
+        };
+        out = await fn(tx, asAnon, asAdmin);
+        throw new Error(ROLLBACK);
+      })
+      .catch((e: Error) => {
+        if (e.message !== ROLLBACK) throw e;
+      });
+    return out as T;
+  }
+
+  it("takes each call's place in the minute in one step, and refused calls do not count (rule 2)", async () => {
+    const result = await rolledBack(async (tx, asAnon) => {
+      const key = devApiKey(northwind.name);
+      await tx`delete from public.api_requests where tenant_id = ${northwindId}`;
+      await asAnon();
+      const answers: boolean[] = [];
+      for (let i = 0; i < 62; i += 1) {
+        const [r] = await tx<{ limited: boolean }[]>`select limited from app.api_begin(${key.slice(4, 12)}, ${hashKey(key)}, 'GET', '/api/v1/availability')`;
+        answers.push(r.limited);
+      }
+      const [bad] = await tx<{ n: number }[]>`select count(*)::int as n from app.api_begin('zzzzzzzz', ${hashKey("bgy_zzzzzzzz_x")}, 'GET', '/')`;
+      return { allowed: answers.filter((a) => !a).length, refused: answers.filter(Boolean).length, unknownKey: bad.n };
+    });
+    expect(result).toEqual({ allowed: 60, refused: 2, unknownKey: 0 });
+  });
+
+  it("holds a delivery behind an earlier one being retried, ends one on a 410, and sends only the event's facts (rules 5 and 6)", async () => {
+    const result = await rolledBack(async (tx) => {
+      const [sub] = await tx<{ id: string }[]>`
+        insert into public.webhook_subscriptions (tenant_id, url, events, secret) values (${northwindId}, 'https://hooks.example.com/order', '{lead.created}', 'whsec_order') returning id`;
+      const [source] = await tx<{ id: string }[]>`select id from public.lead_sources where tenant_id = ${northwindId} limit 1`;
+      await tx`insert into public.leads (tenant_id, source_id, name, phone, notes) values (${northwindId}, ${source.id}, 'Order one', '6145550901', 'private note')`;
+      await tx`insert into public.leads (tenant_id, source_id, name, phone) values (${northwindId}, ${source.id}, 'Order two', '6145550902')`;
+      const mine = await tx<{ id: string; payload: { data: Record<string, unknown> } }[]>`select id, payload from public.webhook_deliveries where subscription_id = ${sub.id} order by seq`;
+      const due = async () => (await tx<{ id: string }[]>`select id from app.webhooks_due(${northwindId})`).map((d) => d.id).filter((id) => mine.some((m) => m.id === id));
+      const first = await due();
+      await tx`select app.webhook_result(${mine[0].id}, 500, 'down', now() + interval '1 minute')`;
+      const whileRetrying = await due();
+      await tx`select app.webhook_result(${mine[0].id}, 410, 'gone', now() + interval '1 minute')`;
+      const [ended] = await tx<{ status: string; active: boolean }[]>`
+        select d.status, s.active from public.webhook_deliveries d join public.webhook_subscriptions s on s.id = d.subscription_id where d.id = ${mine[0].id}`;
+      const http = await tx.savepoint((sp) => sp`insert into public.webhook_subscriptions (tenant_id, url, events, secret) values (${northwindId}, 'http://169.254.169.254/latest', '{lead.created}', 's')`).then(() => "ok", (e: Error) => e.message);
+      return { first, whileRetrying, ended, keys: Object.keys(mine[0].payload.data).sort(), ids: mine.map((m) => m.id), http };
+    });
+    expect(result.first).toEqual([result.ids[0]]);
+    expect(result.whileRetrying).toEqual([]);
+    expect(result.ended).toEqual({ status: "failed", active: false });
+    expect(result.keys).toEqual([...EVENT_FIELDS["lead.created"]].sort());
+    expect(result.http).toMatch(/webhook_subscriptions_https/);
+  });
+
+  it("sends each closed day once from the first unsent day, and marks a failed refresh for reconnection (rule 7)", async () => {
+    const tz = lakeshore.timezone;
+    const sent: string[] = [];
+    const provider = (refreshFails: boolean): QuickBooksProvider => ({
+      kind: "local",
+      authorizeUrl: () => "",
+      exchange: async () => ({ access_token: "a", refresh_token: "r", expires_at: Date.now() + 3_600_000, realm_id: "x" }),
+      refresh: async (t) => {
+        if (refreshFails) throw new Error("expired refresh token");
+        return { ...t, expires_at: Date.now() + 3_600_000 };
+      },
+      accounts: async () => [],
+      createEntry: async (_t, day) => {
+        sent.push(day);
+        return `stub-${day}`;
+      },
+    });
+    const result = await rolledBack(async (tx) => {
+      // Tokens about to expire: the sync must refresh them first.
+      await tx`select app.set_connection_tokens(${lakeshoreId}, 'quickbooks', ${seal({ access_token: "a", refresh_token: "r", expires_at: 0, realm_id: "x" })}, 'connected')`;
+      const failed = await syncQuickBooks(tx, lakeshoreId, tz, undefined, provider(true));
+      const [{ status }] = await tx<{ status: string }[]>`select status from public.integration_connections where tenant_id = ${lakeshoreId} and provider = 'quickbooks'`;
+      await tx`update public.integration_connections set status = 'connected' where tenant_id = ${lakeshoreId} and provider = 'quickbooks'`;
+      const first = await syncQuickBooks(tx, lakeshoreId, tz, undefined, provider(false));
+      const again = await syncQuickBooks(tx, lakeshoreId, tz, undefined, provider(false));
+      const [{ unsent }] = await tx<{ unsent: number }[]>`
+        select count(*)::int as unsent from generate_series((select (settings ->> 'sync_from')::date from public.integration_connections where tenant_id = ${lakeshoreId} and provider = 'quickbooks'),
+          (now() at time zone ${tz})::date - 1, interval '1 day') d
+        where not exists (select 1 from public.quickbooks_syncs s where s.tenant_id = ${lakeshoreId} and s.day = d::date and s.status = 'sent')`;
+      const today = await tx.savepoint((sp) => syncQuickBooks(sp, lakeshoreId, tz, "2999-01-01", provider(false))).then(() => "ok", (e: Error) => e.message);
+      return { failed, status, first, again, unsent, today };
+    });
+    expect(result.failed.waiting).toMatch(/connected again/);
+    expect(result.status).toBe("needs_reconnect");
+    expect(result.first.failed).toBe(0);
+    expect(result.again.sent).toBe(0);
+    expect(result.unsent).toBe(0);
+    expect(new Set(sent).size).toBe(sent.length);
+    expect(result.today).toMatch(/Only a closed day/);
+  });
+
+  it("pops every account a shared number belongs to (rule 8 edge case)", async () => {
+    const result = await rolledBack(async (tx) => {
+      const two = await tx<{ id: string }[]>`select id from public.accounts where tenant_id = ${lakeshoreId} and archived_at is null order by created_at limit 2`;
+      await tx`update public.accounts set phone = '(312) 555-0777' where id = any(${two.map((a) => a.id)}::uuid[])`;
+      return { want: two.map((a) => a.id).sort(), got: (await callerMatches(tx, lakeshoreId, "+13125550777")).map((m) => m.id).sort(), none: (await callerMatches(tx, lakeshoreId, "anonymous")).length };
+    });
+    expect(result.got).toEqual(result.want);
+    expect(result.none).toBe(0);
   });
 });

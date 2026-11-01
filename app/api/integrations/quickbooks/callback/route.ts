@@ -5,6 +5,7 @@ import { dbAs, getSession } from "@/lib/auth/session";
 import { errorCode } from "@/lib/db";
 import { seal } from "@/lib/integrations/crypto";
 import { quickBooks } from "@/lib/quickbooks/provider";
+import { todayInZone } from "@/lib/dates";
 import { resolveActiveTenant } from "@/lib/tenancy/active-tenant";
 
 export const dynamic = "force-dynamic";
@@ -31,8 +32,11 @@ export async function GET(request: Request) {
     const tokens = await provider.exchange(code, realmId, `${url.origin}/api/integrations/quickbooks/callback`);
     await dbAs(session, async (tx) => {
       await tx`
-        insert into public.integration_connections (tenant_id, provider, status, settings) values (${tenantId}, 'quickbooks', 'connected', ${tx.json({ realm_id: realmId, provider: provider.kind })})
-        on conflict (tenant_id, provider) do update set status = 'connected', settings = excluded.settings, connected_at = now(), connected_by = auth.uid()`;
+        insert into public.integration_connections (tenant_id, provider, status, settings)
+        values (${tenantId}, 'quickbooks', 'connected', ${tx.json({ realm_id: realmId, provider: provider.kind, sync_from: todayInZone(active.tenantTimezone) })})
+        on conflict (tenant_id, provider) do update set status = 'connected', connected_at = now(), connected_by = auth.uid(),
+          -- A reconnection keeps the day the sync started from, so the days it missed while disconnected still go.
+          settings = excluded.settings || jsonb_build_object('sync_from', coalesce(integration_connections.settings ->> 'sync_from', excluded.settings ->> 'sync_from'))`;
       await tx`select app.set_connection_tokens(${tenantId}, 'quickbooks', ${seal(tokens)}, 'connected')`;
     });
   } catch (err) {
