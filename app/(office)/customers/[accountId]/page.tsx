@@ -11,7 +11,9 @@ import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 import { BILLING_MODE_LABELS, type BillingMode, CADENCE_LABELS, type Cadence } from "@/lib/agreements/cadence";
 import { AGREEMENT_STATUS_LABELS } from "@/lib/agreements/forms";
 import { statementFor } from "@/lib/billing/db";
-import { formatBusinessDate, todayInZone } from "@/lib/dates";
+import { formatBusinessDate, formatInstant, todayInZone } from "@/lib/dates";
+import { timeline } from "@/lib/messaging/db";
+import { replyAction, sendMessageAction } from "@/app/(office)/messages/actions";
 import { createQuote } from "@/app/(office)/quotes/actions";
 import { archiveAccount, archiveContact, setContactConsent, updateAccount } from "../actions";
 
@@ -70,6 +72,8 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
   if (!data) notFound();
   const { account, properties, contacts, quotes, agreements } = data;
   const billing = can(active.permissions, "billing.read") ? await dbAs(session, (tx) => statementFor(tx, tenantId, accountId, todayInZone(active.tenantTimezone), active.tenantTimezone)) : null;
+  const messages = await dbAs(session, (tx) => timeline(tx, tenantId, accountId));
+  const canMessage = can(active.permissions, "messages.send");
   const here = `/customers/${accountId}`;
 
   return (
@@ -252,6 +256,78 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
           </dl>
         </Card>
       ) : null}
+
+      <Card title="Messages" description="Every message to and from this account, newest first, with what happened to it.">
+        {canMessage && contacts.length ? (
+          <form action={sendMessageAction} className="mb-4 grid gap-2 sm:grid-cols-6" data-testid="send-message">
+            <input type="hidden" name="tenant_id" value={tenantId} />
+            <input type="hidden" name="account_id" value={account.id} />
+            <input type="hidden" name="return_to" value={`/customers/${account.id}`} />
+            <Select name="contact_id" aria-label="To" className="sm:col-span-2">
+              {contacts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.phone ? `, ${c.phone}` : ""}
+                  {c.email ? `, ${c.email}` : ""}
+                </option>
+              ))}
+            </Select>
+            <Select name="channel" aria-label="By" defaultValue="sms">
+              <option value="sms">Text</option>
+              <option value="email">Email</option>
+            </Select>
+            <Input name="subject" placeholder="Email subject" aria-label="Email subject" />
+            <Input name="body" placeholder="Message" aria-label="Message" className="sm:col-span-2" required />
+            <div className="sm:col-span-6">
+              <Button type="submit" variant="secondary">
+                Send
+              </Button>
+            </div>
+          </form>
+        ) : null}
+        {messages.length === 0 ? (
+          <Empty>No messages yet.</Empty>
+        ) : (
+          <ul className="grid gap-2 text-sm">
+            {messages.map((m) => (
+              <li key={m.id} className={`rounded-md border p-2 ${m.direction === "inbound" ? "border-emerald-200 bg-emerald-50" : "border-stone-200"}`} data-testid="timeline-message">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500">
+                  <Badge tone={m.status === "delivered" || m.status === "sent" || m.status === "received" ? "good" : m.status === "failed" ? "bad" : m.status === "suppressed" ? "warn" : "neutral"}>{m.status}</Badge>
+                  <span>
+                    {m.direction === "inbound" ? `from ${m.from_address}` : `${m.channel === "sms" ? "text" : m.channel} to ${m.to_address || "nobody"}`}, {m.purpose.replace("_", " ")}
+                  </span>
+                  <span>{formatInstant(m.created_at, active.tenantTimezone)}</span>
+                  {m.notice_id ? (
+                    <Link href={`/compliance/notices/${m.notice_id}`} className="underline">
+                      notice
+                    </Link>
+                  ) : null}
+                  {m.direction === "outbound" && m.status !== "suppressed" ? (
+                    <a href={`/m/${m.token}`} className="underline">
+                      view
+                    </a>
+                  ) : null}
+                </div>
+                {m.subject ? <p className="font-medium">{m.subject}</p> : null}
+                <p className="whitespace-pre-wrap">{m.body.length > 400 ? `${m.body.slice(0, 400)}...` : m.body}</p>
+                {m.suppressed_reason ? <p className="text-xs text-amber-800">Not sent: {m.suppressed_reason}</p> : null}
+                {m.error ? <p className="text-xs text-red-800">Failed: {m.error}</p> : null}
+                {canMessage && m.direction === "inbound" && m.from_address ? (
+                  <form action={replyAction} className="mt-2 flex gap-2">
+                    <input type="hidden" name="tenant_id" value={tenantId} />
+                    <input type="hidden" name="message_id" value={m.id} />
+                    <input type="hidden" name="return_to" value={`/customers/${account.id}`} />
+                    <Input name="body" placeholder="Reply by text" aria-label="Reply by text" className="flex-1" />
+                    <Button type="submit" variant="secondary">
+                      Reply
+                    </Button>
+                  </form>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       <Card title="Quotes">
         {quotes.length === 0 ? (

@@ -3,6 +3,8 @@
 import type postgres from "postgres";
 import { invoiceForVisit, recordPayment } from "@/lib/billing/db";
 import { postProductUse, postVisit } from "@/lib/ledger/db";
+import { queueOnTheWay, queueVisitSummary } from "@/lib/messaging/db";
+import { safely } from "@/lib/messaging/safely";
 import { checkLabelRate } from "@/lib/catalog/label-rates";
 import { onVisitCompleted } from "@/lib/compliance/db";
 import { decodeBase64File, putFile } from "@/lib/files";
@@ -44,7 +46,11 @@ async function apply(tx: Sql, actor: Actor, change: QueuedChange): Promise<SyncR
       if (r.count === 0) {
         const [v] = await tx<{ status: string }[]>`select status from public.visits where id = ${visitId}`;
         if (!v || !["en_route", "in_progress", "completed"].includes(v.status)) return rejected(change.id, `the visit is ${v?.status ?? "gone"}, not scheduled`);
+        return { id: change.id, result: "applied" };
       }
+      // The customer hears the technician is on the way (spec 11); a tap synced hours late is recorded, not sent.
+      const [zone] = await tx<{ timezone: string }[]>`select timezone from public.tenants where id = ${tenantId}`;
+      await safely(tx, "on-the-way text", (t) => queueOnTheWay(t, tenantId, visitId, new Date(instant(payload.at)), zone?.timezone ?? "UTC"));
       return { id: change.id, result: "applied" };
     }
     case "arrive": {
@@ -130,6 +136,8 @@ async function apply(tx: Sql, actor: Actor, change: QueuedChange): Promise<SyncR
       await invoiceForVisit(tx, tenantId, visitId, tenant?.timezone ?? "UTC");
       await postVisit(tx, tenantId, visitId, tenant?.timezone ?? "UTC");
       await postProductUse(tx, tenantId, visitId, tenant?.timezone ?? "UTC");
+      // The summary goes to the customer, carrying the post-application notice when it can (spec 11 rule 8).
+      await safely(tx, "visit summary", (t) => queueVisitSummary(t, tenantId, visitId, tenant?.timezone ?? "UTC"));
       return { id: change.id, result: "applied" };
     }
     case "payment": {

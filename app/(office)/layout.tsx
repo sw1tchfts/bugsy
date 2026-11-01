@@ -59,6 +59,9 @@ export default async function OfficeLayout({ children }: { children: React.React
                 <Link href="/compliance" className="text-stone-700 hover:text-stone-900">
                   Compliance
                 </Link>
+                <Link href="/messages" className="text-stone-700 hover:text-stone-900">
+                  Messages
+                </Link>
                 <Link href="/billing" className="text-stone-700 hover:text-stone-900">
                   Billing
                 </Link>
@@ -79,6 +82,9 @@ export default async function OfficeLayout({ children }: { children: React.React
                 </Link>
                 <Link href="/settings/audit" className="text-stone-700 hover:text-stone-900">
                   Audit
+                </Link>
+                <Link href="/settings/messaging" className="text-stone-700 hover:text-stone-900">
+                  Messaging
                 </Link>
                 <Link href="/settings/import" className="text-stone-700 hover:text-stone-900">
                   Import

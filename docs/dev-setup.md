@@ -60,6 +60,16 @@ The compliance job is idempotent and meant to run hourly. On Vercel, a cron call
 
 The billing job is idempotent too and meant to run daily after midnight in each company's zone, hourly is fine. On Vercel, a cron calls `POST /api/billing/run` with the `x-billing-secret` header set to `BILLING_RUN_SECRET` (it falls back to `COMPLIANCE_RUN_SECRET`); locally the script above does the same, and anyone with billing write access can press "Run the billing job now" on the Billing page for their own company. It issues per-visit invoices for completed stops, the installments and prepayments whose dates have come, applies unallocated credit, charges autopay on due dates with retries on the configured days, marks invoices past due after the grace period, and adds late fees. It ends with the ledger's work (spec 09): a sweep that posts any business event still without its journal entry, the local gateway's payouts for the previous days' card money, and the period-end reclass for every ended month still open.
 
+### Messages locally
+
+Without provider keys, email, texts and letters go through local providers that record and deliver in the database: an email to a domain ending in `.bounce.test` bounces, a text to a number ending in `0000` fails, everything else is delivered. Every message is on the account's page and in Messages, with a public link at `/m/<token>`. A customer's text is simulated with:
+
+```bash
+curl -s -X POST localhost:3000/api/messaging/local -H 'content-type: application/json' -d '{"tenant":"Northwind Pest Control","from":"614-555-0100","body":"STOP"}'
+```
+
+`npm run messaging:run` (or "Send what is due now") queues reminders and due notices and sends what is due; on Vercel a cron calls `POST /api/messaging/run` every few minutes with `x-messaging-secret`. For Twilio, point the number's messaging webhook and status callback at `/api/messaging/twilio`; for Postmark, the delivery, bounce and complaint webhooks at `/api/messaging/postmark?secret=<POSTMARK_WEBHOOK_SECRET>`.
+
 ### Go-live import
 
 Settings, Import takes the five CSV templates (download them from the page) and a go-live date. A dry run shows every row error and writes nothing; Import writes everything or nothing. `fixtures/import/` holds a sample set, and each demo company was seeded by importing it with go-live 2026-10-01, so the agreements G-1 to G-5 show visits done before Bugsy and opening contract balances.

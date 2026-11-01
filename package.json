@@ -16,7 +16,8 @@
     "db:reset-local": "tsx scripts/db-reset-local.ts",
     "db:types": "tsx scripts/db-types.ts",
     "compliance:run": "tsx scripts/compliance-run.ts",
-    "billing:run": "tsx scripts/billing-run.ts"
+    "billing:run": "tsx scripts/billing-run.ts",
+    "messaging:run": "tsx scripts/messaging-run.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

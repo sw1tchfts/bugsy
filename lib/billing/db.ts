@@ -12,6 +12,8 @@ import { type Statement, type StatementAllocation, type StatementInvoice, type S
 import { type TaxClass, type TaxRate, ratesInForce, taxClassFor, taxForLine } from "@/lib/billing/tax";
 import { addDays, addMonths, dateInZone, todayInZone } from "@/lib/dates";
 import { type LedgerCounts, type LedgerRunOptions, postInvoice, postPayment, postRefund, postVoid, runLedger, tenantTimeZone } from "@/lib/ledger/db";
+import { queueInvoiceEmail } from "@/lib/messaging/db";
+import { safely } from "@/lib/messaging/safely";
 import { gatewayFor } from "@/lib/payments";
 import { platformFeeBps } from "@/lib/payments/gateway";
 
@@ -207,8 +209,9 @@ export async function issueInvoice(tx: Sql, tenantId: string, invoiceId: string,
     set status = 'issued', issued_on = ${issuedOn}, due_on = ${dueOnOverride ?? dueOn(issuedOn, account?.terms_days ?? inv.terms_days)}, terms_days = ${account?.terms_days ?? inv.terms_days},
         subtotal_cents = ${totals.subtotal_cents}, tax_cents = ${totals.tax_cents}, total_cents = ${totals.total_cents}, tax_unconfirmed = ${taxed.some((l) => l.tax_class === "unknown")}
     where id = ${invoiceId} and tenant_id = ${tenantId} and status = 'draft'`;
-  // The books follow in the same transaction (spec 09 rule 2).
+  // The books follow in the same transaction (spec 09 rule 2), and the customer gets the invoice by email (spec 11).
   await postInvoice(tx, tenantId, invoiceId);
+  await safely(tx, "invoice email", (t) => queueInvoiceEmail(t, tenantId, invoiceId));
   return true;
 }
 

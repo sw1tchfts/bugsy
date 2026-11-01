@@ -191,8 +191,14 @@ test("a technician works a stop offline, syncs it, the office sees the record, a
     select p.method, p.amount_cents::text, a.amount_cents::text as allocated, i.source_key, i.status as invoice_status
     from public.payments p left join public.payment_allocations a on a.payment_id = p.id left join public.invoices i on i.id = a.invoice_id
     where p.visit_id = ${visitId}`;
+  // The completion sent Maria the visit summary (spec 11 rule 8); its page carries what was applied.
+  const [summary] = await sql<{ status: string; channel: string; token: string }[]>`select status, channel, token from public.messages where visit_id = ${visitId} and purpose = 'summary'`;
   await sql.end();
   expect(cash).toMatchObject({ method: "cash", amount_cents: "19900", allocated: "19900", source_key: `visit:${visitId}`, invoice_status: "paid" });
+  expect(summary?.status).toBe("delivered");
+  const summaryPage = await page.request.get(`/m/${summary.token}`);
+  expect(summaryPage.status()).toBe(200);
+  expect(await summaryPage.text()).toContain("100-1066");
   expect(lakeshoreFile, "the seed stores Lakeshore files").toBeTruthy();
   const foreign = await page.request.get(`/api/files/${lakeshoreFile.id}`);
   expect(foreign.status()).toBe(404);

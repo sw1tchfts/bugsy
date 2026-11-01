@@ -864,8 +864,12 @@ describe("spec 07 rules enforced in the database", () => {
     await expect(asUser(manager, managerEmail, (tx) => tx`update public.notices set proof = '{}'::jsonb where id = ${sent.id}`)).rejects.toThrow(/kept as proof/);
     await expect(asUser(manager, managerEmail, (tx) => tx`update public.notices set status = 'waived', waived_reason = 'x' where id = ${sent.id}`)).rejects.toThrow(/kept as proof/);
     // The office (agreements.read) reads notices but cannot write proof: its update touches nothing.
-    const [due] = await admin<{ id: string }[]>`select id from public.notices where tenant_id = ${lakeshoreId} and status = 'due' limit 1`;
-    expect(due, "the seed leaves Lakeshore notices due").toBeTruthy();
+    // The messaging job sends the seed's electronic and mailed notices, so the test makes a printed one of its own.
+    const [due] = await admin<{ id: string }[]>`
+      insert into public.notices (tenant_id, kind, rule_key, required, dedupe_key, property_id, recipient_name, channel, status)
+      select tenant_id, 'other', 'default', false, ${`rls:due:${Date.now()}`}, property_id, recipient_name, 'print', 'due' from public.notices where id = ${sent.id}
+      returning id`;
+    expect(due, "a due Lakeshore notice").toBeTruthy();
     const seen = await asUser(office, officeEmail, (tx) => tx`select id from public.notices where id = ${due.id}`);
     expect(seen.length).toBe(1);
     const byOffice = await asUser(office, officeEmail, (tx) => tx`update public.notices set status = 'sent', sent_at = now() where id = ${due.id}`);
@@ -1323,5 +1327,60 @@ describe("spec 10 import outcomes on the seeded go-live", () => {
     await expect(
       asUser(dispatcher, dispatcherEmail, (tx) => tx`insert into public.visits (tenant_id, account_id, property_id, service_type_id, kind, due_start, due_end, status, imported) select tenant_id, account_id, property_id, service_type_id, 'one_time', current_date, current_date, 'completed', true from public.visits where id = ${visit.id}`),
     ).rejects.toThrow(/only an import/);
+  });
+});
+
+describe("spec 11 rules enforced in the database", () => {
+  const techEmail = seedUserEmail(lakeshore, "technician");
+  const officeEmail = seedUserEmail(lakeshore, "office");
+  let tech = "";
+  let office = "";
+  const message = (purpose: string, extra: Record<string, unknown> = {}) => ({ channel: "sms", purpose, to_address: "+16145550100", body: "rls", dedupe_key: `rls:${purpose}:${Date.now()}:${Math.random()}`, ...extra });
+
+  beforeAll(async () => {
+    tech = await userId(techEmail);
+    office = await userId(officeEmail);
+  });
+
+  it("lets automations queue only what their event allows: the crew's on-the-way text, not a one-off message or a campaign (rule 14)", async () => {
+    const [visit] = await admin<{ id: string }[]>`select v.id from public.visits v join public.visit_crew c on c.visit_id = v.id where v.tenant_id = ${lakeshoreId} and c.user_id = ${tech} limit 1`;
+    const [{ id }] = await asUser(tech, techEmail, (tx) => tx<{ id: string }[]>`select app.queue_message(${lakeshoreId}, ${tx.json(message("on_the_way", { visit_id: visit.id }))}) as id`);
+    expect(id).toBeTruthy();
+    await expect(asUser(tech, techEmail, (tx) => tx`select app.queue_message(${lakeshoreId}, ${tx.json(message("other"))})`)).rejects.toThrow(/messages\.send/);
+    await expect(asUser(tech, techEmail, (tx) => tx`select app.queue_message(${northwindId}, ${tx.json(message("on_the_way", { visit_id: visit.id }))})`)).rejects.toThrow(/not a member/);
+    const [{ id: officeId }] = await asUser(office, officeEmail, (tx) => tx<{ id: string }[]>`select app.queue_message(${lakeshoreId}, ${tx.json(message("other"))}) as id`);
+    expect(officeId).toBeTruthy();
+    await expect(asUser(office, officeEmail, (tx) => tx`insert into public.messages (tenant_id, direction, channel, purpose, to_address, body, status) values (${lakeshoreId}, 'outbound', 'sms', 'other', '+16145550100', 'direct', 'delivered')`)).rejects.toThrow(/row-level security/);
+  });
+
+  it("keeps a sent message as it was sent and moves its status only forward (rule 1)", async () => {
+    const [sent] = await admin<{ id: string }[]>`select id from public.messages where tenant_id = ${lakeshoreId} and status = 'delivered' limit 1`;
+    await expect(admin`update public.messages set body = 'changed' where id = ${sent.id}`).rejects.toThrow(/keeps what it said/);
+    await expect(admin`update public.messages set status = 'queued' where id = ${sent.id}`).rejects.toThrow(/cannot move/);
+    await expect(admin`delete from public.messages where id = ${sent.id}`).rejects.toThrow(/never deleted/);
+  });
+
+  it("marks a notice sent with the message that carried it as proof (rule 9)", async () => {
+    const [n] = await admin<{ status: string; proof: { method?: string; message_id?: string } }[]>`select status, proof from public.notices where tenant_id = ${lakeshoreId} and channel = 'mail' limit 1`;
+    expect(n.status).toBe("sent");
+    const [m] = await admin<{ notice_id: string | null }[]>`select notice_id from public.messages where id = ${n.proof.message_id ?? null}`;
+    expect(n.proof.method).toBe("mail");
+    expect(m.notice_id).toBeTruthy();
+  });
+
+  it("opts a number out for its own company only, and shows the public page by token alone (rules 3 and 13)", async () => {
+    const theirs = await asUser(office, officeEmail, (tx) => tx<{ tenant_id: string }[]>`select tenant_id from public.message_opt_outs`);
+    expect(new Set(theirs.map((r) => r.tenant_id))).toEqual(new Set([lakeshoreId]));
+    const [m] = await admin<{ token: string }[]>`select token from public.messages where tenant_id = ${lakeshoreId} and channel = 'email' and status = 'delivered' limit 1`;
+    const view = await admin.begin(async (tx) => {
+      await tx.unsafe("set local role anon");
+      const page = await tx<{ company_name: string }[]>`select company_name from app.message_view(${m.token})`;
+      const none = await tx`select 1 from app.message_view('00000000000000000000000000000000000000000000')`;
+      const table = await tx`select 1 from public.messages limit 1`.catch(() => "refused");
+      return { page, none: none.length, table };
+    });
+    expect(view.page[0].company_name).toBeTruthy();
+    expect(view.none).toBe(0);
+    expect(view.table === "refused" || (Array.isArray(view.table) && view.table.length === 0)).toBe(true);
   });
 });

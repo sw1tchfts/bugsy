@@ -14,8 +14,20 @@ export type Database = {
             "accept_invitation":
 { Args: { "invite_token": string }; Returns: string
                            },
+"claim_message":
+{ Args: { "p_message": string,"p_tenant": string }; Returns: boolean
+                           },
+"defer_message":
+{ Args: { "p_message": string,"p_tenant": string,"p_until": string }; Returns: undefined
+                           },
 "ensure_chart":
 { Args: { "p_chart": Json,"p_tenant": string }; Returns: number
+                           },
+"ensure_messaging_settings":
+{ Args: { "p_tenant": string }; Returns: string
+                           },
+"first_open_day":
+{ Args: { "p_day": string,"p_tenant": string }; Returns: string
                            },
 "has_permission":
 { Args: { "perm": string,"tenant": string }; Returns: boolean
@@ -39,9 +51,17 @@ export type Database = {
               "id": string,"reversed_by": string
             }[]
                            },
+"mark_messages_read":
+{ Args: { "p_ids": (string)[],"p_tenant": string }; Returns: number
+                           },
 "member_directory":
 { Args: { "tenant": string }; Returns: {
               "email": string,"last_sign_in_at": string,"user_id": string
+            }[]
+                           },
+"message_view":
+{ Args: { "p_token": string }; Returns: {
+              "body": string,"body_html": string,"channel": string,"company_name": string,"purpose": string,"sent_at": string,"subject": string
             }[]
                            },
 "next_number":
@@ -55,6 +75,12 @@ export type Database = {
                            },
 "product_enabled_by":
 { Args: { "product": string }; Returns: number
+                           },
+"queue_message":
+{ Args: { "p_message": Json,"p_tenant": string }; Returns: string
+                           },
+"record_message_status":
+{ Args: { "p_error": string,"p_message": string,"p_provider": string,"p_provider_id": string,"p_segments"?: number,"p_status": string,"p_tenant": string }; Returns: undefined
                            },
 "registry_matches_for":
 { Args: { "p_address": string,"p_state": string,"p_tenant": string }; Returns: Json
@@ -85,6 +111,9 @@ export type Database = {
                            },
 "tenant_states":
 { Args: { "tenant": string }; Returns: string[]
+                           },
+"unsubscribe":
+{ Args: { "p_token": string }; Returns: string
                            },
 "visit_agreement":
 { Args: { "p_visit": string }; Returns: {
@@ -390,6 +419,26 @@ isOneToOne: true
                   Relationships: [
                     {
       foreignKeyName: "branches_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"campaigns": {
+                  Row: {
+                    "audience": NonNullable<Json>,"body": string,"channel": string,"counts": NonNullable<Json>,"created_at": string,"created_by": string | null,"id": string,"name": string,"scheduled_for": string | null,"sent_at": string | null,"status": string,"subject": string | null,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "audience"?: NonNullable<Json>,"body": string,"channel": string,"counts"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"id"?: string,"name": string,"scheduled_for"?: string | null,"sent_at"?: string | null,"status"?: string,"subject"?: string | null,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "audience"?: NonNullable<Json>,"body"?: string,"channel"?: string,"counts"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"id"?: string,"name"?: string,"scheduled_for"?: string | null,"sent_at"?: string | null,"status"?: string,"subject"?: string | null,"tenant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "campaigns_tenant_id_fkey"
       columns: ["tenant_id"]
 isOneToOne: false
       referencedRelation: "tenants"
@@ -872,6 +921,134 @@ isOneToOne: false
       foreignKeyName: "memberships_tenant_id_fkey"
       columns: ["tenant_id"]
 isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"message_opt_outs": {
+                  Row: {
+                    "address": string,"channel": string,"created_at": string,"created_by": string | null,"id": string,"message_id": string | null,"reason": string,"tenant_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "address": string,"channel": string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"message_id"?: string | null,"reason": string,"tenant_id": string
+                  }
+                  Update: {
+                    "address"?: string,"channel"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"message_id"?: string | null,"reason"?: string,"tenant_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "message_opt_outs_message_id_fkey"
+      columns: ["message_id"]
+isOneToOne: false
+      referencedRelation: "messages"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "message_opt_outs_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"message_templates": {
+                  Row: {
+                    "body": string,"channel": string,"created_at": string,"id": string,"key": string,"subject": string | null,"tenant_id": string,"updated_at": string,"updated_by": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "body": string,"channel": string,"created_at"?: string,"id"?: string,"key": string,"subject"?: string | null,"tenant_id": string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Update: {
+                    "body"?: string,"channel"?: string,"created_at"?: string,"id"?: string,"key"?: string,"subject"?: string | null,"tenant_id"?: string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "message_templates_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"messages": {
+                  Row: {
+                    "account_id": string | null,"body": string,"body_html": string | null,"campaign_id": string | null,"channel": string,"claimed_at": string | null,"contact_id": string | null,"created_at": string,"created_by": string | null,"dedupe_key": string | null,"delivered_at": string | null,"direction": string,"error": string | null,"failed_at": string | null,"from_address": string | null,"id": string,"invoice_id": string | null,"notice_id": string | null,"property_id": string | null,"provider": string | null,"provider_message_id": string | null,"purpose": string,"read_at": string | null,"recipient_name": string | null,"segments": number | null,"send_after": string,"sent_at": string | null,"status": string,"subject": string | null,"suppressed_reason": string | null,"tenant_id": string,"to_address": string,"token": string,"updated_at": string,"visit_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_id"?: string | null,"body": string,"body_html"?: string | null,"campaign_id"?: string | null,"channel": string,"claimed_at"?: string | null,"contact_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"dedupe_key"?: string | null,"delivered_at"?: string | null,"direction": string,"error"?: string | null,"failed_at"?: string | null,"from_address"?: string | null,"id"?: string,"invoice_id"?: string | null,"notice_id"?: string | null,"property_id"?: string | null,"provider"?: string | null,"provider_message_id"?: string | null,"purpose": string,"read_at"?: string | null,"recipient_name"?: string | null,"segments"?: number | null,"send_after"?: string,"sent_at"?: string | null,"status": string,"subject"?: string | null,"suppressed_reason"?: string | null,"tenant_id": string,"to_address": string,"token"?: string,"updated_at"?: string,"visit_id"?: string | null
+                  }
+                  Update: {
+                    "account_id"?: string | null,"body"?: string,"body_html"?: string | null,"campaign_id"?: string | null,"channel"?: string,"claimed_at"?: string | null,"contact_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"dedupe_key"?: string | null,"delivered_at"?: string | null,"direction"?: string,"error"?: string | null,"failed_at"?: string | null,"from_address"?: string | null,"id"?: string,"invoice_id"?: string | null,"notice_id"?: string | null,"property_id"?: string | null,"provider"?: string | null,"provider_message_id"?: string | null,"purpose"?: string,"read_at"?: string | null,"recipient_name"?: string | null,"segments"?: number | null,"send_after"?: string,"sent_at"?: string | null,"status"?: string,"subject"?: string | null,"suppressed_reason"?: string | null,"tenant_id"?: string,"to_address"?: string,"token"?: string,"updated_at"?: string,"visit_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "messages_contact_id_fkey"
+      columns: ["contact_id"]
+isOneToOne: false
+      referencedRelation: "contacts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "messages_notice_id_fkey"
+      columns: ["notice_id"]
+isOneToOne: false
+      referencedRelation: "notices"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "messages_tenant_id_account_id_fkey"
+      columns: ["tenant_id","account_id"]
+isOneToOne: false
+      referencedRelation: "accounts"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "messages_tenant_id_campaign_id_fkey"
+      columns: ["tenant_id","campaign_id"]
+isOneToOne: false
+      referencedRelation: "campaigns"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "messages_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: false
+      referencedRelation: "tenants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "messages_tenant_id_invoice_id_fkey"
+      columns: ["tenant_id","invoice_id"]
+isOneToOne: false
+      referencedRelation: "invoices"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "messages_tenant_id_property_id_fkey"
+      columns: ["tenant_id","property_id"]
+isOneToOne: false
+      referencedRelation: "properties"
+      referencedColumns: ["tenant_id","id"]
+    },{
+      foreignKeyName: "messages_tenant_id_visit_id_fkey"
+      columns: ["tenant_id","visit_id"]
+isOneToOne: false
+      referencedRelation: "visits"
+      referencedColumns: ["tenant_id","id"]
+    }
+                  ]
+                },"messaging_settings": {
+                  Row: {
+                    "company_phone": string | null,"created_at": string,"email_provider": string,"id": string,"invoice_email_enabled": boolean,"mail_provider": string,"on_the_way_enabled": boolean,"quiet_end": string,"quiet_start": string,"reminder_days": number,"reminders_enabled": boolean,"reply_to_email": string | null,"review_delay_hours": number,"review_enabled": boolean,"review_every_days": number,"review_url": string | null,"sender_name": string | null,"sms_number": string | null,"sms_provider": string,"sms_registration": string,"summary_enabled": boolean,"tenant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "company_phone"?: string | null,"created_at"?: string,"email_provider"?: string,"id"?: string,"invoice_email_enabled"?: boolean,"mail_provider"?: string,"on_the_way_enabled"?: boolean,"quiet_end"?: string,"quiet_start"?: string,"reminder_days"?: number,"reminders_enabled"?: boolean,"reply_to_email"?: string | null,"review_delay_hours"?: number,"review_enabled"?: boolean,"review_every_days"?: number,"review_url"?: string | null,"sender_name"?: string | null,"sms_number"?: string | null,"sms_provider"?: string,"sms_registration"?: string,"summary_enabled"?: boolean,"tenant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "company_phone"?: string | null,"created_at"?: string,"email_provider"?: string,"id"?: string,"invoice_email_enabled"?: boolean,"mail_provider"?: string,"on_the_way_enabled"?: boolean,"quiet_end"?: string,"quiet_start"?: string,"reminder_days"?: number,"reminders_enabled"?: boolean,"reply_to_email"?: string | null,"review_delay_hours"?: number,"review_enabled"?: boolean,"review_every_days"?: number,"review_url"?: string | null,"sender_name"?: string | null,"sms_number"?: string | null,"sms_provider"?: string,"sms_registration"?: string,"summary_enabled"?: boolean,"tenant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "messaging_settings_tenant_id_fkey"
+      columns: ["tenant_id"]
+isOneToOne: true
       referencedRelation: "tenants"
       referencedColumns: ["id"]
     }

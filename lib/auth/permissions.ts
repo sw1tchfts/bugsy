@@ -44,6 +44,13 @@ export const PERMISSION_GROUPS = [
     ],
   },
   {
+    label: "Messages",
+    permissions: [
+      { key: "messages.send", label: "Send messages and reply to customers" },
+      { key: "messages.manage", label: "Edit message templates, settings and campaigns" },
+    ],
+  },
+  {
     label: "Company settings",
     permissions: [
       { key: "settings.read", label: "View company settings and branches" },

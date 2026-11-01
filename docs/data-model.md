@@ -120,6 +120,16 @@ erDiagram
 | period_closes | tenant_id, period, status [closed, reopened], closed_at, closed_by, reopened_at, reopened_by, reopen_reason | Closed periods reject postings; reopening needs an owner and a reason; audited |
 | payouts | tenant_id, gateway, gateway_payout_id (unique per gateway), arrived_on, gross_cents, fee_cents, net_cents, status, payload | What the gateway sent to the bank; payments.payout_id points at it; immutable |
 
+## Messaging
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| messaging_settings | tenant_id (unique), sender_name, reply_to_email, company_phone, sms_number, sms_registration, quiet_start, quiet_end, reminders_enabled, reminder_days, on_the_way_enabled, summary_enabled, review_enabled, review_url, review_delay_hours, review_every_days, invoice_email_enabled, email_provider, sms_provider, mail_provider | Created on first use by app.ensure_messaging_settings |
+| message_templates | tenant_id, key, channel, subject, body | Company overrides of the built-in templates in lib/messaging/templates.ts |
+| messages | tenant_id, direction [outbound, inbound], channel [email, sms, mail], purpose, account_id, property_id, contact_id, visit_id, notice_id, invoice_id, campaign_id, to_address, from_address, subject, body, body_html, status [queued, sent, delivered, failed, suppressed, received], suppressed_reason, provider, provider_message_id, segments, dedupe_key, token, send_after, claimed_at, sent_at, delivered_at, failed_at, read_at | The outbox, the account timeline and notice proof. Written through app.queue_message and app.record_message_status; a sent message keeps what it said; status moves forward only |
+| message_opt_outs | tenant_id, channel [sms, email], address, reason [stop, unsubscribe, bounce, complaint, manual], message_id | Checked at send time |
+| campaigns | tenant_id, name, channel, subject, body, audience jsonb, status, scheduled_for, counts, sent_at | One message per selected account |
+
 ## Import
 
 | Table | Key columns | Notes |
