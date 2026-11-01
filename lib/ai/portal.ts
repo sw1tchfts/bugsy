@@ -2,7 +2,7 @@
 // (row level security already limits it to their account), shaped as plain data for the model. Nothing else goes in:
 // no staff notes, no other account, no internal prices.
 import type postgres from "postgres";
-import { todayInZone } from "@/lib/dates";
+import { dateInZone, todayInZone } from "@/lib/dates";
 import { type Overview, overview, visitDetail } from "@/lib/portal/db";
 import type { PortalIdentity } from "@/lib/portal/session";
 import type { PortalContext } from "./types";
@@ -23,7 +23,7 @@ export function buildContext(identity: Pick<PortalIdentity, "tenant_name" | "acc
     upcoming: o.upcoming.slice(0, 6).map((v) => ({ id: v.id, date: v.scheduled_for, status: v.scheduled_for ? "scheduled" : `due ${v.due_start} to ${v.due_end}`, service: v.service, address: v.address, window: v.arrival_window })),
     recent: o.recent.slice(0, 6).map((v) => ({
       id: v.id,
-      date: v.completed_at ? new Date(v.completed_at).toISOString().slice(0, 10) : null,
+      date: v.completed_at ? dateInZone(v.completed_at, identity.tenant_timezone) : null,
       status: "completed",
       service: v.service,
       address: v.address,

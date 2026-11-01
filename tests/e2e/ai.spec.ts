@@ -113,6 +113,9 @@ test("AI: a drafted note, label rates read and saved by a person, an unusual amo
   await expect(page.getByTestId("portal-question").filter({ hasText: offRecord })).toHaveCount(0);
   await page.goto("/compliance");
   await expect(page.getByTestId("amount-flag").filter({ hasText: `e2e amount check ${run}` })).toHaveCount(0);
+  const [nwGreen] = await sql<{ id: string }[]>`select id from public.accounts where tenant_id = ${tenant.id} and name = 'Green Residence'`;
+  await page.goto("/reports/churn-risk");
+  await expect(page.locator(`a[href="/customers/${nwGreen.id}"]`)).toHaveCount(0);
   await signOut(page);
   await sql.end();
 });

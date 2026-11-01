@@ -16,20 +16,19 @@ export async function askQuestion(_prev: AskState, formData: FormData): Promise<
   const question = String(formData.get("question") ?? "").trim().slice(0, 1000);
   if (!question) return { error: "Type your question." };
   try {
-    const result = await portalDb(session, identity, async (tx) => {
-      const [{ n }] = await tx<{ n: number }[]>`select count(*)::int as n from public.portal_questions where portal_user_id = ${identity.id} and created_at > now() - interval '1 day'`;
-      if (n >= 20) return { error: "You have asked 20 questions today; call the office and we will help." } as AskState;
-      const context = await loadPortalContext(tx, identity);
-      const outcome = await runAi(tx, identity.tenant_id, "portal_answer", null, (p) => p.answerQuestion(question, context));
-      const allowed = contextIds(context);
-      const answer = outcome.ok
-        ? { answer: outcome.value.answer, needs_office: outcome.value.needs_office, sources: outcome.value.sources.filter((s) => allowed.has(s)) }
-        : { answer: "I can't answer that right now. I've sent your question to the office, and their answer will show here.", needs_office: true, sources: [] as string[] };
-      await tx`select app.portal_ask(${identity.tenant_id}, ${question}, ${answer.answer}, ${answer.needs_office}, ${tx.json(answer.sources)})`;
-      return { answer: answer.answer, waiting: answer.needs_office } as AskState;
-    });
+    const db = <R,>(fn: (tx: Parameters<Parameters<typeof portalDb>[2]>[0]) => Promise<R>) => portalDb(session, identity, fn);
+    // The question takes its place in the login's day first (at most 20, under a lock); the model is asked outside
+    // any transaction; the answer is written after (rule 7).
+    const questionId = await db(async (tx) => (await tx<{ id: string }[]>`select app.portal_ask_begin(${identity.tenant_id}, ${question}) as id`)[0].id);
+    const context = await db((tx) => loadPortalContext(tx, identity));
+    const outcome = await runAi(db, identity.tenant_id, "portal_answer", questionId, (p) => p.answerQuestion(question, context));
+    const allowed = contextIds(context);
+    const answer = outcome.ok
+      ? { answer: outcome.value.answer, needs_office: outcome.value.needs_office, sources: outcome.value.sources.filter((s) => allowed.has(s)) }
+      : { answer: "I can't answer that right now. I've sent your question to the office, and their answer will show here.", needs_office: true, sources: [] as string[] };
+    await db((tx) => tx`select app.portal_ask_finish(${questionId}, ${answer.answer}, ${answer.needs_office}, ${tx.json(answer.sources)})`);
     revalidatePath("/portal");
-    return result;
+    return { answer: answer.answer, waiting: answer.needs_office };
   } catch (err) {
     const e = err as { code?: string; message?: string };
     return { error: e.code === "23514" ? (e.message ?? "Try again later.") : "That did not work. Try again, or call the office." };

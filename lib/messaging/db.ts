@@ -500,8 +500,9 @@ export async function queueVisitSummary(tx: Sql, tenantId: string, visitId: stri
           visit_date: longDate(day),
           technician_name: lead?.name ?? "Your technician",
           summary_url: `${appUrl()}/m/${t}`,
-          // Spec 21 rule 3: the technician's note for the customer (as they saved it) above the visit's facts.
-          summary_text: [customerNote, summaryText(visit, timeZone)].filter(Boolean).join("\n\n"),
+          // Spec 21 rule 3: the technician's note for the customer (as they saved it), above the visit's facts.
+          customer_summary: customerNote ? `${customerNote}\n\n` : "",
+          summary_text: summaryText(visit, timeZone),
           survey_line: survey ? `\n\nHow did we do? ${survey}` : "",
         },
         required: ["survey_line"],

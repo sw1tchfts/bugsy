@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   const visitId = typeof body.visit_id === "string" && UUID.test(body.visit_id) ? body.visit_id : null;
   if (!visitId) return NextResponse.json({ error: "bad request" }, { status: 400 });
   const c = body.capture ?? {};
-  const outcome = await dbAs(session, async (tx) => {
+  const input = await dbAs(session, async (tx) => {
     const [v] = await tx<{ service: string; first_name: string | null }[]>`
       select st.name as service,
              (select split_part(ct.name, ' ', 1) from public.contacts ct
@@ -48,8 +48,10 @@ export async function POST(request: Request) {
       products: strings(c.products),
       language: body.language === "es" ? "es" : "en",
     };
-    return runAi(tx, active.tenantId, "summary", visitId, (p) => p.draftSummary(input));
+    return input;
   });
-  if (!outcome) return NextResponse.json({ error: "That stop is not on your company's schedule." }, { status: 404 });
+  if (!input) return NextResponse.json({ error: "That stop is not on your company's schedule." }, { status: 404 });
+  // The model is asked outside the transaction; the call's place in the month was reserved first (rule 2).
+  const outcome = await runAi((fn) => dbAs(session, fn), active.tenantId, "summary", visitId, (p) => p.draftSummary(input));
   return outcome.ok ? NextResponse.json({ text: outcome.value.text }) : NextResponse.json({ error: outcome.message });
 }

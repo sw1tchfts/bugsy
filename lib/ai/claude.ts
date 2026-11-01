@@ -2,6 +2,7 @@
 // and unusable answers turned into AiUnavailable so the person takes over. Prompts carry records as data; the
 // instructions say what the output may contain.
 import Anthropic from "@anthropic-ai/sdk";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { parseLabelRates } from "@/lib/catalog/label-rates";
 import { type AiProvider, AiUnavailable, type PortalContext, type SummaryInput, type Usage } from "./types";
@@ -43,8 +44,9 @@ Answer in 1 to 3 short sentences, in the customer's language. Give dates in plai
 If the records do not answer the question, or it asks for an action (booking, cancelling, refunds, a change), or it is about health or safety beyond what the records say, set needs_office to true and say the office will answer here; for a possible poisoning, tell them to call Poison Control at 1-800-222-1222 now.
 Reply with JSON: {"answer": "...", "needs_office": false, "sources": ["<record id>"]}.`;
 
-function jsonSchema(schema: z.ZodType): Record<string, unknown> {
-  return z.toJSONSchema(schema) as Record<string, unknown>;
+/** The SDK's own conversion: it moves what structured outputs do not support (string lengths, $schema) into descriptions. */
+export function jsonSchema(schema: z.ZodType): Record<string, unknown> {
+  return zodOutputFormat(schema).schema as Record<string, unknown>;
 }
 
 async function ask<T>(client: MessagesClient, system: string, user: string, schema: z.ZodType<T>, effort: "low" | "medium", maxTokens: number): Promise<{ value: T; usage: Usage }> {
@@ -59,7 +61,10 @@ async function ask<T>(client: MessagesClient, system: string, user: string, sche
   });
   const message: Anthropic.Beta.BetaMessage = response;
   if (message.stop_reason === "refusal") throw new AiUnavailable("the model declined", "refused");
-  const text = message.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
+  // With fallbacks, a declining model's partial text comes before a fallback block: only what follows the last one is
+  // the answer.
+  const lastFallback = message.content.map((b) => b.type as string).lastIndexOf("fallback");
+  const text = message.content.slice(lastFallback + 1).flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
@@ -80,10 +85,19 @@ export function claudeAi(client: MessagesClient = new Anthropic()): AiProvider {
     },
     async readLabel(text: string) {
       const r = await ask(client, LABEL_SYSTEM, `<label>\n${text.slice(0, 60_000)}\n</label>`, LabelSchema, "medium", 8000);
-      // The catalog's own parser has the last word: a row it would refuse is not offered (rule 4).
-      const checked = parseLabelRates(JSON.stringify(r.value.rows));
-      if ("error" in checked) return { rows: [], note: `The rows read did not check out (${checked.error}); type the rates.`, usage: r.usage };
-      return { rows: checked.rates, note: r.value.note, usage: r.usage };
+      // The catalog's own parser has the last word, row by row: a row it would refuse is left out, the others kept (rule 4).
+      const rows = r.value.rows.flatMap((row) => {
+        const checked = parseLabelRates(JSON.stringify([row]));
+        return "error" in checked ? [] : checked.rates;
+      });
+      const dropped = r.value.rows.length - rows.length;
+      const note =
+        rows.length === 0
+          ? (r.value.note ?? "No rates were found in that text. Paste the label's directions for use, or type the rates.")
+          : dropped
+            ? `${dropped} row${dropped === 1 ? "" : "s"} did not check out and ${dropped === 1 ? "was" : "were"} left out; type ${dropped === 1 ? "it" : "them"}.${r.value.note ? ` ${r.value.note}` : ""}`
+            : r.value.note;
+      return { rows, note, usage: r.usage };
     },
     async answerQuestion(question: string, context: PortalContext) {
       const r = await ask(client, ANSWER_SYSTEM, `<records>\n${JSON.stringify(context)}\n</records>\n<question>\n${question.slice(0, 1000)}\n</question>`, AnswerSchema, "low", 2000);

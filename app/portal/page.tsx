@@ -31,7 +31,10 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
       referralFor(tx, identity),
       tx<{ id: string; question: string; answer: string | null; status: string; office_answer: string | null; created_at: Date }[]>`
         select id, question, answer, status, office_answer, created_at from public.portal_questions
-        where tenant_id = ${identity.tenant_id} and account_id = ${identity.account_id} order by created_at desc limit 5`,
+        where tenant_id = ${identity.tenant_id} and portal_user_id = ${identity.id}
+          and (status <> 'answered' or created_at > now() - interval '30 days')
+        -- An office answer comes back to the top when it arrives, so it is always seen.
+        order by coalesce(answered_at, created_at) desc limit 10`,
     ]),
   );
   const h = await headers();

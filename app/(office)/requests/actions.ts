@@ -65,7 +65,9 @@ export async function answerRequest(formData: FormData) {
 
 /** Spec 21 rule 7: the office answers a portal question the assistant could not; the customer sees it in the portal. */
 export async function answerPortalQuestion(formData: FormData) {
-  const { session, tenantId } = await handler(formData);
+  const tenantId = str(formData, "tenant_id");
+  const { session, membership } = await requireMembership(tenantId);
+  if (!can(membership.permissions, "customers.write")) back({ error: "forbidden" });
   const answer = str(formData, "office_answer").trim().slice(0, 4000);
   if (!answer) back({ error: "Write the answer." });
   let error: string | null = null;

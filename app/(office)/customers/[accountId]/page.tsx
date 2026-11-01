@@ -82,7 +82,8 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
   // Spec 21 rule 6: the highest churn risk among the account's plans, with its reasons.
   const [risk] = await dbAs(session, (tx) =>
     tx<{ score: number; band: string; reasons: { code: string; text: string }[] }[]>`
-      select score, band, reasons from public.churn_scores where tenant_id = ${tenantId} and account_id = ${accountId} order by score desc limit 1`,
+      select c.score, c.band, c.reasons from public.churn_scores c join public.agreements g on g.id = c.agreement_id
+      where c.tenant_id = ${tenantId} and c.account_id = ${accountId} and g.status = 'active' order by c.score desc limit 1`,
   );
   const minutes = (s: number | null) => (s === null ? "" : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`);
   const canMessage = can(active.permissions, "messages.send");

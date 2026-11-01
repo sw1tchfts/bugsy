@@ -61,6 +61,6 @@ export async function riskList(tx: Sql, tenantId: string, band: "high" | "medium
     select c.agreement_id, c.account_id, a.name as account_name, p.normalized_address as address, st.name as service, c.score, c.band, c.reasons, c.computed_on::text
     from public.churn_scores c join public.accounts a on a.id = c.account_id join public.agreements g on g.id = c.agreement_id
       join public.properties p on p.id = g.property_id join public.service_types st on st.id = g.service_type_id
-    where c.tenant_id = ${tenantId} and (${band} = 'all' and c.band <> 'low' or c.band = ${band})
+    where c.tenant_id = ${tenantId} and g.status = 'active' and (${band} = 'all' and c.band <> 'low' or c.band = ${band})
     order by c.score desc, a.name limit 200`;
 }

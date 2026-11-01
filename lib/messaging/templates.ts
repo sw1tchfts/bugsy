@@ -29,7 +29,7 @@ const COMMON = ["company_name", "company_phone", "customer_name", "property_addr
 export const TEMPLATE_VARIABLES: Record<TemplateKey, readonly string[]> = {
   reminder: [...COMMON, "visit_date", "arrival_window", "service_name", "prep_checklist"],
   on_the_way: [...COMMON, "technician_name", "service_name", "eta"],
-  summary: [...COMMON, "service_name", "visit_date", "technician_name", "summary_url", "summary_text", "survey_line"],
+  summary: [...COMMON, "service_name", "visit_date", "technician_name", "summary_url", "customer_summary", "summary_text", "survey_line"],
   review: [...COMMON, "review_url", "service_name"],
   invoice: [...COMMON, "invoice_number", "invoice_total", "due_date"],
   "notice.post_application": [...COMMON, "service_name", "visit_date", "notice_url", "notice_text"],
@@ -76,7 +76,7 @@ export const DEFAULT_TEMPLATES: Record<TemplateKey, Partial<Record<Channel, Temp
   },
   summary: {
     sms: D(null, "{{company_name}}: your {{service_name}} visit is done. What we applied and what to know: {{summary_url}}"),
-    email: D("Your {{service_name}} visit {{visit_date}}", "Hi {{customer_name}},\n\n{{technician_name}} finished your {{service_name}} visit at {{property_address}}. Here is what was done:\n\n{{summary_text}}\n\nThe same summary online: {{summary_url}}\n\nQuestions? Call {{company_phone}}.\n\n{{company_name}}"),
+    email: D("Your {{service_name}} visit {{visit_date}}", "Hi {{customer_name}},\n\n{{technician_name}} finished your {{service_name}} visit at {{property_address}}. Here is what was done:\n\n{{customer_summary}}{{summary_text}}\n\nThe same summary online: {{summary_url}}\n\nQuestions? Call {{company_phone}}.\n\n{{company_name}}"),
   },
   review: {
     sms: D(null, "{{company_name}}: thanks for having us. Would you leave a quick review? {{review_url}}"),

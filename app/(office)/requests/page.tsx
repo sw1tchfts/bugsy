@@ -145,7 +145,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
                   <span className="text-xs text-stone-500">{formatInstant(x.created_at, active.tenantTimezone)}</span>
                 </p>
                 <p className="mt-1">{x.question}</p>
-                {canAct ? (
+                {can(active.permissions, "customers.write") ? (
                   <form action={answerPortalQuestion} className="mt-2 grid gap-2">
                     {hidden}
                     <input type="hidden" name="question_id" value={x.id} />

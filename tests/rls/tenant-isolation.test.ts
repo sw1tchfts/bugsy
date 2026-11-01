@@ -12,6 +12,8 @@ import { sweep } from "../../lib/ledger/db";
 import { fromTenantLocal, todayInZone } from "../../lib/dates";
 import { applyAssign, applyOptimize, arrivalRange, proposeAssign, proposeOptimize, purgePositions } from "../../lib/routing/db";
 import { routingDemoDay } from "../../scripts/seed-routing";
+import { runAi } from "../../lib/ai/db";
+import { riskList } from "../../lib/ai/churn-db";
 import { hashKey } from "../../lib/api/keys";
 import { callerMatches } from "../../lib/phone/db";
 import type { QuickBooksProvider } from "../../lib/quickbooks/provider";
@@ -3292,5 +3294,73 @@ describe("spec 21 AI features enforced in the database", () => {
     });
     expect(result.limited).toBe("limited");
     expect(result.off).toBe("off");
+  });
+});
+
+describe("spec 21 review fixes enforced in the database", () => {
+  const ROLLBACK = "rollback: spec 21 fixes";
+  const bistroEmail = portalCustomerEmail(lakeshore);
+  async function rolledBack<T>(fn: (tx: Tx, as: (email: string, portal?: string) => Promise<void>) => Promise<T>): Promise<T> {
+    let out: T | undefined;
+    await admin
+      .begin(async (tx) => {
+        const as = async (email: string, portal?: string) => {
+          const id = await userId(email);
+          await tx.unsafe("reset role");
+          await tx.unsafe("set local role authenticated");
+          await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: id, email, role: "authenticated", ...(portal ? { portal_user: portal } : {}) })}, true)`;
+        };
+        out = await fn(tx, as);
+        throw new Error(ROLLBACK);
+      })
+      .catch((e: Error) => {
+        if (e.message !== ROLLBACK) throw e;
+      });
+    return out as T;
+  }
+  const attempt = (tx: Tx, q: (sp: Tx) => Promise<unknown>) =>
+    tx.savepoint((sp) => q(sp as unknown as Tx)).then((r) => `ok ${(r as { count?: number }).count ?? ""}`.trim(), (e: Error) => e.message);
+
+  it("shows a portal login only its own questions, and stops the 21st question of the day (rule 7)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      const bistro = await userId(bistroEmail);
+      const [pu] = await tx<{ id: string; account_id: string }[]>`select id, account_id from public.portal_users where tenant_id = ${lakeshoreId} and user_id = ${bistro}`;
+      // A second login on the same account, limited to no properties.
+      const other = await userId(seedUserEmail(northwind, "technician"));
+      const [second] = await tx<{ id: string }[]>`
+        insert into public.portal_users (tenant_id, account_id, user_id, email, status, property_ids, accepted_at) values (${lakeshoreId}, ${pu.account_id}, ${other}, 'second@example.com', 'active', '{}', now()) returning id`;
+      await as(bistroEmail, pu.id);
+      const asked: string[] = [];
+      for (let i = 0; i < 20; i += 1) asked.push(await attempt(tx, (sp) => sp`select app.portal_ask_begin(${lakeshoreId}, ${`Question ${i}`})`));
+      const twentyFirst = await attempt(tx, (sp) => sp`select app.portal_ask_begin(${lakeshoreId}, 'One more')`);
+      await as(seedUserEmail(northwind, "technician"), second.id);
+      const [{ seen }] = await tx<{ seen: number }[]>`select count(*)::int as seen from public.portal_questions where portal_user_id = ${pu.id}`;
+      return { okCount: asked.filter((a) => a.startsWith("ok")).length, twentyFirst, seen };
+    });
+    expect(result.okCount).toBeGreaterThan(0);
+    expect(result.twentyFirst).toMatch(/at most 20 questions a day/);
+    expect(result.seen).toBe(0);
+  });
+
+  it("answers with the local provider when AI is off, reserves under the limit, and drops cancelled plans' scores (rules 2, 6 and 8)", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      await tx`update public.ai_settings set enabled = false where tenant_id = ${northwindId}`;
+      await as(seedUserEmail(northwind, "technician"));
+      const db = <R,>(fn: (t: Tx) => Promise<R>) => tx.savepoint((sp) => fn(sp as unknown as Tx)) as Promise<R>;
+      const off = await runAi(db, northwindId, "summary", null, (p) => p.draftSummary({ service: "General pest plan", customer_first_name: null, notes: ["checked the garage"], conditions: [], recommendations: [], areas: [], pests: [], products: [], language: "en" }));
+      await tx.unsafe("reset role");
+      await tx`update public.ai_settings set enabled = true, monthly_limit = 0 where tenant_id = ${northwindId}`;
+      await as(seedUserEmail(northwind, "technician"));
+      const [claude] = await tx<{ allowed: string }[]>`select allowed from app.ai_reserve(${northwindId}, 'summary', 'claude', null)`;
+      await tx.unsafe("reset role");
+      const [plan] = await tx<{ id: string }[]>`select agreement_id as id from public.churn_scores where tenant_id = ${northwindId} and band <> 'low' order by score desc limit 1`;
+      const [reason] = await tx<{ id: string }[]>`select id from public.cancel_reasons where tenant_id = ${northwindId} limit 1`;
+      await tx`update public.agreements set status = 'cancelled', cancelled_on = current_date, cancel_reason_id = ${reason.id} where id = ${plan.id}`;
+      const listed = (await riskList(tx, northwindId)).some((r) => r.agreement_id === plan.id);
+      return { off: off.ok ? { ok: true, provider: off.provider } : { ok: false, reason: off.reason }, claude: claude.allowed, listed };
+    });
+    expect(result.off).toEqual({ ok: true, provider: "local" });
+    expect(result.claude).toBe("limited");
+    expect(result.listed).toBe(false);
   });
 });

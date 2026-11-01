@@ -14,7 +14,10 @@ export async function amountsToReview(tx: Sql, tenantId: string): Promise<Amount
            vp.visit_id, pr.normalized_address as address, (now()::date - vp.recorded_at::date) as days
     from public.visit_products vp join public.products p on p.id = vp.product_id join public.visits v on v.id = vp.visit_id
       join public.properties pr on pr.id = v.property_id
-    where vp.tenant_id = ${tenantId} and vp.recorded_at > now() - interval '180 days'`;
+    where vp.tenant_id = ${tenantId} and vp.recorded_at > now() - interval '180 days'
+      -- A record amended for its products is the record of truth (spec 07); its captured amounts are not used.
+      and not exists (select 1 from public.application_records r join public.application_record_amendments am on am.record_id = r.id
+                      where r.visit_id = vp.visit_id and exists (select 1 from jsonb_object_keys(am.changed_fields) k where k like 'products%'))`;
   const recent = rows.filter((r) => r.days <= 30);
   const extra = new Map(rows.map((r) => [r.id, { visit_id: r.visit_id, address: r.address }]));
   return unusualAmounts(rows, recent).map((f) => ({ ...f, ...(extra.get(f.id) as { visit_id: string; address: string }) })).slice(0, 50);

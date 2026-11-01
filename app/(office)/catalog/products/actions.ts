@@ -115,7 +115,7 @@ export async function readLabelAction(_prev: LabelReadState, formData: FormData)
   if (!text.trim()) return { error: "Paste the label's directions for use." };
   const productId = formData.get("product_id") ? str(formData, "product_id") : null;
   const { runAi } = await import("@/lib/ai/db");
-  const outcome = await dbAs(session, (tx) => runAi(tx, tenantId, "label", productId, (p) => p.readLabel(text)));
+  const outcome = await runAi((fn) => dbAs(session, fn), tenantId, "label", productId, (p) => p.readLabel(text));
   if (!outcome.ok) return { error: outcome.message };
   return { rows: JSON.stringify(outcome.value.rows), count: outcome.value.rows.length, note: outcome.value.note };
 }

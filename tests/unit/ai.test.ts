@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { unusualAmounts } from "@/lib/ai/amounts";
 import { churnScore, soundsUnhappy } from "@/lib/ai/churn";
-import { CLAUDE_MODEL, type MessagesClient, claudeAi } from "@/lib/ai/claude";
+import { CLAUDE_MODEL, type MessagesClient, claudeAi, jsonSchema } from "@/lib/ai/claude";
 import { localAnswer, localLabelRows, localSummary } from "@/lib/ai/local";
 import { buildContext, contextIds } from "@/lib/ai/portal";
 import { AiUnavailable, type PortalContext } from "@/lib/ai/types";
@@ -76,6 +76,20 @@ describe("the local provider (spec 21 rule 8)", () => {
     requests: [],
   };
 
+  it("sends health, safety and action questions to people first, with Poison Control for an exposure (review fix)", () => {
+    for (const q of ["Is the spray safe for my plants?", "Is it safe to water my flowers today?", "Can I cancel my plan?", "Why is there a white residue on my floor?"]) {
+      expect(localAnswer(q, context), q).toMatchObject({ needs_office: true });
+    }
+    expect(localAnswer("My son got sick after your last visit, what did you spray?", context).answer).toContain("Poison Control at 1-800-222-1222");
+    expect(localAnswer("My dog licked the bait station", context).answer).toContain("Poison Control");
+  });
+
+  it("keeps rates and EPA numbers out of the customer's note (rule 3)", () => {
+    const text = localSummary({ service: "General pest plan", customer_first_name: null, notes: ["Applied Talstar P 1 fl oz/gal, EPA 279-3206, perimeter.", "Sealed the gap by the dryer vent."], conditions: [], recommendations: [], areas: [], pests: [], products: [], language: "en" });
+    expect(text).not.toMatch(/EPA|fl oz/);
+    expect(text).toContain("Sealed the gap by the dryer vent.");
+  });
+
   it("answers the common asks from the records and sends the rest to the office", () => {
     expect(localAnswer("When is my next visit?", context)).toMatchObject({ needs_office: false, sources: ["next"] });
     expect(localAnswer("When is my next visit?", context).answer).toContain("Thursday, November 12");
@@ -128,6 +142,27 @@ describe("the Claude provider (spec 21)", () => {
     expect(calls[0]).toMatchObject({ model: "claude-opus-5-5", betas: ["server-side-fallback-2026-07-01"], fallbacks: "default", output_config: { effort: "low", format: { type: "json_schema" } } });
   });
 
+  it("sends a schema structured outputs accept: no string lengths or $schema (review fix)", async () => {
+    const { client, calls } = stub({ text: JSON.stringify({ summary: "x" }) });
+    await claudeAi(client).draftSummary({ service: "s", customer_first_name: null, notes: [], conditions: [], recommendations: [], areas: [], pests: [], products: [], language: "en" });
+    const sent = JSON.stringify((calls[0] as { output_config: { format: { schema: unknown } } }).output_config.format.schema);
+    expect(sent).not.toMatch(/"\$schema"|"minLength"|"maxLength"/);
+    expect(jsonSchema).toBeTypeOf("function");
+  });
+
+  it("reads the answer after a fallback, not the declined model's partial text (review fix)", async () => {
+    const client: MessagesClient = {
+      beta: {
+        messages: {
+          create: async () =>
+            ({ id: "m", type: "message", role: "assistant", model: "claude-opus-4-8", stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 },
+               content: [{ type: "text", text: '{"answ' }, { type: "fallback", from: { model: CLAUDE_MODEL }, to: { model: "claude-opus-4-8" } }, { type: "text", text: JSON.stringify({ answer: "On Thursday.", needs_office: false, sources: [] }) }] }) as never,
+        },
+      },
+    };
+    expect((await claudeAi(client).answerQuestion("?", {} as PortalContext)).answer).toBe("On Thursday.");
+  });
+
   it("turns a refusal or an unusable answer into a hand-off to the person", async () => {
     await expect(claudeAi(stub({ stop_reason: "refusal" }).client).answerQuestion("?", {} as PortalContext)).rejects.toMatchObject({ outcome: "refused" });
     await expect(claudeAi(stub({ text: "not json" }).client).answerQuestion("?", {} as PortalContext)).rejects.toBeInstanceOf(AiUnavailable);
@@ -138,6 +173,9 @@ describe("the Claude provider (spec 21)", () => {
     expect(good.rows).toHaveLength(1);
     const bad = await claudeAi(stub({ text: JSON.stringify({ rows: [{ site: "lawn", min_rate: 2, max_rate: 3, rate_unit: "cups/yard", target_pests: [] }], note: null }) }).client).readLabel("label");
     expect(bad.rows).toEqual([]);
-    expect(bad.note).toContain("did not check out");
+    expect(bad.note).toContain("No rates were found");
+    const mixed = await claudeAi(stub({ text: JSON.stringify({ rows: [{ site: "perimeter", min_rate: 0.2, max_rate: 0.8, rate_unit: "fl_oz/gal", target_pests: [] }, { site: "lawn", min_rate: 2, max_rate: 3, rate_unit: "cups/yard", target_pests: [] }], note: null }) }).client).readLabel("label");
+    expect(mixed.rows.map((r) => r.site)).toEqual(["perimeter"]);
+    expect(mixed.note).toContain("1 row did not check out");
   });
 });

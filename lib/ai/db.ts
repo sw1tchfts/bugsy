@@ -25,38 +25,41 @@ const MESSAGES = {
   failed: "The assistant did not answer; write it yourself.",
 } as const;
 
+/** Runs a short transaction on the caller's session (a member's or a portal login's). */
+export type AiDb = <R>(fn: (tx: Sql) => Promise<R>) => Promise<R>;
+
 /**
- * Rule 2: allowed (AI on, the feature on, under the month's limit), timed and logged. With AI off for the company the
- * local provider still answers the portal (rule 8); other features say they are off.
+ * Rule 2: the call reserves its place in the month (under a lock, so parallel calls cannot all pass the limit), the
+ * model is asked outside any transaction, and the outcome is recorded without its text. With AI off for the company
+ * the local provider answers (rule 8); a feature turned off says so.
  */
-export async function runAi<T>(tx: Sql, tenantId: string, feature: AiFeature, subjectId: string | null, call: (p: AiProvider) => Promise<T & { usage: Usage }>): Promise<AiOutcome<T>> {
-  const [{ allowed }] = await tx<{ allowed: string }[]>`select app.ai_allowed(${tenantId}, ${feature}) as allowed`;
-  const provider = aiProvider();
-  if (allowed !== "ok" && !(feature === "portal_answer" && allowed === "off")) {
-    if (allowed === "limited") await log(tx, tenantId, feature, provider.kind, "none", "limited", null, 0, subjectId);
-    return { ok: false, reason: allowed === "limited" ? "limited" : "off", message: MESSAGES[allowed === "limited" ? "limited" : "off"] };
+export async function runAi<T>(db: AiDb, tenantId: string, feature: AiFeature, subjectId: string | null, call: (p: AiProvider) => Promise<T & { usage: Usage }>): Promise<AiOutcome<T>> {
+  let provider = aiProvider();
+  let [r] = await db((tx) => tx<{ run_id: string | null; allowed: string }[]>`select run_id, allowed from app.ai_reserve(${tenantId}, ${feature}, ${provider.kind}, ${subjectId})`);
+  if (r.allowed === "disabled") {
+    provider = (await import("./local")).localAi;
+    [r] = await db((tx) => tx<{ run_id: string | null; allowed: string }[]>`select run_id, allowed from app.ai_reserve(${tenantId}, ${feature}, 'local', ${subjectId})`);
   }
-  const chosen = allowed === "off" ? (await import("./local")).localAi : provider;
+  if (r.allowed === "off") return { ok: false, reason: "off", message: MESSAGES.off };
+  if (r.allowed === "limited") return { ok: false, reason: "limited", message: MESSAGES.limited };
   const started = Date.now();
+  const finish = (model: string, status: string, usage: Usage | null) =>
+    db((tx) => tx`select app.ai_finish(${r.run_id}, ${model}, ${status}, ${usage?.input_tokens ?? 0}, ${usage?.output_tokens ?? 0}, ${Math.round(Date.now() - started)})`);
   try {
-    const value = await call(chosen);
-    await log(tx, tenantId, feature, chosen.kind, value.usage.model, "ok", value.usage, Date.now() - started, subjectId);
-    return { ok: true, value, provider: chosen.kind };
+    const value = await call(provider);
+    await finish(value.usage.model, "ok", value.usage);
+    return { ok: true, value, provider: provider.kind };
   } catch (err) {
     const outcome = err instanceof AiUnavailable ? err.outcome : "failed";
     if (!(err instanceof AiUnavailable)) console.error("ai call failed", feature, (err as Error).message);
-    await log(tx, tenantId, feature, chosen.kind, chosen.kind === "local" ? "local" : "claude", outcome, null, Date.now() - started, subjectId);
+    await finish(provider.kind, outcome, null);
     return { ok: false, reason: outcome, message: MESSAGES[outcome] };
   }
-}
-
-async function log(tx: Sql, tenantId: string, feature: AiFeature, provider: string, model: string, status: string, usage: Usage | null, ms: number, subject: string | null) {
-  await tx`select app.log_ai_run(${tenantId}, ${feature}, ${provider}, ${model}, ${status}, ${usage?.input_tokens ?? 0}, ${usage?.output_tokens ?? 0}, ${Math.round(ms)}, ${subject})`;
 }
 
 export async function aiUsage(tx: Sql, tenantId: string): Promise<{ feature: string; calls: number; input_tokens: number; output_tokens: number }[]> {
   return tx`
     select feature, count(*)::int as calls, coalesce(sum(input_tokens), 0)::int as input_tokens, coalesce(sum(output_tokens), 0)::int as output_tokens
-    from public.ai_runs where tenant_id = ${tenantId} and provider = 'claude' and status <> 'limited' and created_at > date_trunc('month', now())
+    from public.ai_runs where tenant_id = ${tenantId} and provider = 'claude' and status <> 'limited' and created_at >= app.ai_month_start(${tenantId})
     group by feature order by feature`;
 }

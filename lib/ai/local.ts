@@ -10,7 +10,12 @@ const sentence = (s: string) => {
   return t ? `${t[0].toUpperCase()}${t.slice(1)}${/[.!?]$/.test(t) ? "" : "."}` : "";
 };
 
-export function localSummary(i: SummaryInput): string {
+/** Rule 3: nothing with rates, amounts or EPA numbers reaches the customer's note. */
+const TECHNICAL = /\bEPA\b|\b\d+(\.\d+)?\s*(fl\.?\s*oz|oz|ml|gal(lons?)?|lbs?|g|grams?|%)(?![a-z])|\/\s*(gal|1000|sq)/i;
+const plain = (xs: string[]) => xs.flatMap((x) => x.split(/(?<=[.!?])\s+/)).filter((x) => x.trim() && !TECHNICAL.test(x));
+
+export function localSummary(input: SummaryInput): string {
+  const i = { ...input, notes: plain(input.notes), conditions: plain(input.conditions), recommendations: plain(input.recommendations) };
   const es = i.language === "es";
   const parts: string[] = [];
   parts.push(es ? `${i.customer_first_name ? `Hola ${i.customer_first_name}, h` : "H"}oy completamos su servicio de ${i.service.toLowerCase()}.` : `${i.customer_first_name ? `Hi ${i.customer_first_name}, w` : "W"}e finished your ${i.service.toLowerCase()} today.`);
@@ -61,25 +66,31 @@ const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 /** The common asks (rule 8): next visit, last visit and what was used, balance, plan. Anything else goes to the office. */
 export function localAnswer(question: string, c: PortalContext): PortalAnswer {
   const q = question.toLowerCase();
-  const office = (): PortalAnswer => ({ answer: "I can't answer that from your records. I've sent your question to the office, and their answer will show here.", needs_office: true, sources: [] });
-  if (/(next|upcoming|when).*(visit|service|appointment|come|coming)|when (are|is|will) (you|the tech)/.test(q)) {
+  const office = (extra = ""): PortalAnswer => ({ answer: `${extra}I can't answer that from your records. I've sent your question to the office, and their answer will show here.`, needs_office: true, sources: [] });
+  // Health, exposure and anything that asks for an action go to people first (rule 7); a possible poisoning gets the
+  // number to call now.
+  if (/\b(sick|ill|poison(ed|ing)?|ate|eaten|lick(ed|ing)?|swallow(ed)?|rash|breath(e|ing)?|vomit(ing|ed)?|hospital|doctor|allerg(y|ic)|exposed|exposure)\b/.test(q)) {
+    return office("If someone, or a pet, may have been poisoned, call Poison Control at 1-800-222-1222 now, or your vet. ");
+  }
+  if (/\b(safe|safety|toxic|pets?|dogs?|cats?|kids?|child(ren)?|baby|pregnant|cancel(l?ing|l?ed)?|refund|reschedule|book|change|stop|complain(t)?)\b/.test(q)) return office();
+  if (/\b(next|upcoming|when)\b.*\b(visit|service|appointment|come|coming)\b|\bwhen (are|is|will) (you|the tech)/.test(q)) {
     const v = c.upcoming[0];
     if (!v) return { answer: "You have no visit scheduled or due right now. The office can set one up for you.", needs_office: false, sources: [] };
     const when = v.date ? `on ${day(v.date)}${v.window && v.window !== "any" ? ` (${v.window})` : ""}` : "soon; it is due but not yet on the schedule";
     return { answer: `Your next visit, ${v.service} at ${v.address}, is ${when}.`, needs_office: false, sources: [v.id] };
   }
-  if (/(last|previous|recent).*(visit|service|time)|what did (you|they) (spray|use|apply|put)|what (was|were) (sprayed|used|applied)/.test(q)) {
+  if (/\b(last|previous|recent)\b.*\b(visit|service|time)\b|\bwhat did (you|they) (spray|use|apply|put)\b|\bwhat (was|were) (sprayed|used|applied)\b/.test(q)) {
     const v = c.recent[0];
     if (!v) return { answer: "There is no completed visit on your account yet.", needs_office: false, sources: [] };
     const used = v.products?.length ? ` We used ${list(v.products)}${v.areas?.length ? ` on the ${list(v.areas)}` : ""}.` : "";
     return { answer: `Your last visit was ${v.service} at ${v.address}${v.date ? ` on ${day(v.date)}` : ""}.${used} The full record is under Visits.`, needs_office: false, sources: [v.id] };
   }
-  if (/(balance|owe|bill|invoice|pay|due)/.test(q)) {
+  if (/\b(balance|owe|bill|invoices?|pay|due)\b/.test(q)) {
     if (c.balance_cents <= 0) return { answer: "You have no balance due. Thank you!", needs_office: false, sources: [] };
     const next = c.open_invoices[0];
     return { answer: `Your balance is ${money(c.balance_cents)}${next?.due_on ? `; the next invoice is due ${day(next.due_on)}` : ""}. You can pay under Billing.`, needs_office: false, sources: c.open_invoices.map((i) => i.id) };
   }
-  if (/(plan|agreement|contract|how often|price|cost)/.test(q)) {
+  if (/\b(plan|agreement|contract|how often|price|cost)\b/.test(q)) {
     const p = c.plans[0];
     if (!p) return office();
     return { answer: `You are on ${p.service} at ${p.address}${p.cadence ? `, ${p.cadence}` : ""}${p.price_cents !== null ? `, at ${money(p.price_cents)} a visit` : ""}.`, needs_office: false, sources: [p.id] };
