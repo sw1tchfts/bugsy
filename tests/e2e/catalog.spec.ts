@@ -54,12 +54,17 @@ test("an owner builds a service type with state rules and a price book, enables 
     // The action redirects back to this page and refreshes it; let that settle before typing into the form again.
     await page.waitForLoadState("networkidle");
   };
+  // Each saved band renders as a row with its own form; wait for the row before typing into the (re-rendered) new-item form.
+  const bandRows = page.locator('tr input[name="size_min"]');
   await addBand("0", "10000", "89");
-  await expect(page.locator('input[name="size_max"]').first()).toHaveValue("10000");
+  await expect(bandRows).toHaveCount(1);
+  await expect(page.locator('tr input[name="size_max"]').first()).toHaveValue("10000");
   await addBand("10000", "22000", "119");
-  await expect(page.locator('input[name="size_min"]').nth(1)).toHaveValue("10000");
+  await expect(bandRows).toHaveCount(2);
+  await expect(bandRows.nth(1)).toHaveValue("10000");
   await addBand("5000", "15000", "99");
   await expect(page.getByText(/overlaps a band that already exists/)).toBeVisible();
+  await expect(bandRows).toHaveCount(2);
   await page.locator("#new-name").fill("Backyard event spray");
   await page.locator("#new-basis").selectOption("none");
   await page.locator("#new-initial").fill("49");

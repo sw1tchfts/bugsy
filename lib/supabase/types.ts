@@ -68,6 +68,11 @@ export type Database = {
                            },
 "tenant_states":
 { Args: { "tenant": string }; Returns: string[]
+                           },
+"visit_agreement":
+{ Args: { "p_visit": string }; Returns: {
+              "agreement_number": number,"billing_mode": string
+            }[]
                            }
           }
           Enums: {

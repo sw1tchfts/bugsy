@@ -953,6 +953,22 @@ describe("spec 08 rules enforced in the database", () => {
     }
   });
 
+  it("tells the crew a stop's billing mode without opening the agreement (rule 15)", async () => {
+    const [mine] = await admin<{ id: string; billing_mode: string }[]>`
+      select v.id, a.billing_mode from public.visits v join public.agreements a on a.id = v.agreement_id join public.visit_crew c on c.visit_id = v.id
+      where v.tenant_id = ${lakeshoreId} and c.user_id = ${tech} limit 1`;
+    const [theirs] = await admin<{ id: string }[]>`
+      select v.id from public.visits v where v.tenant_id = ${lakeshoreId} and v.agreement_id is not null
+        and not exists (select 1 from public.visit_crew c where c.visit_id = v.id and c.user_id = ${tech}) limit 1`;
+    expect(mine && theirs, "the seed gives the technician a crew visit on an agreement and leaves others").toBeTruthy();
+    const seen = await asUser(tech, techEmail, (tx) => tx<{ billing_mode: string }[]>`select billing_mode from app.visit_agreement(${mine.id})`);
+    expect(seen.map((r) => r.billing_mode)).toEqual([mine.billing_mode]);
+    const hidden = await asUser(tech, techEmail, (tx) => tx`select billing_mode from app.visit_agreement(${theirs.id})`);
+    expect(hidden.length).toBe(0);
+    const agreements = await asUser(tech, techEmail, (tx) => tx`select id from public.agreements where tenant_id = ${lakeshoreId}`);
+    expect(agreements.length, "the technician still reads no agreement rows").toBe(0);
+  });
+
   it("lets the crew record cash for their own visit and nobody else's, and keeps the bookkeeper reading only (rule 15)", async () => {
     const [mine] = await admin<{ id: string; account_id: string }[]>`
       select v.id, v.account_id from public.visits v join public.visit_crew c on c.visit_id = v.id where v.tenant_id = ${lakeshoreId} and c.user_id = ${tech} limit 1`;

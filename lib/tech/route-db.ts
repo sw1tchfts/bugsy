@@ -53,7 +53,7 @@ type VisitRow = {
 
 const VISIT_SELECT = (tx: Sql) => tx`
   select v.id, v.sequence, v.status, v.kind, st.job_kind, st.treatment_areas, v.due_start, v.due_end, v.scheduled_for, v.route_position, v.arrival_window,
-         v.interior_only, v.reservice_reason, v.dispatch_notes, v.price_cents, a.billing_mode, a.number as agreement_number,
+         v.interior_only, v.reservice_reason, v.dispatch_notes, v.price_cents, ag.billing_mode, ag.agreement_number,
          ac.id as account_id, ac.name as account_name, ac.phone as account_phone,
          p.id as property_id, p.normalized_address as address, p.city, p.state_code, p.lat, p.lng, p.access_notes,
          st.id as service_type_id, st.name as service_type_name,
@@ -63,7 +63,7 @@ const VISIT_SELECT = (tx: Sql) => tx`
     join public.accounts ac on ac.id = v.account_id
     join public.properties p on p.id = v.property_id
     join public.service_types st on st.id = v.service_type_id
-    left join public.agreements a on a.id = v.agreement_id
+    left join lateral app.visit_agreement(v.id) ag on true
     left join public.service_type_state_rules r on r.service_type_id = st.id and r.state_code = p.state_code`;
 
 async function captures(tx: Sql, tenantId: string, visitId: string): Promise<RouteVisit["captured"] & { crew: RouteCrewMember[] }> {

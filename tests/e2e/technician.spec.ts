@@ -44,6 +44,8 @@ test("a technician works a stop offline, syncs it, the office sees the record, a
   await page.locator("#new-starts").fill(today);
   await page.locator("#new-first").fill(today);
   await page.locator("#new-notes").fill(`e2e technician ${stamp}`);
+  // Billed per visit, so the stop invoices itself when it completes and cash taken at the door lands on it.
+  await page.locator("#new-billing").selectOption("per_visit");
   await page.getByRole("button", { name: "Save draft" }).click();
   await expect(page).toHaveURL(/\/agreements\/[0-9a-f-]+$/);
   await page.getByLabel("Customer's typed name").fill("Maria Lopez");
@@ -158,6 +160,15 @@ test("a technician works a stop offline, syncs it, the office sees the record, a
   await areas.getByRole("button", { name: "Save areas and pests" }).click();
   await page.getByRole("button", { name: "Complete visit" }).click();
   await expect(page.getByTestId("stop-status")).toHaveText("Done");
+
+  // Maria pays the stop in cash; the payment queues behind the completion and lands on the stop's invoice at sync.
+  const payment = page.getByTestId("payment");
+  await expect(payment).toContainText("This stop bills $199.00");
+  await payment.getByLabel("Paid by").selectOption("cash");
+  await payment.getByLabel("Amount ($)").fill("199.00");
+  await payment.getByLabel("Check number or note").fill("paid at the door");
+  await payment.getByRole("button", { name: "Record payment" }).click();
+  await expect(payment.getByTestId("payment-taken")).toContainText("$199.00 taken by Cash");
   await expect(page.getByTestId("pending-count")).toContainText("waiting to sync");
   await page.screenshot({ path: "test-results/technician-offline.png", fullPage: true });
 
@@ -175,7 +186,13 @@ test("a technician works a stop offline, syncs it, the office sees the record, a
   const sql = postgres(process.env.DATABASE_URL as string, { max: 1, prepare: false, onnotice: () => {} });
   const [lakeshoreFile] = await sql<{ id: string }[]>`
     select f.id from public.files f join public.tenants t on t.id = f.tenant_id where t.name = ${lakeshore.name} limit 1`;
+  // The cash from the door is a payment on the visit, allocated to the invoice the completion raised (spec 08 rule 15).
+  const [cash] = await sql<{ method: string; amount_cents: string; allocated: string | null; source_key: string | null; invoice_status: string | null }[]>`
+    select p.method, p.amount_cents::text, a.amount_cents::text as allocated, i.source_key, i.status as invoice_status
+    from public.payments p left join public.payment_allocations a on a.payment_id = p.id left join public.invoices i on i.id = a.invoice_id
+    where p.visit_id = ${visitId}`;
   await sql.end();
+  expect(cash).toMatchObject({ method: "cash", amount_cents: "19900", allocated: "19900", source_key: `visit:${visitId}`, invoice_status: "paid" });
   expect(lakeshoreFile, "the seed stores Lakeshore files").toBeTruthy();
   const foreign = await page.request.get(`/api/files/${lakeshoreFile.id}`);
   expect(foreign.status()).toBe(404);
