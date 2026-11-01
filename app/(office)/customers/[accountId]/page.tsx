@@ -13,6 +13,8 @@ import { AGREEMENT_STATUS_LABELS } from "@/lib/agreements/forms";
 import { statementFor } from "@/lib/billing/db";
 import { formatBusinessDate, formatInstant, todayInZone } from "@/lib/dates";
 import { timeline } from "@/lib/messaging/db";
+import { callsForAccount } from "@/lib/phone/db";
+import { CallLink } from "@/components/phone/call-link";
 import { replyAction, sendMessageAction } from "@/app/(office)/messages/actions";
 import { createQuote } from "@/app/(office)/quotes/actions";
 import { archiveAccount, archiveContact, setContactConsent, updateAccount } from "../actions";
@@ -76,6 +78,8 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
   const { account, properties, contacts, quotes, agreements, portalUsers } = data;
   const billing = can(active.permissions, "billing.read") ? await dbAs(session, (tx) => statementFor(tx, tenantId, accountId, todayInZone(active.tenantTimezone), active.tenantTimezone)) : null;
   const messages = await dbAs(session, (tx) => timeline(tx, tenantId, accountId));
+  const calls = await dbAs(session, (tx) => callsForAccount(tx, tenantId, accountId));
+  const minutes = (s: number | null) => (s === null ? "" : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`);
   const canMessage = can(active.permissions, "messages.send");
   const here = `/customers/${accountId}`;
 
@@ -149,7 +153,7 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
                 <td className="py-2 pr-4 font-medium">{c.name}</td>
                 <td className="py-2 pr-4">{c.role.replace("_", " ")}</td>
                 <td className="py-2 pr-4 text-stone-600">{c.property_id ? `${properties.find((p) => p.id === c.property_id)?.name ?? "property"}${c.unit_label ? `, unit ${c.unit_label}` : ""}` : "account"}</td>
-                <td className="py-2 pr-4">{c.phone ?? ""}</td>
+                <td className="py-2 pr-4">{c.phone ? <CallLink number={c.phone} accountId={accountId} contactId={c.id} /> : ""}</td>
                 <td className="py-2 pr-4">{c.email ?? ""}</td>
                 <td className="py-2 pr-4">
                   {c.e_notice_consent_at ? <Badge tone="good">electronic ok</Badge> : <Badge>paper</Badge>} {c.sms_opt_in ? <Badge tone="good">sms</Badge> : null}
@@ -259,6 +263,32 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
           </dl>
         </Card>
       ) : null}
+
+      <Card title="Calls" description="Calls through the company's phone system and calls placed from this page, newest first.">
+        {calls.length === 0 ? (
+          <Empty>No calls logged.</Empty>
+        ) : (
+          <Table headers={["When", "Direction", "Number", "Length", "Who", ""]}>
+            {calls.map((c) => (
+              <tr key={c.id} data-testid="call-row">
+                <td className="py-2 pr-4 text-sm">{formatInstant(c.started_at, active.tenantTimezone)}</td>
+                <td className="py-2 pr-4 text-sm">{c.direction === "inbound" ? "In" : "Out"}</td>
+                <td className="py-2 pr-4 text-sm">{c.direction === "inbound" ? c.from_number : c.to_number}</td>
+                <td className="py-2 pr-4 text-sm tabular-nums">{minutes(c.duration_seconds)}</td>
+                <td className="py-2 pr-4 text-sm">{c.user_name ?? ""}</td>
+                <td className="py-2 pr-4 text-sm">
+                  {c.recording_url ? (
+                    <a href={c.recording_url} className="text-emerald-800 underline" rel="noreferrer" target="_blank">
+                      Recording
+                    </a>
+                  ) : null}
+                  {c.notes ? <span className="block text-xs text-stone-500">{c.notes}</span> : null}
+                </td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
 
       <Card title="Messages" description="Every message to and from this account, newest first, with what happened to it.">
         {canMessage && contacts.length ? (

@@ -677,7 +677,7 @@ export async function launchCampaign(tx: Sql, tenantId: string, campaignId: stri
 // The job and the reads
 // ---------------------------------------------------------------------------
 
-export type MessagingCounts = { reminders: number; notices: number; campaigns: number } & SendCounts;
+export type MessagingCounts = { reminders: number; notices: number; campaigns: number; webhooks: { delivered: number; failed: number } } & SendCounts;
 
 /** The messaging job for one company: reminders, due notices, scheduled campaigns, then everything due goes out. */
 export async function runMessaging(tx: Sql, tenantId: string, timeZone: string, now = new Date()): Promise<MessagingCounts> {
@@ -693,7 +693,10 @@ export async function runMessaging(tx: Sql, tenantId: string, timeZone: string, 
   const { purgePositions } = await import("@/lib/routing/db");
   await purgePositions(tx, tenantId);
   const sent = await sendQueued(tx, tenantId, now, timeZone);
-  return { reminders, notices, campaigns: scheduled.length, ...sent };
+  // Spec 20 rule 5: webhook deliveries go out here, not inline, so a slow receiver never slows the office.
+  const { deliverWebhooks } = await import("@/lib/webhooks/db");
+  const webhooks = await deliverWebhooks(tx, tenantId);
+  return { reminders, notices, campaigns: scheduled.length, webhooks, ...sent };
 }
 
 export type TimelineMessage = { id: string; direction: "outbound" | "inbound"; channel: Channel; purpose: string; to_address: string; from_address: string | null; subject: string | null; body: string; status: string; suppressed_reason: string | null; error: string | null; created_at: Date; sent_at: Date | null; delivered_at: Date | null; read_at: Date | null; token: string; notice_id: string | null };

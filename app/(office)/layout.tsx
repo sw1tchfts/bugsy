@@ -8,12 +8,18 @@ import { type Grant, grantsFor } from "@/lib/platform/db";
 import { endSupportAccess } from "./settings/support/actions";
 import { resolveActiveTenant } from "@/lib/tenancy/active-tenant";
 import { switchTenant } from "./actions";
+import { CallerPop } from "@/components/phone/caller-pop";
 
 export default async function OfficeLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
   const { memberships, active } = await resolveActiveTenant(session);
   const admin = await isPlatformAdmin(session);
   // Owners and audit.read members see any support request or live access on every page (spec 13 rule 6).
+  // Spec 20 rule 8: the caller pop runs only where a phone system is connected and the person may see customers.
+  const phone =
+    active && can(active.permissions, "customers.read")
+      ? (await dbAs(session, (tx) => tx<{ n: number }[]>`select count(*)::int as n from public.integration_connections where tenant_id = ${active.tenantId} and provider = 'phone' and status = 'connected'`))[0].n > 0
+      : false;
   const support: Grant[] =
     active && !active.support && can(active.permissions, "audit.read")
       ? (await dbAs(session, (tx) => grantsFor(tx, active.tenantId))).filter((g) => g.state === "pending" || g.state === "live")
@@ -151,6 +157,11 @@ export default async function OfficeLayout({ children }: { children: React.React
                 <Link href="/settings/import" className="text-stone-700 hover:text-stone-900">
                   Import
                 </Link>
+                {can(active.permissions, "integrations.manage") || can(active.permissions, "gl.read") ? (
+                  <Link href="/settings/integrations" className="text-stone-700 hover:text-stone-900">
+                    Integrations
+                  </Link>
+                ) : null}
                 {can(active.permissions, "audit.read") ? (
                   <Link href="/settings/support" className="text-stone-700 hover:text-stone-900">
                     Support access
@@ -211,6 +222,7 @@ export default async function OfficeLayout({ children }: { children: React.React
         </div>
       ) : null}
       <main className="mx-auto grid max-w-6xl gap-6 px-4 py-8">{children}</main>
+      {phone ? <CallerPop /> : null}
     </div>
   );
 }

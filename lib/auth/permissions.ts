@@ -64,6 +64,7 @@ export const PERMISSION_GROUPS = [
       { key: "users.read", label: "View users and invitations" },
       { key: "users.write", label: "Invite, change and remove users" },
       { key: "audit.read", label: "View the audit trail" },
+      { key: "integrations.manage", label: "Set up API keys, webhooks and the phone system" },
     ],
   },
 ] as const;

@@ -228,10 +228,21 @@ tenant_products gain truck_minimum and warehouse_minimum; memberships gain payro
 | --- | --- | --- |
 | route_settings | tenant_id unique, average_speed_mph, day_starts_at, morning_ends_at, afternoon_ends_at, fill_in_miles, position_days | Distances are great-circle miles; drive time is miles over the speed |
 | technician_positions | tenant_id, user_id, lat, lng, accuracy_m, recorded_at | From the phone while the person is clocked in or on the way to a stop; read by dispatch (dispatch.write) and the person; purged after position_days by the messaging job |
-| route_runs | tenant_id, kind [optimize, assign, fill_in], technician_id, branch_id, date, before, after, miles_before, miles_after, applied_at | What a suggestion proposed and when it was applied |
+| route_runs | tenant_id, kind [optimize, assign, fill_in], technician_id, branch_id, date, before, after, miles_before, miles_after, applied_at | What a suggestion proposed (recorded at preview, with the day's fingerprint) and when it was applied; an assignment run keeps the placements taken |
 
 branches gain lat and lng, the route's start and end. The on-the-way template gains {{eta}}.
 
-## Tables for specs 11 to 21 (named now so specs do not collide)
+## Integrations and API
 
-message_threads, webhooks, api_keys. Each spec defines its own columns.
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| api_keys | tenant_id, name, prefix unique, key_hash, scopes, last_used_at, revoked_at, created_by | The secret is shown once; members never read key_hash (column privileges). The API runs as anon through `app.api_*` definer functions that check the key's scope |
+| api_requests | tenant_id, api_key_id, method, path, status, at | Every call, without its body, for 30 days; the rate limit (60 a minute per key) counts these |
+| webhook_subscriptions | tenant_id, url, events, secret, active, created_by | secret is hidden from members; a 410 answer turns a subscription off |
+| webhook_deliveries | tenant_id, subscription_id, event, payload, attempt, status [pending, delivered, failed], response_status, response_body, next_at, delivered_at | Queued by triggers on leads, service_requests, visits and invoices; sent by the messaging job; kept 30 days |
+| integration_connections | tenant_id, provider [quickbooks, phone] unique per tenant, status [connected, needs_reconnect, disconnected], settings, tokens, inbound_key, inbound_secret | tokens are sealed by the app (AES-256-GCM) and with inbound_secret never readable by members; QuickBooks is connected by gl.write, the phone by integrations.manage |
+| quickbooks_account_map | tenant_id, gl_account_id unique, qbo_account_id, qbo_account_name | Bugsy account to QuickBooks account |
+| quickbooks_syncs | tenant_id, day unique, status [sent, failed], qbo_entry_id, lines, error, attempts, sent_at | One summarized entry per day, sent once by the billing job |
+| calls | tenant_id, direction, from_number, to_number, account_id, contact_id, lead_id, user_id, started_at, duration_seconds, recording_url, provider_call_id unique, notes | From the phone system's signed events (matched by number) and from click to call; read with customers.read |
+
+leads, service_requests and device_checks gain api_key_id: what an API key wrote names the key, and only the API's own functions set it.

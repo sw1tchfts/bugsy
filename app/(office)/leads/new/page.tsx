@@ -6,7 +6,8 @@ import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
 
 export const metadata: Metadata = { title: "New lead" };
 
-export default async function NewLeadPage() {
+export default async function NewLeadPage({ searchParams }: { searchParams: Promise<{ phone?: string }> }) {
+  const { phone } = await searchParams;
   const { session, active } = await requireActiveTenant();
   await requirePermission(active.tenantId, "customers.write");
   const sources = await dbAs(session, (tx) =>
@@ -16,7 +17,7 @@ export default async function NewLeadPage() {
     <>
       <h1 className="text-2xl font-semibold">New lead</h1>
       <Card title="Who called, and where they heard about you">
-        <LeadForm tenantId={active.tenantId} sources={sources} />
+        <LeadForm tenantId={active.tenantId} sources={sources} phone={phone?.slice(0, 40)} />
       </Card>
     </>
   );

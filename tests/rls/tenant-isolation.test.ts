@@ -2930,3 +2930,148 @@ describe("spec 19 suggestions apply only as previewed, estimates and the purge",
     expect(result.kept).toBeGreaterThan(0);
   });
 });
+
+describe("spec 20 integrations enforced in the database", () => {
+  const ROLLBACK = "rollback: spec 20";
+  async function rolledBack<T>(fn: (tx: Tx, as: (email: string) => Promise<void>, asAnon: () => Promise<void>, asAdmin: () => Promise<void>) => Promise<T>): Promise<T> {
+    let out: T | undefined;
+    await admin
+      .begin(async (tx) => {
+        const as = async (email: string) => {
+          const id = await userId(email);
+          await tx.unsafe("reset role");
+          await tx.unsafe("set local role authenticated");
+          await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: id, email, role: "authenticated" })}, true)`;
+        };
+        const asAnon = async () => {
+          await tx.unsafe("reset role");
+          await tx`select set_config('request.jwt.claims', '', true)`;
+          await tx.unsafe("set local role anon");
+        };
+        const asAdmin = async () => {
+          await tx.unsafe("reset role");
+          await tx`select set_config('request.jwt.claims', '', true)`;
+        };
+        out = await fn(tx, as, asAnon, asAdmin);
+        throw new Error(ROLLBACK);
+      })
+      .catch((e: Error) => {
+        if (e.message !== ROLLBACK) throw e;
+      });
+    return out as T;
+  }
+  const attempt = (tx: Tx, q: (sp: Tx) => Promise<unknown>) =>
+    tx.savepoint((sp) => q(sp as unknown as Tx)).then((r) => `ok ${(r as { count?: number }).count ?? ""}`.trim(), (e: Error) => e.message);
+
+  it("never lets a member read a key's hash, a webhook's secret or a connection's tokens", async () => {
+    const result = await rolledBack(async (tx, as) => {
+      await as(seedUserEmail(lakeshore, "owner"));
+      return {
+        hash: await attempt(tx, (sp) => sp`select key_hash from public.api_keys`),
+        secret: await attempt(tx, (sp) => sp`select secret from public.webhook_subscriptions`),
+        tokens: await attempt(tx, (sp) => sp`select tokens from public.integration_connections`),
+        inbound: await attempt(tx, (sp) => sp`select inbound_secret from public.integration_connections`),
+        listed: (await tx<{ n: number }[]>`select count(*)::int as n from public.api_keys`)[0].n,
+      };
+    });
+    expect(result.hash).toMatch(/permission denied/);
+    expect(result.secret).toMatch(/permission denied/);
+    expect(result.tokens).toMatch(/permission denied/);
+    expect(result.inbound).toMatch(/permission denied/);
+    expect(result.listed).toBeGreaterThan(0);
+  });
+
+  it("runs the API only within the key's company and scopes, and a revoked key fails at once (rules 1, 2 and 9)", async () => {
+    const result = await rolledBack(async (tx, _as, asAnon, asAdmin) => {
+      const [key] = await tx<{ id: string; scopes: string[] }[]>`select id, scopes from public.api_keys where tenant_id = ${northwindId} order by created_at limit 1`;
+      const [theirs] = await tx<{ id: string }[]>`select id from public.properties where tenant_id = ${lakeshoreId} limit 1`;
+      const [ours] = await tx<{ id: string }[]>`select id from public.properties where tenant_id = ${northwindId} and archived_at is null limit 1`;
+      const [service] = await tx<{ id: string }[]>`select id from public.service_types where tenant_id = ${northwindId} limit 1`;
+      const [theirDevice] = await tx<{ barcode: string }[]>`select barcode from public.devices where tenant_id = ${lakeshoreId} and barcode is not null limit 1`;
+      await asAnon();
+      const missingScope = await attempt(tx, (sp) => sp`select app.api_lookup(${key.id}, '6145550150', null)`);
+      const foreignProperty = await attempt(tx, (sp) => sp`select app.api_availability(${key.id}, ${theirs.id})`);
+      const foreignRequest = await attempt(tx, (sp) => sp`select app.api_create_request(${key.id}, ${sp.json({ property_id: theirs.id })})`);
+      const noService = await attempt(tx, (sp) => sp`select app.api_create_request(${key.id}, ${sp.json({ property_id: ours.id })})`);
+      const ownRequest = await attempt(tx, (sp) => sp`select app.api_create_request(${key.id}, ${sp.json({ property_id: ours.id, service_type_id: service.id, details: "rls" })})`);
+      const deviceScope = await attempt(tx, (sp) => sp`select app.api_device_event(${key.id}, ${sp.json({ barcode: theirDevice?.barcode ?? "X" })})`);
+      const direct = await attempt(tx, (sp) => sp`select 1 from public.api_keys`);
+      await asAdmin();
+      await tx`update public.api_keys set scopes = scopes || '{devices.write}'::text[] where id = ${key.id}`;
+      await asAnon();
+      const foreignDevice = await attempt(tx, (sp) => sp`select app.api_device_event(${key.id}, ${sp.json({ barcode: theirDevice?.barcode ?? "X" })})`);
+      await asAdmin();
+      await tx`update public.api_keys set revoked_at = now() where id = ${key.id}`;
+      await asAnon();
+      const revoked = await attempt(tx, (sp) => sp`select app.api_availability(${key.id}, ${ours.id})`);
+      await asAdmin();
+      const [made] = await tx<{ api_key_id: string | null }[]>`select api_key_id from public.service_requests where tenant_id = ${northwindId} and details = 'rls'`;
+      return { missingScope, foreignProperty, foreignRequest, noService, ownRequest, deviceScope, direct, foreignDevice, revoked, attributed: made?.api_key_id === key.id };
+    });
+    expect(result.missingScope).toMatch(/does not have the accounts.read scope/);
+    expect(result.foreignProperty).toMatch(/no such property/);
+    expect(result.foreignRequest).toMatch(/no such property/);
+    expect(result.noService).toMatch(/names one of the company's service types/);
+    expect(result.ownRequest).toBe("ok 1");
+    expect(result.deviceScope).toMatch(/devices.write scope/);
+    expect(result.direct).toMatch(/permission denied/);
+    expect(result.foreignDevice).toMatch(/no active device/);
+    expect(result.revoked).toMatch(/does not have the availability.read scope/);
+    expect(result.attributed).toBe(true);
+  });
+
+  it("queues a webhook where the event happens, shows deliveries only to integrations, and keeps attribution to keys (rules 1 and 5)", async () => {
+    const result = await rolledBack(async (tx, as, _anon, asAdmin) => {
+      const [source] = await tx<{ id: string }[]>`select id from public.lead_sources where tenant_id = ${northwindId} limit 1`;
+      const [key] = await tx<{ id: string }[]>`select id from public.api_keys where tenant_id = ${northwindId} limit 1`;
+      await tx`insert into public.webhook_subscriptions (tenant_id, url, events, secret) values (${northwindId}, 'https://hooks.example.com/rls', '{lead.created}', 'whsec_rls')`;
+      await as(seedUserEmail(northwind, "office"));
+      const [lead] = await tx<{ id: string }[]>`
+        insert into public.leads (tenant_id, source_id, name, phone, api_key_id) values (${northwindId}, ${source.id}, 'RLS webhook lead', '6145550999', ${key.id}) returning id`;
+      const [{ forged }] = await tx<{ forged: string | null }[]>`select api_key_id as forged from public.leads where id = ${lead.id}`;
+      const [{ officeSees }] = await tx<{ officeSees: number }[]>`select count(*)::int as "officeSees" from public.webhook_deliveries`;
+      const officeSubscribes = await attempt(tx, (sp) => sp`insert into public.webhook_subscriptions (tenant_id, url, events, secret) values (${northwindId}, 'https://x.example.com', '{lead.created}', 's')`);
+      await as(seedUserEmail(northwind, "owner"));
+      const [{ ownerSees }] = await tx<{ ownerSees: number }[]>`
+        select count(*)::int as "ownerSees" from public.webhook_deliveries where event = 'lead.created' and payload -> 'data' ->> 'lead_id' = ${lead.id}`;
+      await as(seedUserEmail(lakeshore, "owner"));
+      const [{ otherSees }] = await tx<{ otherSees: number }[]>`select count(*)::int as "otherSees" from public.webhook_deliveries where payload -> 'data' ->> 'lead_id' = ${lead.id}`;
+      await asAdmin();
+      return { forged, officeSees, officeSubscribes, ownerSees, otherSees };
+    });
+    expect(result.forged).toBeNull();
+    expect(result.officeSees).toBe(0);
+    expect(result.officeSubscribes).toMatch(RLS_ERROR);
+    expect(result.ownerSees).toBe(1);
+    expect(result.otherSees).toBe(0);
+  });
+
+  it("logs a phone call once on the caller's account, only through the company's own connection (rule 8)", async () => {
+    const result = await rolledBack(async (tx, as, asAnon) => {
+      const [conn] = await tx<{ inbound_key: string }[]>`select inbound_key from public.integration_connections where tenant_id = ${lakeshoreId} and provider = 'phone'`;
+      const [account] = await tx<{ id: string; phone: string }[]>`select id, phone from public.accounts where tenant_id = ${lakeshoreId} and phone is not null and archived_at is null order by created_at desc limit 1`;
+      await asAnon();
+      const first = await tx<{ r: { account_id: string } }[]>`select app.phone_call_event(${conn.inbound_key}, ${tx.json({ call_id: "rls-1", direction: "inbound", from: account.phone, to: "+15555550100" })}) as r`;
+      await tx`select app.phone_call_event(${conn.inbound_key}, ${tx.json({ call_id: "rls-1", direction: "inbound", from: account.phone, to: "+15555550100", duration_seconds: 42 })})`;
+      const unknownKey = await attempt(tx, (sp) => sp`select app.phone_call_event(${crypto.randomUUID()}, ${sp.json({ call_id: "rls-2", from: "1" })})`);
+      const readCalls = await attempt(tx, (sp) => sp`select 1 from public.calls`);
+      await as(seedUserEmail(lakeshore, "office"));
+      const [{ n, seconds }] = await tx<{ n: number; seconds: number }[]>`select count(*)::int as n, max(duration_seconds) as seconds from public.calls where provider_call_id = 'rls-1'`;
+      await as(seedUserEmail(northwind, "owner"));
+      const [{ other }] = await tx<{ other: number }[]>`select count(*)::int as other from public.calls where provider_call_id = 'rls-1'`;
+      await as(seedUserEmail(northwind, "bookkeeper"));
+      const bookkeeperPhone = await attempt(tx, (sp) => sp`insert into public.integration_connections (tenant_id, provider) values (${northwindId}, 'phone')`);
+      const bookkeeperBooks = await attempt(tx, (sp) => sp`insert into public.integration_connections (tenant_id, provider, settings) values (${northwindId}, 'quickbooks', '{"realm_id":"rls"}'::jsonb) on conflict (tenant_id, provider) do nothing`);
+      return { matched: first[0].r.account_id === account.id, n, seconds, unknownKey, readCalls, other, bookkeeperPhone, bookkeeperBooks };
+    });
+    expect(result.matched).toBe(true);
+    expect(result.n).toBe(1);
+    expect(result.seconds).toBe(42);
+    expect(result.unknownKey).toMatch(/no such phone connection/);
+    // Without a user the calls are not there: no policy lets anyone but members read them.
+    expect(result.readCalls).toMatch(/permission denied|^ok 0$/);
+    expect(result.other).toBe(0);
+    expect(result.bookkeeperPhone).toMatch(RLS_ERROR);
+    expect(result.bookkeeperBooks).toMatch(/^ok/);
+  });
+});

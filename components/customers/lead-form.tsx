@@ -6,9 +6,9 @@ import { Button, Field, Input, Select, Textarea } from "@/components/ui";
 import { EMPTY_FORM_STATE } from "@/lib/customers/duplicates";
 import { AddressFields, DuplicateNotice, FormError, PropertyTypeSelect } from "./fields";
 
-export function LeadForm({ tenantId, sources }: { tenantId: string; sources: { id: string; name: string }[] }) {
+export function LeadForm({ tenantId, sources, phone }: { tenantId: string; sources: { id: string; name: string }[]; phone?: string }) {
   const [state, action, pending] = useActionState(createLead, EMPTY_FORM_STATE);
-  const v = state.values ?? {};
+  const v = state.values ?? (phone ? { phone } : {});
   return (
     <form action={action} className="grid gap-4 sm:grid-cols-2">
       <input type="hidden" name="tenant_id" value={tenantId} />

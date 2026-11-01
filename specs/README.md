@@ -27,7 +27,7 @@ Specs 01 to 10 sit in `phase-1/` for historical reasons; the folder name does no
 | 17 | [Sales and growth: door-to-door, commissions, campaigns](17-sales-and-growth.md) | done | 02, 04, 11 |
 | 18 | [Inventory, job costing, time and payroll export](18-inventory-costing-payroll.md) | done | 05, 06, 09 |
 | 19 | [Routing and fleet: route optimization, GPS](19-routing-and-fleet.md) | done | 05, 06, 11 |
-| 20 | Integrations and API: QuickBooks sync, webhooks, phone systems | not written | 01, 09 |
+| 20 | [Integrations and API: QuickBooks sync, webhooks, phone systems](20-integrations-and-api.md) | done | 01, 09 |
 | 21 | AI features | not written | 06, 12 |
 
 Launch gate: a design partner runs its daily operations on the platform for 30 consecutive business days (see the PRD's success metrics).
