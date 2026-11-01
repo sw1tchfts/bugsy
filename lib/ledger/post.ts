@@ -60,13 +60,15 @@ export type InvoiceLineEvent = {
   tax_breakdown: readonly { kind: string; name: string; cents: number }[];
   service_line: string | null;
   agreement_id: string | null;
-  kind: "service" | "fee" | "late_fee";
+  kind: "service" | "fee" | "late_fee" | "opening";
 };
 
 export type InvoiceEvent = { kind: "invoice" | "credit_memo"; source: string; lines: readonly InvoiceLineEvent[] };
 
 /** Where an invoice line's service amount goes: the contract balance when it is on an agreement, else straight to income. */
 export function invoiceLineAccount(line: Pick<InvoiceLineEvent, "kind" | "agreement_id" | "service_line">, source: string): AccountKey {
+  // What a customer owed at go-live was earned in the old books (spec 10 rule 11).
+  if (line.kind === "opening" || source === "opening") return "opening_balance_equity";
   if (line.kind === "late_fee" || source === "late_fee") return "late_fee_income";
   if (line.kind === "fee") return "cancellation_fee_income";
   if (line.agreement_id) return "contract_liability";

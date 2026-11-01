@@ -3,7 +3,8 @@
 // of books. Pure and tested.
 import type { AccountKey } from "./chart";
 
-export type CashReceipt = { payment_id: string; received_on: string; amount_cents: number; kind: "payment" | "refund" };
+/** A receipt or refund. A refund names the payment it returns and the allocations it released from it. */
+export type CashReceipt = { payment_id: string; received_on: string; amount_cents: number; kind: "payment" | "refund"; refund_of?: string | null; released?: readonly { invoice_id: string; cents: number }[] };
 export type CashAllocation = { payment_id: string; invoice_id: string; amount_cents: number };
 export type CashInvoiceLine = { invoice_id: string; amount_cents: number; tax_cents: number; account: AccountKey };
 export type CashFee = { paid_on: string; fee_cents: number };
@@ -39,8 +40,16 @@ export function cashBasisIncome(
   const inRange = (d: string) => d >= range.from && d <= range.to;
   const linesByInvoice = new Map<string, CashInvoiceLine[]>();
   for (const l of input.lines) linesByInvoice.set(l.invoice_id, [...(linesByInvoice.get(l.invoice_id) ?? []), l]);
+  // A refund that released allocations shrank them after the fact: the receipt counts what it was first allocated,
+  // on its own day, and the refund counts on its day.
   const allocationsByPayment = new Map<string, CashAllocation[]>();
   for (const a of input.allocations) allocationsByPayment.set(a.payment_id, [...(allocationsByPayment.get(a.payment_id) ?? []), a]);
+  for (const r of input.receipts) {
+    if (r.kind !== "refund" || !r.refund_of) continue;
+    for (const rel of r.released ?? []) {
+      if (rel.cents > 0) allocationsByPayment.set(r.refund_of, [...(allocationsByPayment.get(r.refund_of) ?? []), { payment_id: r.refund_of, invoice_id: rel.invoice_id, amount_cents: rel.cents }]);
+    }
+  }
   const revenue = new Map<AccountKey, number>();
   let tax = 0;
   let unapplied = 0;

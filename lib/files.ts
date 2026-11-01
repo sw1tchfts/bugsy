@@ -6,15 +6,18 @@ import type postgres from "postgres";
 type Sql = postgres.Sql | postgres.TransactionSql;
 
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;
+/** Spreadsheets and old records uploaded at go-live (spec 10). */
+export const MAX_IMPORT_FILE_BYTES = 20 * 1024 * 1024;
 
 export type StoredFile = { id: string; content_type: string; byte_size: number; data: Uint8Array };
 
 export async function putFile(
   tx: Sql,
   tenantId: string,
-  input: { kind: "photo" | "signature" | "document"; contentType: string; data: Uint8Array; clientId?: string | null },
+  input: { kind: "photo" | "signature" | "document" | "import"; contentType: string; data: Uint8Array; clientId?: string | null },
 ): Promise<string> {
-  if (input.data.byteLength < 1 || input.data.byteLength > MAX_FILE_BYTES) throw Object.assign(new Error("a file is between 1 byte and 5 MB"), { code: "23514" });
+  const max = input.kind === "import" ? MAX_IMPORT_FILE_BYTES : MAX_FILE_BYTES;
+  if (input.data.byteLength < 1 || input.data.byteLength > max) throw Object.assign(new Error(`a file is between 1 byte and ${max / 1024 / 1024} MB`), { code: "23514" });
   const sha256 = createHash("sha256").update(input.data).digest("hex");
   if (input.clientId) {
     const [existing] = await tx<{ id: string }[]>`select id from public.files where client_id = ${input.clientId}`;

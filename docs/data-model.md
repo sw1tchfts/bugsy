@@ -51,9 +51,9 @@ erDiagram
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| accounts | tenant_id, name, type [residential, commercial, property_manager], billing_address, tax_exempt_cert_id, terms_days, status | Who pays |
-| properties | tenant_id, account_id, address, state_code, lat, lng, property_type, size_sqft, unit_count, notes, registry_matches jsonb | Where work happens; its state selects the compliance rule pack |
-| contacts | tenant_id, account_id null, property_id null, name, email, phone, role [billing, primary, resident, site_contact], sms_opt_in, e_notice_consent_at | Residents get pesticide notices |
+| accounts | tenant_id, name, type [residential, commercial, property_manager], billing_address, tax_exempt_cert_id, terms_days, status, external_id (old-system id, unique per tenant) | Who pays |
+| properties | tenant_id, account_id, address, state_code, lat, lng, property_type, size_sqft, unit_count, notes, registry_matches jsonb, external_id | Where work happens; its state selects the compliance rule pack |
+| contacts | tenant_id, account_id null, property_id null, name, email, phone, role [billing, primary, resident, site_contact], sms_opt_in, e_notice_consent_at, external_id | Residents get pesticide notices |
 | leads | tenant_id, contact fields, property address, source, stage [new, inspection_booked, quoted, won, lost], lost_reason, owner_id | Converts to account and property |
 | quotes / quote_lines | tenant_id, lead_id or account_id, property_id, status, lines with price_book_item_id and price_cents | Tiered options as separate quote groups |
 
@@ -71,8 +71,8 @@ erDiagram
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| agreements | tenant_id, number, account_id, property_id, service_type_id, branch_id, quote_id, quote_option_id, status [draft, active, on_hold, cancelled, ended], cadence [monthly, bimonthly, quarterly, custom, seasonal_rounds], cadence_rule jsonb, season_start, season_end, skip_months, interior_only_months, initial_price_cents, recurring_price_cents, billing_mode [per_visit, flat_monthly, annual_prepay], term_months, renewals, auto_renew, cancel_fee_cents, starts_on, ends_on (trigger: start plus term times renewals), first_visit_on, window_days, terms_text, signed_at, signed_name, signed_by_contact_id, signed_ip, cancelled_on, cancel_reason_id, cancel_note, save_offer_made, save_outcome | Central object; renewal extends the same row |
-| visits | tenant_id, agreement_id null, account_id, property_id, service_type_id, branch_id, kind [initial, recurring, reservice, one_time, inspection], sequence, due_start, due_end, scheduled_for, technician_id (the lead), route_position, arrival_window [any, morning, afternoon, evening], dispatch_notes, skip_reason, status [planned, scheduled, en_route, in_progress, completed, skipped, cancelled], price_cents, interior_only, reservice_reason, arrived_at, departed_at, completed_at, cancelled_at, started_by, conditions jsonb {temperature_f, wind_mph, wind_direction, sky, captured_at, source [weather, manual]}, areas_treated text[], target_pests text[], summary_sent_at | Re-services have price_cents 0 (check constraint); the status machine is a trigger; a scheduled visit needs a date and a lead; only dispatch and technicians move a visit past planned; in_progress stamps arrived_at and started_by, completed stamps departed_at (the legal application start and end) |
+| agreements | tenant_id, number, account_id, property_id, service_type_id, branch_id, quote_id, quote_option_id, status [draft, active, on_hold, cancelled, ended], cadence [monthly, bimonthly, quarterly, custom, seasonal_rounds], cadence_rule jsonb, season_start, season_end, skip_months, interior_only_months, initial_price_cents, recurring_price_cents, billing_mode [per_visit, flat_monthly, annual_prepay], term_months, renewals, auto_renew, cancel_fee_cents, starts_on, ends_on (trigger: start plus term times renewals), first_visit_on, window_days, terms_text, signed_at, signed_name, signed_by_contact_id, signed_ip, cancelled_on, cancel_reason_id, cancel_note, save_offer_made, save_outcome, external_id, cutover_on, imported_billed_cents, import_batch_id | Central object; renewal extends the same row. An imported agreement bills from its cutover; the old system billed imported_billed_cents before it |
+| visits | tenant_id, agreement_id null, account_id, property_id, service_type_id, branch_id, kind [initial, recurring, reservice, one_time, inspection], sequence, due_start, due_end, scheduled_for, technician_id (the lead), route_position, arrival_window [any, morning, afternoon, evening], dispatch_notes, skip_reason, status [planned, scheduled, en_route, in_progress, completed, skipped, cancelled], price_cents, interior_only, reservice_reason, arrived_at, departed_at, completed_at, cancelled_at, started_by, conditions jsonb {temperature_f, wind_mph, wind_direction, sky, captured_at, source [weather, manual]}, areas_treated text[], target_pests text[], summary_sent_at, imported (done before Bugsy: completed with no times, no record, no invoice, no revenue, never moves) | Re-services have price_cents 0 (check constraint); the status machine is a trigger; a scheduled visit needs a date and a lead; only dispatch and technicians move a visit past planned; in_progress stamps arrived_at and started_by, completed stamps departed_at (the legal application start and end) |
 | visit_crew | tenant_id, visit_id, user_id, role [lead, applicator, supervisor, helper] | One lead per visit |
 | cancel_reasons | tenant_id, key, name, active | Defaults seeded per tenant; in-use reasons deactivate, never delete |
 | price_increases | tenant_id, kind [percent, amount], percent, amount_cents, effective_on, service_type_id, branch_id, billing_mode, rounding, applied_at, agreements_changed | A bulk run, applied once |
@@ -81,7 +81,7 @@ erDiagram
 | visit_notes | tenant_id, visit_id, kind [note, recommendation, condition_found, access], content, client_id unique, recorded_at | |
 | visit_photos | tenant_id, visit_id, file_id, kind [before, after, posting, device, other], caption, taken_at, client_id unique | |
 | visit_signatures | tenant_id, visit_id unique, file_id, signer_name, signed_at, client_id unique | One per visit |
-| files | tenant_id, kind [photo, signature, document], content_type, byte_size (at most 5 MB), sha256, data bytea, client_id unique | Behind lib/files.ts; Supabase Storage replaces the inside later. Served only through /api/files/[id] under the viewer's session |
+| files | tenant_id, kind [photo, signature, document, import], content_type, byte_size (at most 5 MB; 20 MB for import), sha256, data bytea, client_id unique | Behind lib/files.ts; Supabase Storage replaces the inside later. Served only through /api/files/[id] under the viewer's session |
 | sync_log | tenant_id, user_id, client_change_id unique, kind, visit_id, result [applied, rejected, duplicate], detail jsonb, applied_at | The technician app's idempotency ledger; readable by its author and dispatch.read |
 
 ## Compliance
@@ -100,7 +100,7 @@ erDiagram
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| invoices | tenant_id, number (per tenant from counters, assigned at issue), kind [invoice, credit_memo], account_id, property_id null, agreement_id null, visit_id null, status [draft, issued, partially_paid, paid, past_due, void], issued_on, due_on, terms_days, po_number, subtotal_cents, tax_cents, total_cents, paid_cents, memo, source [visit, installment, prepay, settlement, late_fee, manual], source_key (unique per tenant), tax_unconfirmed, void_reason, voided_at, voided_by | Immutable once issued (trigger); void only with a reason and no payments; tenant deletion restricted |
+| invoices | tenant_id, number (per tenant from counters, assigned at issue), kind [invoice, credit_memo], account_id, property_id null, agreement_id null, visit_id null, status [draft, issued, partially_paid, paid, past_due, void], issued_on, due_on, terms_days, po_number, subtotal_cents, tax_cents, total_cents, paid_cents, memo, source [visit, installment, prepay, settlement, late_fee, manual, opening], source_key (unique per tenant), external_ref (old invoice number), tax_unconfirmed, void_reason, voided_at, voided_by | Immutable once issued (trigger); void only with a reason and no payments; tenant deletion restricted |
 | invoice_lines | tenant_id, invoice_id, position, agreement_id null, visit_id null, service_type_id null, service_line, description, amount_cents, tax_class [taxable, exempt, unknown, exempt_certificate], tax_rate numeric, tax_breakdown jsonb [{kind, name, rate, cents}], tax_cents | Lines change only on a draft |
 | payments | tenant_id, account_id, kind [payment, refund], method [card, us_bank_account, cash, check, other], status [pending, succeeded, failed, refunded], amount_cents, gateway, gateway_payment_id, payment_method_id, refund_of, reference, failure_reason, received_at, visit_id null, recorded_by, memo | A refund is its own row pointing at the payment; the crew records cash and checks for their own visit |
 | payment_allocations | tenant_id, payment_id, invoice_id, amount_cents | Never more than the payment or the invoice (trigger); paid_cents and paid or partially paid status follow |
@@ -119,6 +119,13 @@ erDiagram
 | journal_lines | tenant_id, entry_id, position, gl_account_id, debit_cents, credit_cents (one side positive), agreement_id null, jurisdiction null (kind:name), memo | The contract subledger (agreement_id on contract liability lines) and the sales tax subledger; a text jurisdiction key rather than a rate row id because rate rows change with effective dates |
 | period_closes | tenant_id, period, status [closed, reopened], closed_at, closed_by, reopened_at, reopened_by, reopen_reason | Closed periods reject postings; reopening needs an owner and a reason; audited |
 | payouts | tenant_id, gateway, gateway_payout_id (unique per gateway), arrived_on, gross_cents, fee_cents, net_cents, status, payload | What the gateway sent to the bank; payments.payout_id points at it; immutable |
+
+## Import
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| import_batches | tenant_id, status [dry_run, committed, failed], cutover_on, summary jsonb (per file: rows, created, skipped, errors), errors jsonb, warnings jsonb, created_by | One per dry run or import; never changes. A commit writes everything or nothing |
+| import_files | tenant_id, batch_id, file_id, kind [template, history], file_name, label | The uploaded spreadsheets and the old system's records, kept for the retention period; history is readable by compliance.read |
 
 ## Inventory
 

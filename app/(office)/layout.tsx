@@ -80,6 +80,9 @@ export default async function OfficeLayout({ children }: { children: React.React
                 <Link href="/settings/audit" className="text-stone-700 hover:text-stone-900">
                   Audit
                 </Link>
+                <Link href="/settings/import" className="text-stone-700 hover:text-stone-900">
+                  Import
+                </Link>
               </>
             ) : null}
             {admin ? (

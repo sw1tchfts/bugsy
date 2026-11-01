@@ -1,0 +1,4 @@
+account_external_id,amount,as_of,due_on,reference,memo
+A-1002,450.00,2026-09-30,2026-10-30,INV-88812,Prepay for the March 2026 term not yet paid
+A-1004,41.66,2026-09-01,2026-09-16,INV-88790,September installment
+A-1001,-25.00,2026-09-30,,CR-1201,Credit for a missed visit in June

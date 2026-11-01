@@ -17,7 +17,7 @@ Specs 01 to 10 sit in `phase-1/` for historical reasons; the folder name does no
 | 07 | [Compliance: credentials, records, notices, state rules](phase-1/07-compliance.md) | done | 06 |
 | 08 | [Billing: Stripe Connect, invoices, autopay, sales tax](phase-1/08-billing.md) | done | 04, 06 |
 | 09 | [General ledger: chart of accounts, posting, deferred revenue](phase-1/09-ledger.md) | done | 08 |
-| 10 | [Spreadsheet import](phase-1/10-import.md) | stub | 02, 04 |
+| 10 | [Spreadsheet import](phase-1/10-import.md) | done | 02, 04, 08, 09 |
 | 11 | Customer messaging: email and SMS | not written | 01, 02 |
 | 12 | Reporting and owner dashboard | not written | 04, 08, 09 |
 | 13 | Platform operations | not written | 01 |

@@ -90,3 +90,27 @@ describe("the cash-basis view (spec 09 rule 15)", () => {
     expect(view.net_cents).toBe(9000 - 1000 - 214);
   });
 });
+
+describe("the cash-basis view across a partial refund (spec 09 rule 15, review fix)", () => {
+  it("counts the receipt on its day as first allocated and the refund on its own day", () => {
+    const input = {
+      receipts: [
+        { payment_id: "p1", received_on: "2027-01-10", amount_cents: 10000, kind: "payment" as const },
+        // The refund released 4000 of p1's allocation to i1, which now shows 6000.
+        { payment_id: "r1", received_on: "2027-02-05", amount_cents: 4000, kind: "refund" as const, refund_of: "p1", released: [{ invoice_id: "i1", cents: 4000 }] },
+      ],
+      allocations: [{ payment_id: "p1", invoice_id: "i1", amount_cents: 6000 }],
+      lines: [{ invoice_id: "i1", amount_cents: 10000, tax_cents: 0, account: "revenue_rodent" as const }],
+      fees: [],
+    };
+    const january = cashBasisIncome(input, { from: "2027-01-01", to: "2027-01-31" });
+    expect(january.revenue_cents).toBe(10000);
+    expect(january.unapplied_cents).toBe(0);
+    expect(january.refunds_cents).toBe(0);
+    const february = cashBasisIncome(input, { from: "2027-02-01", to: "2027-02-28" });
+    expect(february.revenue_cents).toBe(0);
+    expect(february.refunds_cents).toBe(4000);
+    const both = cashBasisIncome(input, { from: "2027-01-01", to: "2027-02-28" });
+    expect(both.net_cents).toBe(6000);
+  });
+});

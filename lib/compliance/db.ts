@@ -325,7 +325,7 @@ export async function runCompliance(tx: Sql, tenantId: string, timeZone: string,
   const pesticideKinds = [...PESTICIDE_JOB_KINDS];
   const withoutRecord = await tx<{ id: string }[]>`
     select v.id from public.visits v join public.service_types st on st.id = v.service_type_id
-    where v.tenant_id = ${tenantId} and v.status = 'completed' and st.job_kind = any(${pesticideKinds}::text[])
+    where v.tenant_id = ${tenantId} and v.status = 'completed' and not v.imported and st.job_kind = any(${pesticideKinds}::text[])
       and not exists (select 1 from public.application_records r where r.visit_id = v.id)
     order by v.completed_at`;
   for (const v of withoutRecord) {

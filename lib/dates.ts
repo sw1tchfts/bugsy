@@ -81,8 +81,11 @@ export function addBusinessDays(iso: string, days: number): string {
 
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+/** A real calendar date written yyyy-mm-dd: February 30 is not one. */
 export function isIsoDate(value: string): boolean {
-  return ISO_DATE.test(value) && !Number.isNaN(Date.UTC(Number(value.slice(0, 4)), Number(value.slice(5, 7)) - 1, Number(value.slice(8, 10))));
+  if (!ISO_DATE.test(value)) return false;
+  const d = new Date(Date.UTC(Number(value.slice(0, 4)), Number(value.slice(5, 7)) - 1, Number(value.slice(8, 10))));
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
 }
 
 function toUtc(iso: string): number {

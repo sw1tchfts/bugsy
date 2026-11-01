@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { can } from "@/lib/auth/permissions";
 import { dbAs, requirePermission } from "@/lib/auth/session";
 import { loadSettings } from "@/lib/billing/db";
 import { opt, str } from "@/lib/customers/forms";
@@ -32,7 +33,7 @@ export async function runLedgerNow(formData: FormData) {
   try {
     const c = await dbAs(session, async (tx) => {
       const settings = await loadSettings(tx, tenantId);
-      return runLedger(tx, tenantId, active.tenantTimezone, todayInZone(active.tenantTimezone), settings.gateway);
+      return runLedger(tx, tenantId, active.tenantTimezone, todayInZone(active.tenantTimezone), settings.gateway, { reclass: true, payouts: can(active.permissions, "billing.write") });
     });
     const posted = c.invoices + c.voids + c.visits + c.product_uses + c.payments + c.refunds + c.payouts + c.local_payouts + c.reclasses;
     note = `${posted} journal entr${posted === 1 ? "y" : "ies"} posted; ${c.unpriced} product use(s) still unpriced.`;
@@ -100,6 +101,7 @@ export async function reverseEntryAction(formData: FormData) {
   let error: string | null = null;
   let reversalId: string | null = null;
   if (!isIsoDate(postedOn)) error = "The date is a date.";
+  else if (postedOn < todayInZone(active.tenantTimezone)) error = "A reversal is dated today or later; the original stays where it was posted.";
   else {
     try {
       reversalId = await dbAs(session, (tx) =>
@@ -170,7 +172,7 @@ export async function saveAccount(formData: FormData) {
   const name = str(formData, "name").trim();
   const type = str(formData, "type");
   const subtype = str(formData, "subtype");
-  const active = formData.get("active") !== "false";
+  const active = formData.getAll("active").map(String).includes("false") ? false : true;
   const { session } = await requirePermission(tenantId, "gl.write");
   let error: string | null = null;
   try {
@@ -181,5 +183,5 @@ export async function saveAccount(formData: FormData) {
   } catch (err) {
     error = errorCode(err);
   }
-  go(`${HOME}/accounts`, { error });
+  go(accountId ? `${HOME}/accounts/${accountId}` : `${HOME}/accounts`, { error });
 }

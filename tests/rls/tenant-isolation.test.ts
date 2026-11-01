@@ -6,6 +6,7 @@
 
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createInvoice, voidInvoice } from "../../lib/billing/db";
 import { sweep } from "../../lib/ledger/db";
 import { PG_TYPES } from "../../lib/pg-types";
 import { CROSS_TENANT_USER, PLATFORM_ADMIN_EMAIL, ROLE_KEYS, SEED_TENANTS, seedUserEmail } from "../../scripts/seed-data";
@@ -1037,6 +1038,7 @@ describe("spec 09 rules enforced in the database", () => {
     { account_key: "operating_bank", credit_cents: 1250 },
   ];
 
+
   beforeAll(async () => {
     bookkeeper = await userId(bookkeeperEmail);
     office = await userId(officeEmail);
@@ -1122,8 +1124,86 @@ describe("spec 09 rules enforced in the database", () => {
     expect(n).toBeGreaterThan(0);
   });
 
+  it("posts the office's void inline although the office cannot read the journal (review fix)", async () => {
+    const [account] = await admin<{ id: string }[]>`select id from public.accounts where tenant_id = ${lakeshoreId} order by created_at limit 1`;
+    const key = `rls-void:${Date.now()}`;
+    const inv = await asUser(office, officeEmail, async (tx) => {
+      const made = await createInvoice(tx, lakeshoreId, { account_id: account.id, property_id: null, source: "manual", source_key: key, issued_on: new Date().toISOString().slice(0, 10), lines: [{ description: "rls void", amount_cents: 700 }], issue: true });
+      await voidInvoice(tx, lakeshoreId, made.id, "rls: entered twice", office);
+      return made;
+    });
+    const entries = await admin<{ source_type: string; reverses: string | null }[]>`select source_type, reverses from public.journal_entries where tenant_id = ${lakeshoreId} and source_id = ${inv.id} order by number`;
+    expect(entries.map((e) => e.source_type)).toEqual(["invoice", "void"]);
+    expect(entries[1].reverses).toBeTruthy();
+  });
+
+  it("refuses reversing the reclass, a backdated reversal, a deferred revenue line with no agreement, and deactivating a template account (review fixes)", async () => {
+    const [reclass] = await admin<{ id: string }[]>`select id from public.journal_entries where tenant_id = ${lakeshoreId} and source_type = 'reclass' and reversed_by is null limit 1`;
+    expect(reclass, "the seed posts a period-end reclass").toBeTruthy();
+    await expect(
+      asUser(bookkeeper, bookkeeperEmail, (tx) => tx`select app.reverse_entry(${lakeshoreId}, ${reclass.id}, ${tx.json({ source_type: "reversal", source_key: `rls:rev-reclass:${Date.now()}`, posted_on: "2099-12-31", memo: "x" })})`),
+    ).rejects.toThrow(/adjusted by the job/);
+    const key = `rls:to-reverse:${Date.now()}`;
+    const [{ id }] = await asUser(bookkeeper, bookkeeperEmail, (tx) => tx<{ id: string }[]>`select app.post_entry(${lakeshoreId}, ${tx.json(entry(key))}, ${tx.json(balanced)}) as id`);
+    await expect(
+      asUser(bookkeeper, bookkeeperEmail, (tx) => tx`select app.reverse_entry(${lakeshoreId}, ${id}, ${tx.json({ source_type: "reversal", source_key: `${key}:rev`, posted_on: "2020-01-01", memo: "x" })})`),
+    ).rejects.toThrow(/dated today or later/);
+    await expect(
+      asUser(office, officeEmail, (tx) => tx`select app.reverse_entry(${lakeshoreId}, ${id}, ${tx.json({ source_type: "reversal", source_key: `${key}:rev2`, posted_on: "2099-12-31", memo: "x" })})`),
+    ).rejects.toThrow(/gl\.write/);
+    await expect(
+      asUser(bookkeeper, bookkeeperEmail, (tx) => tx`select app.post_entry(${lakeshoreId}, ${tx.json(entry(`rls:cl:${Date.now()}`))}, ${tx.json([{ account_key: "contract_liability", debit_cents: 100 }, { account_key: "operating_bank", credit_cents: 100 }])})`),
+    ).rejects.toThrow(/names its agreement/);
+    await expect(asUser(bookkeeper, bookkeeperEmail, (tx) => tx`update public.gl_accounts set active = false where id = ${vehicle}`)).rejects.toThrow(/stay active/);
+  });
+
   it("sweeps nothing the second time (rule 12)", async () => {
     const counts = await admin.begin((tx) => sweep(tx, lakeshoreId, lakeshore.timezone));
     expect(counts).toMatchObject({ invoices: 0, voids: 0, visits: 0, product_uses: 0, payments: 0, refunds: 0, payouts: 0 });
+  });
+});
+
+describe("spec 10 rules enforced in the database", () => {
+  const officeEmail = seedUserEmail(lakeshore, "office");
+  const ownerEmail = seedUserEmail(lakeshore, "owner");
+  const managerEmail = seedUserEmail(lakeshore, "compliance_manager");
+  let office = "";
+  let owner = "";
+  let manager = "";
+
+  beforeAll(async () => {
+    office = await userId(officeEmail);
+    owner = await userId(ownerEmail);
+    manager = await userId(managerEmail);
+  });
+
+  it("lets only data.import write batches, and the licensed manager read the history files (rules 13 and 14)", async () => {
+    await expect(
+      asUser(office, officeEmail, (tx) => tx`insert into public.import_batches (tenant_id, status, cutover_on) values (${lakeshoreId}, 'dry_run', current_date)`),
+    ).rejects.toThrow(/row-level security/);
+    const [mine] = await asUser(owner, ownerEmail, (tx) => tx<{ id: string }[]>`insert into public.import_batches (tenant_id, status, cutover_on) values (${lakeshoreId}, 'dry_run', current_date) returning id`);
+    expect(mine.id).toBeTruthy();
+    await expect(admin`update public.import_batches set status = 'committed' where id = ${mine.id}`).rejects.toThrow(/never change/);
+    const officeSees = await asUser(office, officeEmail, (tx) => tx`select id from public.import_batches where tenant_id = ${lakeshoreId}`);
+    expect(officeSees.length).toBe(0);
+    const history = await asUser(manager, managerEmail, (tx) => tx<{ kind: string }[]>`select kind from public.import_files where tenant_id = ${lakeshoreId}`);
+    expect(history.length).toBeGreaterThan(0);
+    expect(new Set(history.map((h) => h.kind))).toEqual(new Set(["history"]));
+  });
+
+  it("keeps a visit done before Bugsy as it was imported (rule 12)", async () => {
+    const [visit] = await admin<{ id: string }[]>`select id from public.visits where tenant_id = ${lakeshoreId} and imported limit 1`;
+    expect(visit, "the seed imports visits done before Bugsy").toBeTruthy();
+    await expect(asUser(owner, ownerEmail, (tx) => tx`update public.visits set status = 'scheduled', scheduled_for = current_date, technician_id = ${owner} where id = ${visit.id}`)).rejects.toThrow(/stays as imported/);
+    const [row] = await admin<{ completed_at: Date | null; departed_at: Date | null }[]>`select completed_at, departed_at from public.visits where id = ${visit.id}`;
+    expect(row).toEqual({ completed_at: null, departed_at: null });
+    await expect(
+      asUser(owner, ownerEmail, (tx) => tx`insert into public.visits (tenant_id, account_id, property_id, service_type_id, kind, due_start, due_end, status) select tenant_id, account_id, property_id, service_type_id, 'one_time', current_date, current_date, 'completed' from public.visits where id = ${visit.id}`),
+    ).rejects.toThrow(/completed when imported/);
+  });
+
+  it("shows a company its own old-system ids and never the other company's", async () => {
+    const theirs = await asUser(owner, ownerEmail, (tx) => tx<{ tenant_id: string }[]>`select tenant_id from public.accounts where external_id = 'A-1001'`);
+    expect(theirs.map((r) => r.tenant_id)).toEqual([lakeshoreId]);
   });
 });

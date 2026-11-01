@@ -82,8 +82,9 @@ export async function postEntry(tx: Sql, tenantId: string, input: EntryInput): P
   return row.id;
 }
 
+/** The entry for a source key, for any member: the office and the crew cannot read the journal but post into it. */
 async function entryByKey(tx: Sql, tenantId: string, sourceKey: string): Promise<{ id: string; reversed_by: string | null } | null> {
-  const [row] = await tx<{ id: string; reversed_by: string | null }[]>`select id, reversed_by from public.journal_entries where tenant_id = ${tenantId} and source_key = ${sourceKey}`;
+  const [row] = await tx<{ id: string; reversed_by: string | null }[]>`select id, reversed_by from app.journal_entry_by_key(${tenantId}, ${sourceKey})`;
   return row ?? null;
 }
 
@@ -142,11 +143,11 @@ export async function postVoid(tx: Sql, tenantId: string, invoiceId: string, tod
 
 /** A completed visit earns its price out of the contract balance (rule 3). */
 export async function postVisit(tx: Sql, tenantId: string, visitId: string, timeZone: string): Promise<string | null> {
-  const [v] = await tx<{ id: string; status: string; sequence: number; price_cents: string | number; agreement_id: string | null; departed_at: Date | string | null; completed_at: Date | string | null; service_line: string; account_name: string }[]>`
-    select v.id, v.status, v.sequence, v.price_cents, v.agreement_id, v.departed_at, v.completed_at, st.service_line, a.name as account_name
+  const [v] = await tx<{ id: string; status: string; imported: boolean; sequence: number; price_cents: string | number; agreement_id: string | null; departed_at: Date | string | null; completed_at: Date | string | null; service_line: string; account_name: string }[]>`
+    select v.id, v.status, v.imported, v.sequence, v.price_cents, v.agreement_id, v.departed_at, v.completed_at, st.service_line, a.name as account_name
     from public.visits v join public.service_types st on st.id = v.service_type_id join public.accounts a on a.id = v.account_id
     where v.id = ${visitId} and v.tenant_id = ${tenantId}`;
-  if (!v || v.status !== "completed") return null;
+  if (!v || v.status !== "completed" || v.imported) return null;
   const lines = visitLines({ price_cents: Number(v.price_cents), service_line: v.service_line, agreement_id: v.agreement_id });
   if (lines.length === 0) return null;
   const day = dateInZone(v.departed_at ?? v.completed_at ?? new Date(), timeZone);
@@ -163,8 +164,8 @@ async function usageRows(tx: Sql, tenantId: string, visitId: string | null): Pro
       join public.accounts a on a.id = v.account_id
       join public.products p on p.id = vp.product_id
       left join public.tenant_products tp on tp.product_id = vp.product_id and tp.tenant_id = vp.tenant_id
-    where vp.tenant_id = ${tenantId} and v.status = 'completed' and (${visitId}::uuid is null or vp.visit_id = ${visitId}::uuid)
-      and not exists (select 1 from public.journal_entries e where e.tenant_id = vp.tenant_id and e.source_key = 'product_use:' || vp.id)
+    where vp.tenant_id = ${tenantId} and v.status = 'completed' and not v.imported and (${visitId}::uuid is null or vp.visit_id = ${visitId}::uuid)
+      and not exists (select 1 from app.journal_entry_by_key(vp.tenant_id, 'product_use:' || vp.id))
     order by v.completed_at, vp.id`;
 }
 
@@ -258,35 +259,39 @@ export async function postOpening(tx: Sql, tenantId: string, input: { agreement_
   });
 }
 
-/** Posts the mirror of an entry and links the two (rule 11). */
+/** Posts the mirror of an entry and links the two (rule 11), in app.reverse_entry so a member who cannot read the
+ *  journal (the office voiding an invoice) still reverses inline. The reclass is never reversed by hand, and a manual
+ *  reversal is dated today or later. */
 export async function reverseEntry(tx: Sql, tenantId: string, entryId: string, input: { source_type: "void" | "reversal"; source_key: string; source_id?: string | null; posted_on: string; memo: string }): Promise<string | null> {
-  const [entry] = await tx<{ id: string; number: number; reversed_by: string | null }[]>`select id, number, reversed_by from public.journal_entries where id = ${entryId} and tenant_id = ${tenantId}`;
-  if (!entry) fail("journal entry not found");
-  if (entry.reversed_by) fail(`entry #${entry.number} is already reversed`);
-  const lines = await tx<{ gl_account_id: string; debit_cents: string | number; credit_cents: string | number; agreement_id: string | null; jurisdiction: string | null; memo: string | null }[]>`
-    select gl_account_id, debit_cents, credit_cents, agreement_id, jurisdiction, memo from public.journal_lines where entry_id = ${entryId} order by position`;
-  const mirrored: EntryLine[] = mirror(lines.map((l) => ({ account: "operating_bank" as AccountKey, debit_cents: Number(l.debit_cents), credit_cents: Number(l.credit_cents), agreement_id: l.agreement_id, jurisdiction: l.jurisdiction, memo: l.memo }))).map((l, i) => ({
-    gl_account_id: lines[i].gl_account_id,
-    debit_cents: l.debit_cents,
-    credit_cents: l.credit_cents,
-    agreement_id: l.agreement_id,
-    jurisdiction: l.jurisdiction,
-    memo: l.memo,
-  }));
-  return postEntry(tx, tenantId, { ...input, reverses: entryId, lines: mirrored });
+  const entry = { source_type: input.source_type, source_key: input.source_key, source_id: input.source_id ?? null, posted_on: input.posted_on, memo: input.memo };
+  const [row] = await tx<{ id: string | null }[]>`select app.reverse_entry(${tenantId}, ${entryId}, ${tx.json(entry)}) as id`;
+  return row?.id ?? null;
 }
 
 // ---------------------------------------------------------------------------
 // Contract balances and the period-end reclass (rules 7 and 8)
 // ---------------------------------------------------------------------------
 
-/** Every contract liability line with the agreement it belongs to and what it was for. */
+/** Every contract liability line with the agreement it belongs to and what it was for: the source of the entry, or of
+ *  the original an entry reverses, however many reversals deep. */
 export async function contractLines(tx: Sql, tenantId: string): Promise<ContractLine[]> {
   const rows = await tx<{ agreement_id: string; debit_cents: string | number; credit_cents: string | number; posted_on: string; origin: string }[]>`
-    select l.agreement_id, l.debit_cents, l.credit_cents, e.posted_on, coalesce(r.source_type, e.source_type) as origin
+    with recursive touched as (
+      select distinct e.id, e.source_type, e.reverses from public.journal_entries e
+      join public.journal_lines l on l.entry_id = e.id join public.gl_accounts g on g.id = l.gl_account_id
+      where e.tenant_id = ${tenantId} and g.key = 'contract_liability'
+    ), walk as (
+      select t.id as entry_id, t.source_type, t.reverses from touched t
+      union all
+      select w.entry_id, p.source_type, p.reverses from walk w join public.journal_entries p on p.id = w.reverses
+      where w.source_type in ('reversal', 'void')
+    ), origin as (
+      select entry_id, source_type from walk where source_type not in ('reversal', 'void') or reverses is null
+    )
+    select l.agreement_id, l.debit_cents, l.credit_cents, e.posted_on, o.source_type as origin
     from public.journal_lines l
       join public.journal_entries e on e.id = l.entry_id
-      left join public.journal_entries r on r.id = e.reverses
+      join origin o on o.entry_id = e.id
       join public.gl_accounts g on g.id = l.gl_account_id
     where l.tenant_id = ${tenantId} and g.key = 'contract_liability' and l.agreement_id is not null
     order by e.posted_on, e.number`;
@@ -336,22 +341,22 @@ export async function sweep(tx: Sql, tenantId: string, timeZone: string): Promis
   const today = todayInZone(timeZone);
   const invoices = await tx<{ id: string }[]>`
     select i.id from public.invoices i where i.tenant_id = ${tenantId} and i.status in ('issued', 'partially_paid', 'paid', 'past_due')
-      and not exists (select 1 from public.journal_entries e where e.tenant_id = i.tenant_id and e.source_key = 'invoice:' || i.id) order by i.issued_on, i.number`;
+      and not exists (select 1 from app.journal_entry_by_key(i.tenant_id, 'invoice:' || i.id)) order by i.issued_on, i.number`;
   for (const i of invoices) if (await postInvoice(tx, tenantId, i.id)) counts.invoices += 1;
   const voids = await tx<{ id: string }[]>`
     select i.id from public.invoices i where i.tenant_id = ${tenantId} and i.status = 'void'
-      and exists (select 1 from public.journal_entries e where e.tenant_id = i.tenant_id and e.source_key = 'invoice:' || i.id and e.reversed_by is null)`;
+      and exists (select 1 from app.journal_entry_by_key(i.tenant_id, 'invoice:' || i.id) k where k.reversed_by is null)`;
   for (const i of voids) if (await postVoid(tx, tenantId, i.id, today)) counts.voids += 1;
   const visits = await tx<{ id: string }[]>`
-    select v.id from public.visits v where v.tenant_id = ${tenantId} and v.status = 'completed' and v.agreement_id is not null and v.price_cents > 0
-      and not exists (select 1 from public.journal_entries e where e.tenant_id = v.tenant_id and e.source_key = 'visit:' || v.id) order by v.completed_at`;
+    select v.id from public.visits v where v.tenant_id = ${tenantId} and v.status = 'completed' and not v.imported and v.agreement_id is not null and v.price_cents > 0
+      and not exists (select 1 from app.journal_entry_by_key(v.tenant_id, 'visit:' || v.id)) order by v.completed_at`;
   for (const v of visits) if (await postVisit(tx, tenantId, v.id, timeZone)) counts.visits += 1;
   const usage = await postProductUse(tx, tenantId, null, timeZone);
   counts.product_uses = usage.posted;
   counts.unpriced = usage.unpriced;
   const payments = await tx<{ id: string; kind: "payment" | "refund" }[]>`
     select p.id, p.kind from public.payments p where p.tenant_id = ${tenantId} and p.status in ('succeeded', 'refunded')
-      and not exists (select 1 from public.journal_entries e where e.tenant_id = p.tenant_id and e.source_key = (case when p.kind = 'refund' then 'refund:' else 'payment:' end) || p.id) order by p.received_at`;
+      and not exists (select 1 from app.journal_entry_by_key(p.tenant_id, (case when p.kind = 'refund' then 'refund:' else 'payment:' end) || p.id)) order by p.received_at`;
   for (const p of payments) {
     if (p.kind === "refund") {
       if (await postRefund(tx, tenantId, p.id, timeZone)) counts.refunds += 1;
@@ -359,23 +364,25 @@ export async function sweep(tx: Sql, tenantId: string, timeZone: string): Promis
   }
   const payouts = await tx<{ id: string }[]>`
     select po.id from public.payouts po where po.tenant_id = ${tenantId} and po.status = 'paid'
-      and not exists (select 1 from public.journal_entries e where e.tenant_id = po.tenant_id and e.source_key = 'payout:' || po.id) order by po.arrived_on`;
+      and not exists (select 1 from app.journal_entry_by_key(po.tenant_id, 'payout:' || po.id)) order by po.arrived_on`;
   for (const po of payouts) if (await postPayout(tx, tenantId, po.id)) counts.payouts += 1;
   return counts;
 }
 
 /** Counts of events still unposted, for the ledger home; the job's next run clears them. */
-export async function unposted(tx: Sql, tenantId: string): Promise<{ invoices: number; visits: number; payments: number; payouts: number }> {
-  const [row] = await tx<{ invoices: number; visits: number; payments: number; payouts: number }[]>`
+export async function unposted(tx: Sql, tenantId: string): Promise<{ invoices: number; voids: number; visits: number; payments: number; payouts: number }> {
+  const [row] = await tx<{ invoices: number; voids: number; visits: number; payments: number; payouts: number }[]>`
     select
+      (select count(*)::int from public.invoices i where i.tenant_id = ${tenantId} and i.status = 'void'
+         and exists (select 1 from app.journal_entry_by_key(i.tenant_id, 'invoice:' || i.id) k where k.reversed_by is null)) as voids,
       (select count(*)::int from public.invoices i where i.tenant_id = ${tenantId} and i.status in ('issued', 'partially_paid', 'paid', 'past_due')
-         and not exists (select 1 from public.journal_entries e where e.tenant_id = i.tenant_id and e.source_key = 'invoice:' || i.id)) as invoices,
-      (select count(*)::int from public.visits v where v.tenant_id = ${tenantId} and v.status = 'completed' and v.agreement_id is not null and v.price_cents > 0
-         and not exists (select 1 from public.journal_entries e where e.tenant_id = v.tenant_id and e.source_key = 'visit:' || v.id)) as visits,
+         and not exists (select 1 from app.journal_entry_by_key(i.tenant_id, 'invoice:' || i.id))) as invoices,
+      (select count(*)::int from public.visits v where v.tenant_id = ${tenantId} and v.status = 'completed' and not v.imported and v.agreement_id is not null and v.price_cents > 0
+         and not exists (select 1 from app.journal_entry_by_key(v.tenant_id, 'visit:' || v.id))) as visits,
       (select count(*)::int from public.payments p where p.tenant_id = ${tenantId} and p.status in ('succeeded', 'refunded')
-         and not exists (select 1 from public.journal_entries e where e.tenant_id = p.tenant_id and e.source_key = (case when p.kind = 'refund' then 'refund:' else 'payment:' end) || p.id)) as payments,
+         and not exists (select 1 from app.journal_entry_by_key(p.tenant_id, (case when p.kind = 'refund' then 'refund:' else 'payment:' end) || p.id))) as payments,
       (select count(*)::int from public.payouts po where po.tenant_id = ${tenantId} and po.status = 'paid'
-         and not exists (select 1 from public.journal_entries e where e.tenant_id = po.tenant_id and e.source_key = 'payout:' || po.id)) as payouts`;
+         and not exists (select 1 from app.journal_entry_by_key(po.tenant_id, 'payout:' || po.id))) as payouts`;
   return row;
 }
 
@@ -406,14 +413,17 @@ export async function localPayouts(tx: Sql, tenantId: string, gateway: string, t
       }
     }
     if (gross <= 0) continue;
-    const key = `local_po_${tenantId.slice(0, 8)}_${day}`;
+    // A day already paid out that gained charges later gets a payout of its own for them, never a share of the first.
+    const base = `local_po_${tenantId.slice(0, 8)}_${day}`;
+    const [{ n }] = await tx<{ n: number }[]>`select count(*)::int as n from public.payouts where gateway = 'local' and (gateway_payout_id = ${base} or gateway_payout_id like ${`${base}_%`})`;
+    const key = n === 0 ? base : `${base}_${n + 1}`;
     const [inserted] = await tx<{ id: string }[]>`
       insert into public.payouts (tenant_id, gateway, gateway_payout_id, arrived_on, gross_cents, fee_cents, net_cents, status, payload)
       values (${tenantId}, 'local', ${key}, ${addDays(day, 1) > today ? today : addDays(day, 1)}, ${gross}, ${fee}, ${gross - fee}, 'paid', ${tx.json({ charges: batch.length, day })})
-      on conflict (gateway, gateway_payout_id) do nothing returning id`;
-    const payoutId = inserted?.id ?? (await tx<{ id: string }[]>`select id from public.payouts where gateway = 'local' and gateway_payout_id = ${key}`)[0]?.id;
-    if (!payoutId) continue;
-    await tx`update public.payments set payout_id = ${payoutId} where tenant_id = ${tenantId} and id = any(${batch.map((r) => r.id)}::uuid[]) and payout_id is null`;
+      returning id`;
+    const payoutId = inserted.id;
+    const attached = await tx`update public.payments set payout_id = ${payoutId} where tenant_id = ${tenantId} and id = any(${batch.map((r) => r.id)}::uuid[]) and payout_id is null`;
+    if (attached.count !== batch.length) throw Object.assign(new Error("a payout must claim every charge it settles"), { code: "23514" });
     if (await postPayout(tx, tenantId, payoutId)) made += 1;
   }
   return made;
@@ -426,13 +436,20 @@ async function earliestPeriod(tx: Sql, tenantId: string): Promise<string | null>
   return row?.period ?? null;
 }
 
+export type LedgerRunOptions = {
+  /** The period-end reclass reads the journal and posts with gl.write: the job, or a member who has it. */
+  reclass: boolean;
+  /** Local payouts claim payments, which needs billing.write: the job, or a member who has it. */
+  payouts: boolean;
+};
+
 /** The ledger's share of the billing job: the chart, the sweep, local payouts, and a reclass for every ended period still open. */
-export async function runLedger(tx: Sql, tenantId: string, timeZone: string, today: string, gateway: string): Promise<LedgerCounts> {
+export async function runLedger(tx: Sql, tenantId: string, timeZone: string, today: string, gateway: string, options: LedgerRunOptions = { reclass: true, payouts: true }): Promise<LedgerCounts> {
   await ensureChart(tx, tenantId);
   const swept = await sweep(tx, tenantId, timeZone);
-  const local_payouts = await localPayouts(tx, tenantId, gateway, today, timeZone);
+  const local_payouts = options.payouts ? await localPayouts(tx, tenantId, gateway, today, timeZone) : 0;
   let reclasses = 0;
-  const first = await earliestPeriod(tx, tenantId);
+  const first = options.reclass ? await earliestPeriod(tx, tenantId) : null;
   if (first) {
     const closed = await closedPeriods(tx, tenantId);
     const last = lastEndedPeriod(today);
@@ -605,17 +622,24 @@ export async function rollForwardFor(tx: Sql, tenantId: string, range: DateRange
 
 /** The cash-basis view: receipts by their business date, allocated across invoice lines to the line's income account. */
 export async function cashBasisFor(tx: Sql, tenantId: string, range: DateRange, timeZone: string): Promise<CashBasisIncome> {
-  const receipts = await tx<{ payment_id: string; received_at: Date | string; amount_cents: string | number; kind: "payment" | "refund" }[]>`
-    select id as payment_id, received_at, amount_cents, kind from public.payments where tenant_id = ${tenantId} and status in ('succeeded', 'refunded')`;
+  const receipts = await tx<{ payment_id: string; received_at: Date | string; amount_cents: string | number; kind: "payment" | "refund"; refund_of: string | null; released_allocations: { invoice_id: string; cents: number }[] }[]>`
+    select id as payment_id, received_at, amount_cents, kind, refund_of, released_allocations from public.payments where tenant_id = ${tenantId} and status in ('succeeded', 'refunded')`;
   const allocations = await tx<{ payment_id: string; invoice_id: string; amount_cents: string | number }[]>`
     select payment_id, invoice_id, amount_cents from public.payment_allocations where tenant_id = ${tenantId}`;
-  const lines = await tx<{ invoice_id: string; amount_cents: string | number; tax_cents: string | number; service_line: string | null; agreement_id: string | null; kind: "service" | "fee" | "late_fee"; source: string }[]>`
+  const lines = await tx<{ invoice_id: string; amount_cents: string | number; tax_cents: string | number; service_line: string | null; agreement_id: string | null; kind: "service" | "fee" | "late_fee" | "opening"; source: string }[]>`
     select l.invoice_id, l.amount_cents, l.tax_cents, l.service_line, coalesce(l.agreement_id, i.agreement_id) as agreement_id, l.kind, i.source
     from public.invoice_lines l join public.invoices i on i.id = l.invoice_id where l.tenant_id = ${tenantId} and i.status not in ('draft', 'void')`;
   const fees = await tx<{ arrived_on: string; fee_cents: string | number }[]>`select arrived_on, fee_cents from public.payouts where tenant_id = ${tenantId} and status = 'paid'`;
   return cashBasisIncome(
     {
-      receipts: receipts.map((r) => ({ payment_id: r.payment_id, received_on: dateInZone(r.received_at, timeZone), amount_cents: Number(r.amount_cents), kind: r.kind })),
+      receipts: receipts.map((r) => ({
+        payment_id: r.payment_id,
+        received_on: dateInZone(r.received_at, timeZone),
+        amount_cents: Number(r.amount_cents),
+        kind: r.kind,
+        refund_of: r.refund_of,
+        released: (r.released_allocations ?? []).map((x) => ({ invoice_id: x.invoice_id, cents: Number(x.cents) })),
+      })),
       allocations: allocations.map((a) => ({ ...a, amount_cents: Number(a.amount_cents) })),
       lines: lines.map((l) => {
         const account = invoiceLineAccount({ kind: l.kind, agreement_id: l.agreement_id, service_line: l.service_line }, l.source);

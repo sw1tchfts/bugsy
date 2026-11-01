@@ -1,0 +1,5 @@
+external_id,account_external_id,property_external_id,name,role,email,phone,sms_opt_in,preferred_channel,notice_consent_on,notice_consent_note
+C-3001,A-1001,,June Green,primary,jgreen@example.com,(614) 555-0141,yes,sms,,
+C-3002,A-1002,,Harbor View Accounts Payable,billing,ap@harborview.example.com,614-555-0177,no,email,,
+C-3003,,P-2002,Resident Unit 4B,resident,,614-555-0102,no,,,
+C-3004,A-1004,P-2005,Sam Ortiz,primary,owner@cornerbistro.example.com,614.555.0190,no,email,2025-03-02,Signed paper consent on file

@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // CLAUDE.md is this repo's instruction file; do not generate a second one.
   agentRules: false,
+  // Go-live imports upload spreadsheets and the old system's records (spec 10).
+  experimental: { serverActions: { bodySizeLimit: "25mb" } },
   // Tailwind v4 compiles through Turbopack's CSS loader (the create-next-app default for Next 16).
   turbopack: {
     rules: {

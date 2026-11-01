@@ -8,6 +8,7 @@ Fixtures at the top level apply in every state. State fixtures go in `states/<st
 | --- | --- | --- |
 | accounting/agreement-ledger.json | Month-end contract positions for five billing scenarios; installment rounding | 04, 08, 09 |
 | accounting/posting-rules.json | Journal lines for each business event; every entry balances | 09 |
+| import/*.csv and import/expected.json | A go-live import: five templates' sample files, and per agreement the visits done before cutover, the billed-to-date and the opening contract position; the opening invoices | 10 |
 
 Generated values in `agreement-ledger.json` were computed by script and checked by hand. Product names, EPA numbers and the test tax rate are placeholders.
 

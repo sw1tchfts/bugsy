@@ -1,0 +1,82 @@
+{
+  "description": "Expected results of importing the files in fixtures/import/ with the cutover date below. Worked by hand from the agreement planning rules (spec 04) and spec 10 rules 7 to 11; tests load this file, never restate it.",
+  "cutover_on": "2026-10-01",
+  "counts": { "accounts": 4, "properties": 5, "contacts": 4, "agreements": 5, "balances": 3 },
+  "agreements": [
+    {
+      "external_id": "G-1",
+      "visits": 4,
+      "done_sequences": [1, 2, 3],
+      "overdue_sequences": [],
+      "next_due": { "sequence": 4, "due_start": "2026-10-01" },
+      "contract_total_cents": 54000,
+      "default_billed_cents": 40500,
+      "billed_cents": 40500,
+      "delivered_cents": 42000,
+      "opening_position_cents": -1500,
+      "warning": false,
+      "note": "Flat monthly, 12 installments of 4500 from January: nine billed before October. Three visits done (18000 + 12000 + 12000). Fixture scenario A's September position."
+    },
+    {
+      "external_id": "G-2",
+      "visits": 4,
+      "done_sequences": [1, 2],
+      "overdue_sequences": [3],
+      "next_due": { "sequence": 3, "due_start": "2026-09-01" },
+      "contract_total_cents": 45000,
+      "default_billed_cents": 45000,
+      "billed_cents": 45000,
+      "delivered_cents": 25000,
+      "opening_position_cents": 20000,
+      "warning": false,
+      "note": "Annual prepay for the term starting March 1: billed whole before the cutover. The September visit was not done, so it stays planned and overdue."
+    },
+    {
+      "external_id": "G-3",
+      "visits": 12,
+      "done_sequences": [1, 2],
+      "overdue_sequences": [],
+      "next_due": { "sequence": 3, "due_start": "2026-10-01" },
+      "contract_total_cents": 63800,
+      "default_billed_cents": 14800,
+      "billed_cents": 14800,
+      "delivered_cents": 14800,
+      "opening_position_cents": 0,
+      "warning": false,
+      "note": "Per visit: billed equals delivered, so no opening position posts."
+    },
+    {
+      "external_id": "G-4",
+      "visits": 4,
+      "done_sequences": [1],
+      "overdue_sequences": [],
+      "next_due": { "sequence": 2, "due_start": "2026-10-01" },
+      "contract_total_cents": 50000,
+      "default_billed_cents": 12498,
+      "billed_cents": 15000,
+      "delivered_cents": 20000,
+      "opening_position_cents": -5000,
+      "warning": true,
+      "note": "Installments of 4166 (the last 4174): three before October make 12498, but the file says 150.00 was billed, so the row warns and the typed figure is used."
+    },
+    {
+      "external_id": "G-5",
+      "visits": 5,
+      "done_sequences": [1, 2, 3, 4, 5],
+      "overdue_sequences": [],
+      "next_due": null,
+      "contract_total_cents": 39500,
+      "default_billed_cents": 39500,
+      "billed_cents": 39500,
+      "delivered_cents": 39500,
+      "opening_position_cents": 0,
+      "warning": false,
+      "note": "Five seasonal rounds from May 1 to September 30 (starts May 1, May 31, July 1, July 31, August 31), all done by September 20; nothing is overdue in the off-season."
+    }
+  ],
+  "balances": [
+    { "account_external_id": "A-1002", "kind": "invoice", "amount_cents": 45000, "issued_on": "2026-09-30", "due_on": "2026-10-30", "reference": "INV-88812" },
+    { "account_external_id": "A-1004", "kind": "invoice", "amount_cents": 4166, "issued_on": "2026-09-01", "due_on": "2026-09-16", "reference": "INV-88790" },
+    { "account_external_id": "A-1001", "kind": "credit_memo", "amount_cents": -2500, "issued_on": "2026-09-30", "due_on": "2026-09-30", "reference": "CR-1201" }
+  ]
+}

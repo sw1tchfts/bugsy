@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { can } from "@/lib/auth/permissions";
 import { dbAs, requirePermission } from "@/lib/auth/session";
 import { addPaymentMethod, chargeInvoice, createInvoice, ensureSettings, issueInvoice, recordPayment, refundPayment, runBilling, voidInvoice } from "@/lib/billing/db";
 import { intOrNull, opt, str } from "@/lib/customers/forms";
@@ -34,7 +35,7 @@ export async function runBillingNow(formData: FormData) {
   let note: string | null = null;
   let error: string | null = null;
   try {
-    const c = await dbAs(session, (tx) => runBilling(tx, tenantId, active.tenantTimezone, new Date(), session.userId));
+    const c = await dbAs(session, (tx) => runBilling(tx, tenantId, active.tenantTimezone, new Date(), session.userId, { reclass: can(active.permissions, "gl.write"), payouts: true }));
     const posted = c.ledger.invoices + c.ledger.voids + c.ledger.visits + c.ledger.product_uses + c.ledger.payments + c.ledger.refunds + c.ledger.payouts + c.ledger.local_payouts + c.ledger.reclasses;
     note = `Job run: ${c.visits + c.installments + c.prepayments} invoice(s) issued, ${c.charged} autopay charge(s), ${c.failed} failed, ${c.statuses} status change(s), ${c.late_fees} late fee(s), ${posted} journal entr${posted === 1 ? "y" : "ies"} posted by the sweep.`;
   } catch (err) {

@@ -60,6 +60,10 @@ The compliance job is idempotent and meant to run hourly. On Vercel, a cron call
 
 The billing job is idempotent too and meant to run daily after midnight in each company's zone, hourly is fine. On Vercel, a cron calls `POST /api/billing/run` with the `x-billing-secret` header set to `BILLING_RUN_SECRET` (it falls back to `COMPLIANCE_RUN_SECRET`); locally the script above does the same, and anyone with billing write access can press "Run the billing job now" on the Billing page for their own company. It issues per-visit invoices for completed stops, the installments and prepayments whose dates have come, applies unallocated credit, charges autopay on due dates with retries on the configured days, marks invoices past due after the grace period, and adds late fees. It ends with the ledger's work (spec 09): a sweep that posts any business event still without its journal entry, the local gateway's payouts for the previous days' card money, and the period-end reclass for every ended month still open.
 
+### Go-live import
+
+Settings, Import takes the five CSV templates (download them from the page) and a go-live date. A dry run shows every row error and writes nothing; Import writes everything or nothing. `fixtures/import/` holds a sample set, and each demo company was seeded by importing it with go-live 2026-10-01, so the agreements G-1 to G-5 show visits done before Bugsy and opening contract balances.
+
 ### Payments locally
 
 Without `STRIPE_SECRET_KEY` the gateway is the local one: the same flows, ids and webhook shapes as Stripe Connect, with nothing leaving the machine and no card data kept (only brand, last four and expiry). Test numbers for the office's "add a payment method" form:

@@ -1,0 +1,5 @@
+external_id,name,type,email,phone,terms_days,po_required,billing_line1,billing_city,billing_state,billing_postal_code,notes
+A-1001,Green Residence,residential,jgreen@example.com,(614) 555-0141,0,no,,,,,Moved from the old system
+A-1002,Harbor View Apartments,property_manager,ap@harborview.example.com,614-555-0177,30,yes,200 Harbor Way,Columbus,OH,43215,Net 30; PO on every invoice
+A-1003,Patel Family,residential,,6145550123,,,,,,,
+A-1004,Corner Bistro,commercial,owner@cornerbistro.example.com,614.555.0190,15,no,77 High St,Columbus,OH,43215,

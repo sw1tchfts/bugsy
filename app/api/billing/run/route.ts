@@ -35,6 +35,6 @@ export async function POST(request: Request) {
   const { active } = await resolveActiveTenant(session);
   if (!active) return new NextResponse("no company", { status: 403 });
   if (!can(active.permissions, "billing.write")) return new NextResponse("billing.write needed", { status: 403 });
-  const counts = await dbAs(session, (tx) => runBilling(tx, active.tenantId, active.tenantTimezone, new Date(), session.userId));
+  const counts = await dbAs(session, (tx) => runBilling(tx, active.tenantId, active.tenantTimezone, new Date(), session.userId, { reclass: can(active.permissions, "gl.write"), payouts: true }));
   return NextResponse.json({ ok: true, counts });
 }

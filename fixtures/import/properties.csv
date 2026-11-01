@@ -1,0 +1,6 @@
+external_id,account_external_id,name,line1,line2,city,state,postal_code,property_type,size_sqft,lot_sqft,unit_count,access_notes
+P-2001,A-1001,Home,"412 Elm St",,Columbus,OH,43201,house,1850,6500,,Side gate code 4411
+P-2002,A-1002,Building A,200 Harbor Way,,Columbus,OH,43215,apartment_building,,,24,Office keys at the front desk
+P-2003,A-1002,Building B,210 Harbor Way,,Columbus,OH,43215,apartment_building,,,18,
+P-2004,A-1003,Home,"88 Maple Ave, Unit 2",,Columbus,oh,43205,townhouse,1400,,,
+P-2005,A-1004,Restaurant,77 High St,,Columbus,OH,43215,restaurant,2600,,,Service after 2 pm

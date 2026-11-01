@@ -49,6 +49,7 @@ type Visit = {
   interior_only: boolean;
   reservice_reason: string | null;
   completed_at: string | null;
+  imported: boolean;
 };
 
 type Change = { id: string; old_recurring_price_cents: string; new_recurring_price_cents: string; effective_on: string; reason: string; notified_at: string | null; created_at: string };
@@ -84,7 +85,7 @@ export default async function AgreementPage({ params, searchParams }: { params: 
         left join public.cancel_reasons cr on cr.id = a.cancel_reason_id
       where a.id = ${agreementId} and a.tenant_id = ${tenantId}`;
     const visits = await tx<Visit[]>`
-      select id, kind, sequence, due_start, due_end, scheduled_for, status, price_cents, interior_only, reservice_reason, completed_at
+      select id, kind, sequence, due_start, due_end, scheduled_for, status, price_cents, interior_only, reservice_reason, completed_at, imported
       from public.visits where agreement_id = ${agreementId} and tenant_id = ${tenantId} order by due_start, sequence`;
     const changes = await tx<Change[]>`
       select id, old_recurring_price_cents, new_recurring_price_cents, effective_on, reason, notified_at, created_at
@@ -218,7 +219,7 @@ export default async function AgreementPage({ params, searchParams }: { params: 
         ) : (
           <Table headers={["#", "Kind", "Due window", "Scheduled", "Status", "Price", ""]}>
             {visits.map((v) => (
-              <tr key={v.id} className={v.status === "cancelled" ? "text-stone-400" : ""}>
+              <tr key={v.id} className={v.status === "cancelled" ? "text-stone-400" : ""} data-testid="agreement-visit">
                 <td className="py-2 pr-4 tabular-nums">
                   <Link href={`/dispatch/visits/${v.id}`} className="underline" aria-label={`Visit ${v.sequence} on the dispatch board`}>
                     {v.sequence}
@@ -233,7 +234,8 @@ export default async function AgreementPage({ params, searchParams }: { params: 
                 </td>
                 <td className="py-2 pr-4">{v.scheduled_for ? formatBusinessDate(v.scheduled_for) : ""}</td>
                 <td className="py-2 pr-4">
-                  <Badge tone={VISIT_TONE[v.status]}>{VISIT_STATUS_LABELS[v.status]}</Badge>
+                  {v.imported ? <Badge>done before Bugsy</Badge> : <Badge tone={VISIT_TONE[v.status]}>{VISIT_STATUS_LABELS[v.status]}</Badge>}
+                  {!v.imported && v.status === "planned" && v.due_end < today ? <span className="ml-1 text-xs text-red-800">overdue</span> : null}
                 </td>
                 <td className="py-2 pr-4 tabular-nums">{formatCents(v.price_cents)}</td>
                 <td className="py-2 pr-4">{v.interior_only ? <Badge>interior only</Badge> : null}</td>

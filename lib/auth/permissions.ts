@@ -48,6 +48,7 @@ export const PERMISSION_GROUPS = [
     permissions: [
       { key: "settings.read", label: "View company settings and branches" },
       { key: "settings.write", label: "Edit company settings, branches and roles" },
+      { key: "data.import", label: "Import spreadsheets at go-live" },
       { key: "users.read", label: "View users and invitations" },
       { key: "users.write", label: "Invite, change and remove users" },
       { key: "audit.read", label: "View the audit trail" },

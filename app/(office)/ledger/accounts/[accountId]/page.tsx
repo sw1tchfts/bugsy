@@ -1,22 +1,26 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Button, Card, Empty, Field, Input, Table } from "@/components/ui";
+import { Button, Card, Empty, Field, Input, Notice, Table, errorMessage } from "@/components/ui";
+import { can } from "@/lib/auth/permissions";
 import { dbAs, requirePermission } from "@/lib/auth/session";
 import { formatBusinessDate, todayInZone } from "@/lib/dates";
 import { normalBalance } from "@/lib/ledger/chart";
 import { accountLedger, accounts } from "@/lib/ledger/db";
 import { formatCents } from "@/lib/money";
 import { requireActiveTenant } from "@/lib/tenancy/active-tenant";
+import { saveAccount } from "../../actions";
 import { SOURCE_LABELS, rangeFromParams, signed } from "../../helpers";
 
 export const metadata: Metadata = { title: "Account ledger" };
 
-export default async function AccountLedgerPage({ params, searchParams }: { params: Promise<{ accountId: string }>; searchParams: Promise<{ from?: string; to?: string }> }) {
+export default async function AccountLedgerPage({ params, searchParams }: { params: Promise<{ accountId: string }>; searchParams: Promise<{ from?: string; to?: string; error?: string }> }) {
   const { session, active } = await requireActiveTenant();
   await requirePermission(active.tenantId, "gl.read");
   const { accountId } = await params;
-  const range = rangeFromParams(await searchParams, todayInZone(active.tenantTimezone));
+  const query = await searchParams;
+  const range = rangeFromParams(query, todayInZone(active.tenantTimezone));
+  const canWrite = can(active.permissions, "gl.write");
   const data = await dbAs(session, async (tx) => {
     const account = (await accounts(tx, active.tenantId)).find((a) => a.id === accountId);
     if (!account) return null;
@@ -42,6 +46,33 @@ export default async function AccountLedgerPage({ params, searchParams }: { para
       <p className="text-sm text-stone-600">
         {data.account.type}, {data.account.subtype.replace("_", " ")}. Balances read the way this account carries them.
       </p>
+      {query.error ? <Notice kind="error">{errorMessage(query.error)}</Notice> : null}
+      {canWrite ? (
+        <Card title="Number and name" description={data.account.system ? "A template account: its role stays and it stays active; the number and name are yours." : "A custom account: deactivate it to stop new postings."}>
+          <form action={saveAccount} className="grid gap-3 sm:grid-cols-4">
+            <input type="hidden" name="tenant_id" value={active.tenantId} />
+            <input type="hidden" name="account_id" value={data.account.id} />
+            <Field label="Number" htmlFor="edit-number">
+              <Input id="edit-number" name="number" inputMode="numeric" defaultValue={data.account.number} required />
+            </Field>
+            <Field label="Name" htmlFor="edit-name">
+              <Input id="edit-name" name="name" defaultValue={data.account.name} required />
+            </Field>
+            {data.account.system ? (
+              <input type="hidden" name="active" value="true" />
+            ) : (
+              <label className="flex items-end gap-2 pb-2 text-sm">
+                <input type="checkbox" name="active" value="false" defaultChecked={!data.account.active} /> Inactive
+              </label>
+            )}
+            <div className="flex items-end">
+              <Button type="submit" variant="secondary">
+                Save account
+              </Button>
+            </div>
+          </form>
+        </Card>
+      ) : null}
       <Card title="Range">
         <form method="get" className="grid gap-3 sm:grid-cols-4">
           <Field label="From" htmlFor="from">

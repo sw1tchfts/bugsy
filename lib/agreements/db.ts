@@ -218,7 +218,16 @@ export async function settlementFor(tx: Sql, tenantId: string, agreementId: stri
     .map((v) => ({ kind: v.kind as "initial" | "recurring", sequence: v.sequence, due_start: v.due_start, due_end: v.due_end, price_cents: Number(v.price_cents), interior_only: false }));
   const recognizedCents = visits.filter((v) => v.status === "completed").reduce((sum, v) => sum + Number(v.price_cents), 0);
   const schedule = billingSchedule(agreement, plan);
-  const billedCents = agreement.billing_mode === "per_visit" ? recognizedCents : billedThrough(schedule, effectiveOn);
+  // An imported agreement: the old system billed imported_billed_cents before the cutover, Bugsy its schedule from
+  // the cutover on (spec 10 rules 8 and 10).
+  const [imported] = await tx<{ cutover_on: string | null; imported_billed_cents: string | number | null }[]>`
+    select cutover_on, imported_billed_cents from public.agreements where id = ${agreementId} and tenant_id = ${tenantId}`;
+  const billedCents =
+    agreement.billing_mode === "per_visit"
+      ? recognizedCents
+      : imported?.cutover_on
+        ? Number(imported.imported_billed_cents ?? 0) + billedThrough(schedule.filter((e) => e.date >= (imported.cutover_on as string)), effectiveOn)
+        : billedThrough(schedule, effectiveOn);
   return { ...settlementPreview({ billedCents, recognizedCents, cancelFeeCents: agreement.cancel_fee_cents }), billedCents, recognizedCents, schedule };
 }
 

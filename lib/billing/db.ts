@@ -11,7 +11,7 @@ import { settlementDocuments } from "@/lib/billing/settlement";
 import { type Statement, type StatementAllocation, type StatementInvoice, type StatementPayment, statement } from "@/lib/billing/statement";
 import { type TaxClass, type TaxRate, ratesInForce, taxClassFor, taxForLine } from "@/lib/billing/tax";
 import { addDays, addMonths, dateInZone, todayInZone } from "@/lib/dates";
-import { type LedgerCounts, postInvoice, postPayment, postRefund, postVoid, runLedger, tenantTimeZone } from "@/lib/ledger/db";
+import { type LedgerCounts, type LedgerRunOptions, postInvoice, postPayment, postRefund, postVoid, runLedger, tenantTimeZone } from "@/lib/ledger/db";
 import { gatewayFor } from "@/lib/payments";
 import { platformFeeBps } from "@/lib/payments/gateway";
 
@@ -71,8 +71,8 @@ export type LineDraft = {
   /** When set, the service type's tax class for the property's state decides the tax; otherwise the line is not taxed. */
   service_type_id?: string | null;
   service_line?: string | null;
-  /** What the line is, for the ledger: service (the default), a cancellation fee, or a late fee. */
-  kind?: "service" | "fee" | "late_fee";
+  /** What the line is, for the ledger: service (the default), a cancellation fee, a late fee, or an opening balance. */
+  kind?: "service" | "fee" | "late_fee" | "opening";
 };
 
 export type InvoiceDraft = {
@@ -81,10 +81,14 @@ export type InvoiceDraft = {
   property_id: string | null;
   agreement_id?: string | null;
   visit_id?: string | null;
-  source: "visit" | "installment" | "prepay" | "settlement" | "late_fee" | "manual";
+  source: "visit" | "installment" | "prepay" | "settlement" | "late_fee" | "manual" | "opening";
   source_key: string;
   /** The business date the invoice is issued on; the draft stays a draft when `issue` is false. */
   issued_on: string;
+  /** An opening balance keeps the old invoice's due date instead of the account's terms (spec 10 rule 11). */
+  due_on?: string | null;
+  /** The old system's invoice number. */
+  external_ref?: string | null;
   memo?: string | null;
   po_number?: string | null;
   lines: LineDraft[];
@@ -151,6 +155,7 @@ export async function createInvoice(tx: Sql, tenantId: string, draft: InvoiceDra
       memo: draft.memo ?? null,
       source: draft.source,
       source_key: draft.source_key,
+      external_ref: draft.external_ref ?? null,
       tax_unconfirmed: lines.some((l) => l.tax_class === "unknown"),
     })}
     on conflict (tenant_id, source_key) do nothing returning id`;
@@ -176,18 +181,19 @@ export async function createInvoice(tx: Sql, tenantId: string, draft: InvoiceDra
       tax_cents: l.tax_cents,
     })}`;
   }
-  // A PO-required account keeps the invoice as a draft until the office puts the PO number on it (rule 6).
-  if (draft.issue && !(ctx.account.po_required && !draft.po_number)) await issueInvoice(tx, tenantId, row.id, draft.issued_on);
+  // A PO-required account keeps the invoice as a draft until the office puts the PO number on it (rule 6); an opening
+  // balance was the old system's invoice and issues as it was.
+  if (draft.issue && (draft.source === "opening" || !(ctx.account.po_required && !draft.po_number))) await issueInvoice(tx, tenantId, row.id, draft.issued_on, draft.due_on ?? null);
   return { id: row.id, created: true };
 }
 
 /** Draft to issued: tax recomputed for the issue date, then the number and due date come from the trigger. */
-export async function issueInvoice(tx: Sql, tenantId: string, invoiceId: string, issuedOn: string): Promise<boolean> {
-  const [inv] = await tx<{ status: string; account_id: string; property_id: string | null; terms_days: number; po_number: string | null; kind: string }[]>`
-    select status, account_id, property_id, terms_days, po_number, kind from public.invoices where id = ${invoiceId} and tenant_id = ${tenantId}`;
+export async function issueInvoice(tx: Sql, tenantId: string, invoiceId: string, issuedOn: string, dueOnOverride: string | null = null): Promise<boolean> {
+  const [inv] = await tx<{ status: string; account_id: string; property_id: string | null; terms_days: number; po_number: string | null; kind: string; source: string }[]>`
+    select status, account_id, property_id, terms_days, po_number, kind, source from public.invoices where id = ${invoiceId} and tenant_id = ${tenantId}`;
   if (!inv || inv.status !== "draft") return false;
   const [account] = await tx<{ po_required: boolean; terms_days: number }[]>`select po_required, terms_days from public.accounts where id = ${inv.account_id}`;
-  if (account?.po_required && !inv.po_number) throw Object.assign(new Error("this account needs a PO number on every invoice"), { code: "23514" });
+  if (account?.po_required && !inv.po_number && inv.source !== "opening") throw Object.assign(new Error("this account needs a PO number on every invoice"), { code: "23514" });
   const lines = await tx<{ id: string; description: string; amount_cents: string | number; agreement_id: string | null; visit_id: string | null; service_type_id: string | null; service_line: string | null }[]>`
     select id, description, amount_cents, agreement_id, visit_id, service_type_id, service_line from public.invoice_lines where invoice_id = ${invoiceId} order by position`;
   const ctx = await taxContext(tx, tenantId, inv.account_id, inv.property_id, issuedOn, lines.map((l) => l.service_type_id).filter((id): id is string => Boolean(id)));
@@ -198,7 +204,7 @@ export async function issueInvoice(tx: Sql, tenantId: string, invoiceId: string,
   const totals = invoiceTotals(taxed);
   await tx`
     update public.invoices
-    set status = 'issued', issued_on = ${issuedOn}, due_on = ${dueOn(issuedOn, account?.terms_days ?? inv.terms_days)}, terms_days = ${account?.terms_days ?? inv.terms_days},
+    set status = 'issued', issued_on = ${issuedOn}, due_on = ${dueOnOverride ?? dueOn(issuedOn, account?.terms_days ?? inv.terms_days)}, terms_days = ${account?.terms_days ?? inv.terms_days},
         subtotal_cents = ${totals.subtotal_cents}, tax_cents = ${totals.tax_cents}, total_cents = ${totals.total_cents}, tax_unconfirmed = ${taxed.some((l) => l.tax_class === "unknown")}
     where id = ${invoiceId} and tenant_id = ${tenantId} and status = 'draft'`;
   // The books follow in the same transaction (spec 09 rule 2).
@@ -227,16 +233,18 @@ type VisitForInvoice = {
   departed_at: string | null;
   completed_at: string | null;
   status: string;
+  imported: boolean;
 };
 
 /** The per-visit invoice at completion (rule 2): only priced visits on per-visit agreements, or one-time visits. */
 export async function invoiceForVisit(tx: Sql, tenantId: string, visitId: string, timeZone: string): Promise<{ id: string; created: boolean } | null> {
   const [v] = await tx<VisitForInvoice[]>`
     select v.id, v.sequence, v.kind, v.price_cents, v.account_id, v.property_id, v.agreement_id, v.service_type_id, st.name as service_type_name, st.service_line,
-           ag.billing_mode, v.departed_at, v.completed_at, v.status
+           ag.billing_mode, v.departed_at, v.completed_at, v.status, v.imported
     from public.visits v join public.service_types st on st.id = v.service_type_id left join lateral app.visit_agreement(v.id) ag on true
     where v.id = ${visitId} and v.tenant_id = ${tenantId}`;
-  if (!v || v.status !== "completed" || Number(v.price_cents) <= 0) return null;
+  // A visit done before Bugsy was billed by the old system (spec 10 rule 8).
+  if (!v || v.status !== "completed" || v.imported || Number(v.price_cents) <= 0) return null;
   // The completion runs under the technician's session, which cannot read agreements: app.visit_agreement answers for
   // the crew. An agreement whose mode is still unknown is not billed per visit.
   if (v.agreement_id && v.billing_mode !== "per_visit") return null;
@@ -262,12 +270,12 @@ async function plannedFor(tx: Sql, tenantId: string, agreementId: string): Promi
     .map((v) => ({ kind: v.kind as "initial" | "recurring", sequence: v.sequence, due_start: v.due_start, due_end: v.due_end, price_cents: Number(v.price_cents), interior_only: false }));
 }
 
-type AgreementBilling = { id: string; number: number; account_id: string; property_id: string; service_type_id: string; service_type_name: string; service_line: string; billing_mode: string; starts_on: string; term_months: number; renewals: number; signed_at: string | null; cancelled_on: string | null };
+type AgreementBilling = { id: string; number: number; account_id: string; property_id: string; service_type_id: string; service_type_name: string; service_line: string; billing_mode: string; starts_on: string; term_months: number; renewals: number; signed_at: string | null; cancelled_on: string | null; cutover_on: string | null };
 
 /** Signed agreements on the mode, cancelled ones included: their installments up to the cancellation date still bill (rule 3). */
 async function agreementsToBill(tx: Sql, tenantId: string, mode: "flat_monthly" | "annual_prepay", agreementId: string | null = null): Promise<AgreementBilling[]> {
   return tx<AgreementBilling[]>`
-    select a.id, a.number, a.account_id, a.property_id, a.service_type_id, st.name as service_type_name, st.service_line, a.billing_mode, a.starts_on, a.term_months, a.renewals, a.signed_at, a.cancelled_on
+    select a.id, a.number, a.account_id, a.property_id, a.service_type_id, st.name as service_type_name, st.service_line, a.billing_mode, a.starts_on, a.term_months, a.renewals, a.signed_at, a.cancelled_on, a.cutover_on
     from public.agreements a join public.service_types st on st.id = a.service_type_id
     where a.tenant_id = ${tenantId} and a.billing_mode = ${mode} and a.status in ('active', 'ended', 'cancelled') and a.signed_at is not null
       and (${agreementId}::uuid is null or a.id = ${agreementId}::uuid)`;
@@ -282,6 +290,8 @@ export async function issueInstallments(tx: Sql, tenantId: string, today: string
     const count = schedule.length;
     for (const due of installmentsDue(a.id, schedule, today)) {
       if (a.cancelled_on && due.date > a.cancelled_on) continue;
+      // Installments before an imported agreement's go-live were billed by the old system (spec 10 rule 8).
+      if (a.cutover_on && due.date < a.cutover_on) continue;
       const made = await createInvoice(tx, tenantId, {
         account_id: a.account_id,
         property_id: a.property_id,
@@ -311,6 +321,7 @@ export async function issuePrepayments(tx: Sql, tenantId: string, today: string,
       const issuedOn = termStart > signedOn ? termStart : signedOn;
       if (total <= 0 || issuedOn > today) continue;
       if (a.cancelled_on && termStart > a.cancelled_on) continue;
+      if (a.cutover_on && termStart < a.cutover_on) continue;
       const made = await createInvoice(tx, tenantId, {
         account_id: a.account_id,
         property_id: a.property_id,
@@ -527,15 +538,18 @@ export async function refundPayment(
   }
   // The invoices this payment covered give the money back, newest allocation first, unless a credit memo already did.
   let left = options.keepAllocations ? 0 : amountCents;
-  const allocations = await tx<{ id: string; amount_cents: string | number }[]>`select id, amount_cents from public.payment_allocations where payment_id = ${paymentId} order by created_at desc`;
+  const released: { invoice_id: string; cents: number }[] = [];
+  const allocations = await tx<{ id: string; invoice_id: string; amount_cents: string | number }[]>`select id, invoice_id, amount_cents from public.payment_allocations where payment_id = ${paymentId} order by created_at desc`;
   for (const a of allocations) {
     if (left <= 0) break;
     const amount = Number(a.amount_cents);
     if (amount <= left) {
       await tx`delete from public.payment_allocations where id = ${a.id}`;
+      released.push({ invoice_id: a.invoice_id, cents: amount });
       left -= amount;
     } else {
       await tx`update public.payment_allocations set amount_cents = ${amount - left} where id = ${a.id}`;
+      released.push({ invoice_id: a.invoice_id, cents: left });
       left = 0;
     }
   }
@@ -553,6 +567,7 @@ export async function refundPayment(
       received_at: new Date(),
       recorded_by: recordedBy,
       memo,
+      released_allocations: tx.json(released),
     })} returning id`;
   if (Number(p.refunded) + amountCents >= Number(p.amount_cents)) await tx`update public.payments set status = 'refunded' where id = ${paymentId}`;
   await postRefund(tx, tenantId, refund.id, await tenantTimeZone(tx, tenantId));
@@ -622,7 +637,7 @@ export async function applyLateFees(tx: Sql, tenantId: string, settings: Setting
   if (settings.late_fee_cents <= 0 && Number(settings.late_fee_percent) <= 0) return 0;
   const pastDue = await tx<{ id: string; number: number | null; account_id: string; property_id: string | null; agreement_id: string | null; total_cents: string | number; paid_cents: string | number }[]>`
     select id, number, account_id, property_id, agreement_id, total_cents, paid_cents from public.invoices
-    where tenant_id = ${tenantId} and kind = 'invoice' and status = 'past_due' and source <> 'late_fee'`;
+    where tenant_id = ${tenantId} and kind = 'invoice' and status = 'past_due' and source not in ('late_fee', 'opening')`;
   let created = 0;
   for (const inv of pastDue) {
     const fee = lateFee(Number(inv.total_cents) - Number(inv.paid_cents), settings);
@@ -695,13 +710,20 @@ export async function settleCancellation(tx: Sql, tenantId: string, agreementId:
 export type BillingCounts = { visits: number; installments: number; prepayments: number; allocated_cents: number; charged: number; failed: number; skipped: number; statuses: number; late_fees: number; ledger: LedgerCounts };
 
 /** The billing job: idempotent, safe every hour (spec 08). */
-export async function runBilling(tx: Sql, tenantId: string, timeZone: string, now = new Date(), recordedBy: string | null = null): Promise<BillingCounts> {
+export async function runBilling(
+  tx: Sql,
+  tenantId: string,
+  timeZone: string,
+  now = new Date(),
+  recordedBy: string | null = null,
+  ledger: LedgerRunOptions = { reclass: true, payouts: true },
+): Promise<BillingCounts> {
   const settings = await ensureSettings(tx, tenantId);
   const today = dateInZone(now, timeZone);
   const counts: BillingCounts = { visits: 0, installments: 0, prepayments: 0, allocated_cents: 0, charged: 0, failed: 0, skipped: 0, statuses: 0, late_fees: 0, ledger: { invoices: 0, voids: 0, visits: 0, product_uses: 0, unpriced: 0, payments: 0, refunds: 0, payouts: 0, local_payouts: 0, reclasses: 0 } };
   const unbilled = await tx<{ id: string }[]>`
     select v.id from public.visits v left join public.agreements a on a.id = v.agreement_id
-    where v.tenant_id = ${tenantId} and v.status = 'completed' and v.price_cents > 0 and (a.id is null or a.billing_mode = 'per_visit')
+    where v.tenant_id = ${tenantId} and v.status = 'completed' and not v.imported and v.price_cents > 0 and (a.id is null or a.billing_mode = 'per_visit')
       and not exists (select 1 from public.invoices i where i.tenant_id = v.tenant_id and i.source_key = 'visit:' || v.id)`;
   for (const v of unbilled) {
     const made = await invoiceForVisit(tx, tenantId, v.id, timeZone);
@@ -720,7 +742,7 @@ export async function runBilling(tx: Sql, tenantId: string, timeZone: string, no
   counts.statuses = await refreshStatuses(tx, tenantId, settings, today);
   counts.late_fees = await applyLateFees(tx, tenantId, settings, today);
   // The ledger's share of the job (spec 09): anything the inline postings missed, payouts, and period-end reclasses.
-  counts.ledger = await runLedger(tx, tenantId, timeZone, today, settings.gateway);
+  counts.ledger = await runLedger(tx, tenantId, timeZone, today, settings.gateway, ledger);
   return counts;
 }
 

@@ -27,7 +27,7 @@ export default async function LedgerPage({ searchParams }: { searchParams: Promi
     unpriced: await unpricedUsage(tx, tenantId),
     month: await trialBalanceFor(tx, tenantId, { from: startOfMonth(today), to: endOfMonth(today) }),
   }));
-  const pending = data.unposted.invoices + data.unposted.visits + data.unposted.payments + data.unposted.payouts;
+  const pending = data.unposted.invoices + data.unposted.voids + data.unposted.visits + data.unposted.payments + data.unposted.payouts;
   const lastClosed = data.periods.find((p) => p.status === "closed");
 
   return (
@@ -69,7 +69,7 @@ export default async function LedgerPage({ searchParams }: { searchParams: Promi
             {pending}
           </p>
           <p className="text-xs text-stone-500">
-            {data.unposted.invoices} invoice(s), {data.unposted.visits} visit(s), {data.unposted.payments} payment(s), {data.unposted.payouts} payout(s)
+            {data.unposted.invoices} invoice(s), {data.unposted.voids} void(s), {data.unposted.visits} visit(s), {data.unposted.payments} payment(s), {data.unposted.payouts} payout(s)
           </p>
         </div>
         <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">

@@ -1,0 +1,6 @@
+external_id,account_external_id,property_external_id,service_type,cadence,billing_mode,starts_on,term_months,first_visit_on,initial_price,recurring_price,auto_renew,cancel_fee,rounds,season_start,season_end,last_service_on,billed_to_date,notes
+G-1,A-1001,P-2001,General pest plan,quarterly,flat_monthly,2026-01-01,12,2026-01-15,180.00,120.00,yes,,,,,2026-07-20,,Quarterly exterior
+G-2,A-1002,P-2002,General pest plan,quarterly,annual_prepay,3/1/2026,12,3/10/2026,$150.00,$100.00,yes,,,,,6/12/2026,,Prepaid each March
+G-3,A-1003,P-2004,General pest plan,monthly,per_visit,2026-08-01,12,2026-08-05,99,49,no,,,,,2026-09-08,,
+G-4,A-1004,P-2005,Rodent control program,quarterly,flat_monthly,2026-07-01,12,2026-07-01,200.00,100.00,yes,50.00,,,,2026-07-02,150.00,Bait stations around the dumpster pad
+G-5,A-1003,P-2004,Mosquito and tick season,seasonal_rounds,per_visit,2026-04-01,12,2026-05-01,79.00,79.00,no,,5,2026-05-01,2026-09-30,2026-09-20,,
